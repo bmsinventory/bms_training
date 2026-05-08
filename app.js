@@ -11,11 +11,15 @@ let categories=[];
 let trainers=[],venues=[],departments=[],prefixes=[];
 let sessions=[];
 let registrations=[];
+let locations=[];
 let nextId=1,nextSessId=1,nextCatId=1;
 let selectedCatId=null,selectedSessId=null,sessFilt='all';
 let scanStream=null,scanInterval=null,scanLog=[];
 let isAdminLoggedIn=false;
-const ADMIN_CREDS=[{user:'admin',pass:'1234'}];
+let adminUsers=[];
+let currentAdminUser=null;
+const NOTIFY_API_KEY='54f4fa05-bfb9-4ac5-930d-93e942e36786';
+const currentSite=new URLSearchParams(location.search).get('site')||'theme_1';
 
 /* ══════════════════════════════════════════════
    SUPABASE
@@ -29,6 +33,29 @@ let masterIds={trainer:[],venue:[],dept:[],prefix:[]};
 const _mCat=r=>({id:r.id,name:r.name,desc:r.description||'',icon:r.icon||'box',color:r.color||'blue'});
 const _mSess=r=>({id:r.id,catId:r.cat_id,name:r.name,date:r.date,timeStart:r.time_start,timeEnd:r.time_end,venue:r.venue||'',trainer:r.trainer||'',capacity:r.capacity});
 const _mReg=r=>({id:r.id,sessionId:r.session_id,prefix:r.prefix||'',fname:r.fname,lname:r.lname,position:r.position||'',dept:r.dept||'',regDate:r.reg_date,attended:r.attended||false,attendedTime:r.attended_time||null});
+
+async function pushNotify(reg){
+  if(!NOTIFY_API_KEY)return;
+  const s=getSess(reg.sessionId);
+  const dateStr=s?fmtDate(s.date):'-';
+  const timeStr=s?`${s.timeStart} - ${s.timeEnd} น.`:'-';
+  const lines=[
+    '📢 มีผู้ลงทะเบียนใหม่',
+    `👤 ชื่อ-สกุล: ${reg.prefix}${reg.fname} ${reg.lname}`,
+    `💼 ตำแหน่ง: ${reg.position||'-'}`,
+    `🏢 หน่วยงาน: ${reg.dept||'-'}`,
+    `📚 หัวข้อ: ${s?s.name:'-'}`,
+    `📅 เวลา: ${dateStr} เวลา ${timeStr}`,
+  ];
+  try{
+    await fetch('https://api-notify.bmscloud.in.th/api/v1/push-notify',{
+      method:'POST',
+      headers:{'Token':NOTIFY_API_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({content:lines.join('\n'),receiver:null})
+    });
+  }catch(e){}
+}
+
 const ICON_LIST=[
   'box','boxes','package','package-import','package-export','packages',
   'truck','truck-delivery','truck-loading','truck-return',
@@ -71,6 +98,28 @@ const capBadge=p=>{
   if(p>=75)return'<span class="badge badge-warn"><i class="ti ti-alert-triangle"></i>ใกล้เต็ม</span>';
   return'<span class="badge badge-success"><i class="ti ti-circle-check"></i>มีที่ว่าง</span>';
 };
+/* ── Category card helpers ── */
+const WMS_TAGS=['PR','PO','Stock','Lot','Exp','WMS','QR','Card','Manual','Real time','LAB','ERP','HR'];
+function extractTags(text){return WMS_TAGS.filter(t=>(text||'').includes(t)).slice(0,5);}
+function calcDuration(ts,te){
+  if(!ts||!te)return'';
+  const[sh,sm]=(ts||'09:00').split(':').map(Number);
+  const[eh,em]=(te||'16:00').split(':').map(Number);
+  const h=Math.floor(((eh*60+em)-(sh*60+sm))/60);
+  const rm=((eh*60+em)-(sh*60+sm))%60;
+  return h+(rm?'.5':'')+' ชม.';
+}
+let catSearchTxt='',catStatusFilter='all';
+function filterCats(){
+  catSearchTxt=document.getElementById('cat-search').value.toLowerCase();
+  renderCategories();
+}
+function setCatFilter(val,el){
+  catStatusFilter=val;
+  document.querySelectorAll('.cat-filter-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  renderCategories();
+}
 const nowTime=()=>new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
 const sessTxt=s=>s?`${s.timeStart||''} – ${s.timeEnd||''} น.`:'';
 function findDupReg(fname,lname,catId,excludeRegId=null){
@@ -92,16 +141,20 @@ function canEditReg(reg){
 /* ══════════════════ DB INIT ══════════════════ */
 function setLoading(on){document.getElementById('app-loading').classList.toggle('hidden',!on);}
 async function loadAllData(){
-  const [cR,sR,rR,mR]=await Promise.all([
-    _sb.from('categories').select('*').order('id'),
-    _sb.from('sessions').select('*').order('id'),
+  const [cR,sR,rR,mR,lR,auR]=await Promise.all([
+    _sb.from('categories').select('*').eq('site',currentSite).order('id'),
+    _sb.from('sessions').select('*').eq('site',currentSite).order('id'),
     _sb.from('registrations').select('*').order('id'),
-    _sb.from('master_items').select('*').order('type,sort_order,id'),
+    _sb.from('master_items').select('*').eq('site',currentSite).order('type,sort_order,id'),
+    _sb.from('locations').select('*').order('id'),
+    _sb.from('admin_users').select('id,username,created_at').order('id'),
   ]);
-  if(cR.error||sR.error||rR.error||mR.error)throw new Error('โหลดข้อมูลล้มเหลว');
+  if(cR.error||sR.error||rR.error||mR.error||lR.error||auR.error)throw new Error('โหลดข้อมูลล้มเหลว');
   categories=(cR.data||[]).map(_mCat);
   sessions=(sR.data||[]).map(_mSess);
   registrations=(rR.data||[]).map(_mReg);
+  locations=(lR.data||[]);
+  adminUsers=(auR.data||[]);
   const ms=mR.data||[];
   trainers=ms.filter(m=>m.type==='trainer').map(m=>m.value);
   venues=ms.filter(m=>m.type==='venue').map(m=>m.value);
@@ -117,6 +170,8 @@ async function initApp(){
   try{await loadAllData();}
   catch(e){console.error(e);showToast('โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ','danger');}
   setLoading(false);
+  const badge=document.getElementById('nav-site-badge');
+  if(badge){const loc=locations.find(l=>l.code===currentSite);badge.textContent=loc?loc.name:currentSite;}
   renderCategories();
 }
 
@@ -148,19 +203,23 @@ function toggleLoginPass(){
   if(inp.type==='password'){inp.type='text';icon.className='ti ti-eye-off';}
   else{inp.type='password';icon.className='ti ti-eye';}
 }
-function adminLogin(){
+async function adminLogin(){
   const u=document.getElementById('login-user').value.trim();
   const p=document.getElementById('login-pass').value;
-  const ok=ADMIN_CREDS.some(c=>c.user===u&&c.pass===p);
-  if(ok){
+  const btn=document.querySelector('#modal-admin-login .btn-primary');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i>กำลังตรวจสอบ...';}
+  const {data,error}=await _sb.from('admin_users').select('id,username').eq('username',u).eq('password',p).maybeSingle();
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-login"></i>เข้าสู่ระบบ';}
+  if(data&&!error){
     isAdminLoggedIn=true;
+    currentAdminUser=data;
     closeModal('modal-admin-login');
     document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
     document.getElementById('page-admin').classList.add('active');
     document.getElementById('tab-admin').classList.add('active');
     renderAdmin();
-    showToast('ยินดีต้อนรับ เข้าสู่ระบบ Admin','success');
+    showToast(`ยินดีต้อนรับ ${data.username}`,'success');
   } else {
     const errEl=document.getElementById('login-error');
     document.getElementById('login-error-msg').textContent='ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
@@ -171,8 +230,221 @@ function adminLogin(){
 }
 function adminLogout(){
   isAdminLoggedIn=false;
+  currentAdminUser=null;
   showPage('register');
   showToast('ออกจากระบบ Admin แล้ว','info');
+}
+/* ══════════════════ DATA IMPORT ══════════════════ */
+const IMPORT_CFG={
+  trainer:{label:'วิทยากร',   cols:['วิทยากร'],
+    sample:[['ทีม WMS Support'],['คุณสมชาย ใจดี'],['คุณวิไล รักษา']]},
+  venue:  {label:'สถานที่',   cols:['สถานที่'],
+    sample:[['ห้องอบรม A'],['ห้องอบรม B'],['ออนไลน์ (Zoom)']]},
+  dept:   {label:'แผนก',      cols:['แผนก'],
+    sample:[['คลังสินค้า'],['จัดซื้อ'],['ขนส่ง / โลจิสติกส์']]},
+  prefix: {label:'คำนำหน้า', cols:['คำนำหน้า'],
+    sample:[['นาย'],['นาง'],['นางสาว']]},
+  category:{label:'ประเภทการอบรม',
+    cols:['ชื่อประเภท *','คำอธิบาย','ไอคอน','สี (blue/teal/amber/red/purple/green)'],
+    sample:[['การรับสินค้า (Receiving)','ขั้นตอนรับสินค้าเข้าคลัง','package-import','blue'],
+            ['การจัดเก็บ (Putaway)','การจัดวาง Bin Location','archive','teal']]},
+  session:{label:'รอบอบรม',
+    cols:['ประเภท (ชื่อ) *','ชื่อรอบ *','วันที่ (YYYY-MM-DD) *','เวลาเริ่ม','เวลาจบ','สถานที่','วิทยากร','จำนวนที่นั่ง'],
+    sample:[['การรับสินค้า (Receiving)','รอบที่ 1','2026-06-10','09:00','16:00','ห้องอบรม A','ทีม WMS Support','20'],
+            ['การรับสินค้า (Receiving)','รอบที่ 2','2026-06-11','13:00','16:00','ห้องอบรม B','คุณสมชาย ใจดี','15']]},
+};
+let _importRows=[];
+function openImportModal(){
+  document.getElementById('import-type').value='trainer';
+  document.getElementById('import-file-input').value='';
+  document.getElementById('import-preview-area').style.display='none';
+  document.getElementById('import-submit-btn').style.display='none';
+  document.getElementById('import-clear').checked=false;
+  _importRows=[];
+  _resetDropzone();
+  document.getElementById('modal-import').classList.add('open');
+}
+function _resetDropzone(){
+  document.getElementById('import-dropzone').innerHTML=`
+    <input type="file" id="import-file-input" accept=".csv" style="display:none;" onchange="onImportFileChange(event)">
+    <i class="ti ti-file-spreadsheet" style="font-size:32px;"></i>
+    <div style="font-weight:600;font-size:14px;">คลิกหรือลากไฟล์ CSV มาวางที่นี่</div>
+    <div style="font-size:12px;opacity:.7;">รองรับเฉพาะไฟล์ .csv (UTF-8 หรือ UTF-8 BOM)</div>`;
+}
+function onImportTypeChange(){
+  document.getElementById('import-preview-area').style.display='none';
+  document.getElementById('import-submit-btn').style.display='none';
+  _importRows=[];
+  _resetDropzone();
+}
+function downloadImportTemplate(){
+  const type=document.getElementById('import-type').value;
+  const cfg=IMPORT_CFG[type];
+  const escape=v=>v.includes(',')||v.includes('"')?`"${v.replace(/"/g,'""')}"`:v;
+  let csv='﻿'+cfg.cols.map(escape).join(',')+'\n';
+  cfg.sample.forEach(row=>{csv+=row.map(escape).join(',')+'\n';});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=`template_${type}.csv`;a.click();
+  showToast(`ดาวน์โหลด template_${type}.csv สำเร็จ`,'success');
+}
+function onImportFileChange(e){const f=e.target.files[0];if(f)_readImportFile(f);}
+function onImportFileDrop(e){
+  const f=e.dataTransfer.files[0];
+  if(f&&f.name.toLowerCase().endsWith('.csv'))_readImportFile(f);
+  else showToast('กรุณาเลือกไฟล์ .csv','danger');
+}
+function _readImportFile(file){
+  const r=new FileReader();
+  r.onload=e=>_processImportCSV(e.target.result,file.name);
+  r.readAsText(file,'UTF-8');
+}
+function _parseCSV(text){
+  text=text.replace(/^﻿/,'');
+  return text.split(/\r?\n/).filter(l=>l.trim()).map(line=>{
+    const cols=[];let cur='',inQ=false;
+    for(const c of line){
+      if(c==='"')inQ=!inQ;
+      else if(c===','&&!inQ){cols.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    cols.push(cur.trim());return cols;
+  });
+}
+function _processImportCSV(text,filename){
+  const type=document.getElementById('import-type').value;
+  const all=_parseCSV(text);
+  if(all.length<2){showToast('ไฟล์ไม่มีข้อมูล หรือมีแค่ header','warn');return;}
+  _importRows=_validateRows(all.slice(1),type);
+  _renderImportPreview();
+  document.getElementById('import-preview-area').style.display='block';
+  document.getElementById('import-submit-btn').style.display='flex';
+  refreshImportStats();
+  const ok=_importRows.filter(r=>r.status==='ok').length;
+  const dz=document.getElementById('import-dropzone');
+  dz.innerHTML=`<input type="file" id="import-file-input" accept=".csv" style="display:none;" onchange="onImportFileChange(event)">
+    <i class="ti ti-circle-check" style="font-size:28px;color:var(--success);"></i>
+    <div style="font-weight:600;font-size:14px;color:var(--success);">${filename} — ${_importRows.length} แถว</div>
+    <div style="font-size:12px;color:var(--text-muted);">คลิกเพื่อเลือกไฟล์ใหม่</div>`;
+}
+function _validateRows(rows,type){
+  const MASTER_TYPES=['trainer','venue','dept','prefix'];
+  return rows.map((row,i)=>{
+    const r={row:i+2,raw:row,status:'ok',note:'',value:null};
+    if(MASTER_TYPES.includes(type)){
+      const val=(row[0]||'').trim();
+      if(!val){r.status='error';r.note='ค่าว่าง';return r;}
+      if(MASTER_CFG[type].list().includes(val)){r.status='dup';r.note='มีอยู่แล้ว';}
+      r.value=val;
+    } else if(type==='category'){
+      const name=(row[0]||'').trim();
+      if(!name){r.status='error';r.note='ชื่อว่าง';return r;}
+      if(categories.find(c=>c.name.toLowerCase()===name.toLowerCase())){r.status='dup';r.note='ชื่อซ้ำ';}
+      r.value={name,desc:(row[1]||'').trim(),icon:(row[2]||'box').trim()||'box',color:(row[3]||'blue').trim()||'blue'};
+    } else if(type==='session'){
+      const catName=(row[0]||'').trim(),sessName=(row[1]||'').trim(),date=(row[2]||'').trim();
+      if(!catName||!sessName||!date){r.status='error';r.note='ข้อมูลจำเป็นไม่ครบ';return r;}
+      const cat=categories.find(c=>c.name===catName);
+      if(!cat){r.status='error';r.note=`ไม่พบประเภท "${catName}"`;return r;}
+      if(sessions.find(s=>s.catId===cat.id&&s.name===sessName)){r.status='dup';r.note='รอบนี้มีอยู่แล้ว';}
+      r.value={catId:cat.id,name:sessName,date,
+        timeStart:(row[3]||'09:00').trim()||'09:00',timeEnd:(row[4]||'16:00').trim()||'16:00',
+        venue:(row[5]||'').trim(),trainer:(row[6]||'').trim(),capacity:parseInt(row[7])||20};
+    }
+    return r;
+  });
+}
+function refreshImportStats(){
+  const clear=document.getElementById('import-clear').checked;
+  const ok=_importRows.filter(r=>r.status==='ok').length;
+  const dup=_importRows.filter(r=>r.status==='dup').length;
+  const err=_importRows.filter(r=>r.status==='error').length;
+  const toImport=clear?ok+dup:ok;
+  document.getElementById('import-stats').innerHTML=`
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <span style="background:var(--bg);padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">รวม ${_importRows.length} แถว</span>
+      <span style="background:#dcfce7;color:#166534;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;"><i class="ti ti-circle-plus"></i> ใหม่ ${ok}</span>
+      <span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;"><i class="ti ti-copy"></i> ซ้ำ ${dup}</span>
+      ${err?`<span style="background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;"><i class="ti ti-alert-circle"></i> Error ${err}</span>`:''}
+    </div>`;
+  document.getElementById('import-mode-info').innerHTML=clear
+    ?`<i class="ti ti-trash" style="color:var(--danger);"></i> จะ<strong>ลบข้อมูลเดิมทั้งหมด</strong>แล้วนำเข้า <strong>${toImport} รายการ</strong> (รวมรายการซ้ำ)`
+    :`<i class="ti ti-git-merge" style="color:var(--primary);"></i> จะเพิ่ม <strong>${toImport} รายการใหม่</strong> — ข้ามรายการซ้ำ ${dup} รายการ`;
+  const btn=document.getElementById('import-submit-btn');
+  btn.innerHTML=`<i class="ti ti-table-import"></i>นำเข้า ${toImport} รายการ`;
+  btn.disabled=toImport===0;
+}
+function _renderImportPreview(){
+  const type=document.getElementById('import-type').value;
+  const cfg=IMPORT_CFG[type];
+  const SC={ok:'#f0fdf4',dup:'#fefce8',error:'#fff1f2'};
+  const SL={ok:'#166534',dup:'#92400e',error:'#991b1b'};
+  const SN={ok:'ใหม่',dup:'ซ้ำ',error:'Error'};
+  const show=_importRows.slice(0,15);
+  let html=`<table style="width:100%;border-collapse:collapse;min-width:400px;">
+    <thead><tr style="background:var(--bg);position:sticky;top:0;">
+      <th style="padding:7px 10px;text-align:center;font-size:11px;color:var(--text-muted);white-space:nowrap;">#</th>
+      ${cfg.cols.map(c=>`<th style="padding:7px 10px;text-align:left;font-size:11px;color:var(--text-muted);white-space:nowrap;">${c.replace(' *','')}</th>`).join('')}
+      <th style="padding:7px 10px;text-align:center;font-size:11px;color:var(--text-muted);">สถานะ</th>
+    </tr></thead><tbody>`;
+  show.forEach(r=>{
+    html+=`<tr style="background:${SC[r.status]};">
+      <td style="padding:5px 10px;text-align:center;color:var(--text-muted);font-size:11px;">${r.row}</td>
+      ${cfg.cols.map((_,i)=>`<td style="padding:5px 10px;font-size:12px;">${r.raw[i]||''}</td>`).join('')}
+      <td style="padding:5px 10px;text-align:center;"><span style="background:${SC[r.status]};color:${SL[r.status]};border:1px solid ${SL[r.status]}33;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">${r.note||SN[r.status]}</span></td>
+    </tr>`;
+  });
+  if(_importRows.length>15)html+=`<tr><td colspan="${cfg.cols.length+2}" style="padding:8px;text-align:center;color:var(--text-muted);font-size:11px;">... และอีก ${_importRows.length-15} แถว</td></tr>`;
+  html+='</tbody></table>';
+  document.getElementById('import-preview-table').innerHTML=html;
+}
+async function executeImport(){
+  const type=document.getElementById('import-type').value;
+  const clear=document.getElementById('import-clear').checked;
+  const toImport=clear?_importRows.filter(r=>r.status!=='error'):_importRows.filter(r=>r.status==='ok');
+  if(!toImport.length){showToast('ไม่มีรายการที่จะนำเข้า','warn');return;}
+  const btn=document.getElementById('import-submit-btn');
+  btn.disabled=true;
+  btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite;"></i>กำลังนำเข้า...';
+  try{
+    if(clear)await _clearImportType(type);
+    await _insertImportRows(type,toImport);
+    await loadAllData();
+    closeModal('modal-import');
+    renderAdmin();
+    showToast(`นำเข้า ${toImport.length} รายการสำเร็จ`,'success');
+  }catch(e){
+    showToast('นำเข้าไม่สำเร็จ: '+e.message,'danger');
+    btn.disabled=false;refreshImportStats();
+  }
+}
+async function _clearImportType(type){
+  const MASTER=['trainer','venue','dept','prefix'];
+  let err;
+  if(MASTER.includes(type)){
+    ({error:err}=await _sb.from('master_items').delete().eq('type',type));
+  } else if(type==='category'){
+    ({error:err}=await _sb.from('categories').delete().gte('id',1));
+  } else if(type==='session'){
+    ({error:err}=await _sb.from('sessions').delete().gte('id',1));
+  }
+  if(err)throw new Error(err.message);
+}
+async function _insertImportRows(type,rows){
+  const MASTER=['trainer','venue','dept','prefix'];
+  let error;
+  if(MASTER.includes(type)){
+    const cur=MASTER_CFG[type].list();
+    ({error}=await _sb.from('master_items').upsert(
+      rows.map((r,i)=>({type,value:r.value,sort_order:cur.length+i,site:currentSite})),
+      {onConflict:'type,value,site',ignoreDuplicates:true}
+    ));
+  } else if(type==='category'){
+    ({error}=await _sb.from('categories').insert(rows.map(r=>({name:r.value.name,description:r.value.desc,icon:r.value.icon,color:r.value.color,site:currentSite}))));
+  } else if(type==='session'){
+    ({error}=await _sb.from('sessions').insert(rows.map(r=>({cat_id:r.value.catId,name:r.value.name,date:r.value.date,time_start:r.value.timeStart,time_end:r.value.timeEnd,venue:r.value.venue,trainer:r.value.trainer,capacity:r.value.capacity,site:currentSite}))));
+  }
+  if(error)throw new Error(error.message);
 }
 function switchCheckinTab(tab, el){
   document.querySelectorAll('.checkin-subtab').forEach(t=>t.classList.remove('active'));
@@ -218,33 +490,82 @@ function setStep(n){
 
 /* ══════════════════ REGISTER ══════════════════ */
 function renderCategories(){
-  document.getElementById('cat-grid').innerHTML=categories.map(c=>{
+  const today=new Date().toISOString().split('T')[0];
+  // filter by search + status
+  let list=categories.filter(c=>{
+    if(catSearchTxt){
+      const hay=(c.name+' '+(c.desc||'')).toLowerCase();
+      if(!hay.includes(catSearchTxt))return false;
+    }
+    if(catStatusFilter==='all')return true;
+    const cs=sessions.filter(s=>s.catId===c.id);
+    const totalCap=cs.reduce((a,s)=>a+s.capacity,0);
+    const totalReg=cs.reduce((a,s)=>a+getCount(s.id),0);
+    const pct=totalCap?totalReg/totalCap*100:0;
+    if(catStatusFilter==='full')return pct>=100;
+    if(catStatusFilter==='near')return pct>=60&&pct<100;
+    if(catStatusFilter==='avail')return pct<60;
+    return true;
+  });
+  const grid=document.getElementById('cat-grid');
+  const empty=document.getElementById('cat-empty');
+  if(!list.length){grid.innerHTML='';if(empty)empty.classList.add('show');return;}
+  if(empty)empty.classList.remove('show');
+  grid.innerHTML=list.map(c=>{
     const cm=CM[c.color]||CM.blue;
     const cs=sessions.filter(s=>s.catId===c.id);
     const totalCap=cs.reduce((a,s)=>a+s.capacity,0);
     const totalReg=cs.reduce((a,s)=>a+getCount(s.id),0);
     const avSess=cs.filter(s=>getCount(s.id)<s.capacity).length;
+    const avSeats=cs.reduce((a,s)=>a+Math.max(0,s.capacity-getCount(s.id)),0);
     const fillPct=totalCap?Math.round(totalReg/totalCap*100):0;
-    const fillColor=fillPct>=100?'#ef4444':fillPct>=75?'#f97316':fillPct>=40?'#f59e0b':'#10b981';
-    const avBadge=avSess>0
-      ?`<span style="background:var(--success-light);color:#065f46;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;"><i class="ti ti-calendar-check" style="vertical-align:-1px;font-size:11px;"></i> ${avSess} รอบว่าง</span>`
-      :`<span style="background:var(--danger-light);color:#991b1b;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;"><i class="ti ti-lock" style="vertical-align:-1px;font-size:11px;"></i> เต็มทุกรอบ</span>`;
-    return`<div class="cat-card" onclick="selectCategory(${c.id})">
-      <div class="cat-card-top">
-        <div class="cat-icon-wrap" style="background:${cm.bg};color:${cm.c};"><i class="ti ti-${c.icon}"></i></div>
+    const fillColor=fillPct>=100?'#DC2626':fillPct>=75?'#D97706':fillPct>=40?'#F59E0B':'#059669';
+    // next available session
+    const nextSess=cs.filter(s=>s.date>=today&&getCount(s.id)<s.capacity)
+      .sort((a,b)=>a.date.localeCompare(b.date))[0];
+    // duration from first session
+    const durSet=[...new Set(cs.map(s=>calcDuration(s.timeStart,s.timeEnd)).filter(Boolean))];
+    const durTxt=durSet.length===1?durSet[0]:durSet.length?durSet[0]+'+':'';
+    // unique trainers
+    const utrain=[...new Set(cs.map(s=>s.trainer).filter(Boolean))];
+    // tags from description
+    const tags=extractTags(c.name+' '+(c.desc||''));
+    const tagsHtml=tags.map(t=>`<span class="cat-tag">${t}</span>`).join('');
+    // status badge
+    const avBadge=fillPct>=100
+      ?`<span class="cat-avbadge full"><i class="ti ti-lock"></i>เต็มแล้ว</span>`
+      :fillPct>=75
+        ?`<span class="cat-avbadge near"><i class="ti ti-alert-circle"></i>ใกล้เต็ม</span>`
+        :`<span class="cat-avbadge avail"><i class="ti ti-circle-check"></i>${avSess} รอบว่าง</span>`;
+    const canReg=avSess>0;
+    return`<div class="cat-card" onclick="${canReg?`selectCategory(${c.id})`:''}">
+      <div class="cat-card-header" style="background:linear-gradient(140deg,${cm.bg} 0%,#fff 75%);">
+        <div class="cat-card-hrow">
+          <div class="cat-icon-wrap" style="background:${cm.c}1A;color:${cm.c};"><i class="ti ti-${c.icon}"></i></div>
+          ${avBadge}
+        </div>
         <div class="cat-name">${c.name}</div>
-        <div class="cat-desc">${c.desc}</div>
+        <div class="cat-desc">${c.desc||'—'}</div>
+        ${tagsHtml?`<div class="cat-tags">${tagsHtml}</div>`:''}
       </div>
       <div class="cat-cap-wrap">
-        <div class="cat-cap-bar"><div class="cat-cap-fill" style="width:${Math.min(fillPct,100)}%;background:${fillColor};"></div></div>
-        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text-muted);">
-          <span>ลงทะเบียน ${totalReg}/${totalCap} คน</span>
-          <span>${fillPct}%</span>
+        <div class="cat-progress-meta">
+          <span style="font-size:12px;color:var(--text-muted);">ลงทะเบียน <strong style="color:var(--text);">${totalReg}</strong>/${totalCap} คน</span>
+          <span style="font-size:12px;font-weight:700;color:${fillColor};">${fillPct}%</span>
         </div>
+        <div class="cat-cap-bar"><div class="cat-cap-fill" style="width:${Math.min(fillPct,100)}%;background:${fillColor};"></div></div>
+        ${avSeats>0?`<div class="cat-seats-left">เหลือ <strong>${avSeats}</strong> ที่นั่งว่าง${nextSess?` · ถัดไป ${fmtDateShort(nextSess.date)}`:''}</div>`:''}
       </div>
-      <div class="cat-card-bottom">
-        <div class="cat-stat"><i class="ti ti-calendar-event"></i><strong>${cs.length}</strong> รอบ</div>
-        ${avBadge}
+      <div class="cat-stats">
+        <div class="cat-stat-item"><i class="ti ti-calendar-event"></i><strong>${cs.length}</strong>&nbsp;รอบ</div>
+        <div class="cat-stat-item"><i class="ti ti-users"></i><strong>${totalCap}</strong>&nbsp;ที่นั่ง</div>
+        ${durTxt?`<div class="cat-stat-item"><i class="ti ti-clock"></i><strong>${durTxt}</strong></div>`:''}
+      </div>
+      <div class="cat-cta">
+        ${canReg
+          ?`<button class="cat-cta-btn" onclick="selectCategory(${c.id});event.stopPropagation()">เลือกรอบอบรม <i class="ti ti-arrow-right"></i></button>`
+          :`<button class="cat-cta-btn disabled" disabled><i class="ti ti-lock"></i> เต็มทุกรอบแล้ว</button>`
+        }
       </div>
     </div>`;
   }).join('');
@@ -364,6 +685,7 @@ async function submitReg(){
   registrations.push(nr);
   closeModal('modal-register');renderSessionList();renderCategories();
   showToast(`ลงทะเบียนสำเร็จ! ${prefix}${fname} ${lname}`,'success');
+  pushNotify(nr);
   setTimeout(()=>showQR(nr.id),600);
 }
 
@@ -903,7 +1225,7 @@ function renderAdmin(){
   const catOpts='<option value="">ทุกประเภท</option>'+categories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
   ['admin-filter-cat'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=catOpts;});
   document.getElementById('admin-filter-sess').innerHTML='<option value="">ทุกรอบ</option>'+sessions.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-  renderAdminSessions();renderMasters();renderAdminRegs();
+  renderAdminSessions();renderMasters();renderAdminRegs();renderAdminLocations();renderAdminUsers();
 }
 function renderAdminCats(){
   document.getElementById('admin-cat-tbody').innerHTML=categories.map(c=>{
@@ -978,7 +1300,7 @@ async function addMaster(key){
   if(!val){showToast('กรุณาระบุข้อมูล','danger');return;}
   const arr=cfg.list();
   if(arr.includes(val)){showToast('มีข้อมูลนี้อยู่แล้ว','danger');return;}
-  const {data,error}=await _sb.from('master_items').insert({type:key,value:val,sort_order:arr.length}).select().single();
+  const {data,error}=await _sb.from('master_items').insert({type:key,value:val,sort_order:arr.length,site:currentSite}).select().single();
   if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
   cfg.setList([...arr,val]);
   masterIds[key]=[...(masterIds[key]||[]),data.id];
@@ -1088,7 +1410,7 @@ async function submitSession(){
     Object.assign(s,{catId,name,date,timeStart,timeEnd,venue,trainer,capacity:cap});
     showToast('แก้ไขรอบสำเร็จ','success');
   } else {
-    const {data,error}=await _sb.from('sessions').insert({cat_id:catId,name,date,time_start:timeStart,time_end:timeEnd,venue,trainer,capacity:cap}).select().single();
+    const {data,error}=await _sb.from('sessions').insert({cat_id:catId,name,date,time_start:timeStart,time_end:timeEnd,venue,trainer,capacity:cap,site:currentSite}).select().single();
     if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
     sessions.push(_mSess(data));
     showToast('เพิ่มรอบอบรมสำเร็จ','success');
@@ -1154,7 +1476,7 @@ function selectIcon(name){
 async function submitAddCat(){
   const name=document.getElementById('nc-name').value.trim();
   if(!name){showToast('กรุณาระบุชื่อประเภท','danger');return;}
-  const payload={name,description:document.getElementById('nc-desc').value.trim(),icon:document.getElementById('nc-icon').value.trim()||'box',color:document.getElementById('nc-color').value};
+  const payload={name,description:document.getElementById('nc-desc').value.trim(),icon:document.getElementById('nc-icon').value.trim()||'box',color:document.getElementById('nc-color').value,site:currentSite};
   const editId=document.getElementById('nc-edit-id').value;
   if(editId){
     const {error}=await _sb.from('categories').update(payload).eq('id',parseInt(editId));
@@ -1180,6 +1502,162 @@ async function deleteCat(id){
   registrations=registrations.filter(r=>!sids.includes(r.sessionId));
   categories=categories.filter(c=>c.id!==id);
   renderAdmin();showToast('ลบประเภทสำเร็จ','success');
+}
+
+/* ══ LOCATIONS ══ */
+function renderAdminLocations(){
+  const el=document.getElementById('loc-list');
+  if(!el)return;
+  if(!locations.length){
+    el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);">ยังไม่มีสาขา</div>';
+    return;
+  }
+  el.innerHTML=locations.map(l=>`
+    <div class="master-item" id="loc-row-${l.id}">
+      <div style="display:flex;gap:8px;align-items:center;flex:1;flex-wrap:wrap;">
+        <code style="background:var(--bg);padding:2px 8px;border-radius:6px;font-size:12px;color:var(--primary);border:1px solid var(--border);white-space:nowrap;">${l.code}</code>
+        <span style="font-weight:500;">${l.name}</span>
+        <span style="font-size:11px;color:var(--text-muted);">?site=${l.code}</span>
+        ${l.code===currentSite?'<span style="font-size:11px;background:var(--success-light);color:var(--success);padding:1px 7px;border-radius:20px;font-weight:600;">สาขาปัจจุบัน</span>':''}
+      </div>
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-ghost btn-sm" onclick="editLocInline(${l.id})"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="deleteLoc(${l.id})"${l.code===currentSite?' disabled title="ไม่สามารถลบสาขาที่กำลังใช้งาน"':''}><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`).join('');
+}
+function editLocInline(id){
+  const loc=locations.find(l=>l.id===id);if(!loc)return;
+  const el=document.getElementById(`loc-row-${id}`);if(!el)return;
+  el.innerHTML=`
+    <div style="display:flex;gap:6px;flex:1;align-items:center;flex-wrap:wrap;">
+      <input class="form-control" id="loc-inp-code-${id}" value="${loc.code}" placeholder="รหัสสาขา" style="width:140px;height:32px;font-size:13px;">
+      <input class="form-control" id="loc-inp-name-${id}" value="${loc.name}" placeholder="ชื่อสาขา" style="flex:1;min-width:120px;height:32px;font-size:13px;"
+        onkeydown="if(event.key==='Enter')saveLocInline(${id});if(event.key==='Escape')renderAdminLocations();">
+    </div>
+    <div style="display:flex;gap:4px;">
+      <button class="btn btn-success btn-sm" onclick="saveLocInline(${id})"><i class="ti ti-check"></i></button>
+      <button class="btn btn-ghost btn-sm" onclick="renderAdminLocations()"><i class="ti ti-x"></i></button>
+    </div>`;
+  document.getElementById(`loc-inp-name-${id}`).focus();
+}
+async function saveLocInline(id){
+  const code=document.getElementById(`loc-inp-code-${id}`).value.trim().toLowerCase();
+  const name=document.getElementById(`loc-inp-name-${id}`).value.trim();
+  if(!code||!name){showToast('กรุณาระบุรหัสและชื่อสาขา','danger');return;}
+  if(!/^[a-z0-9_-]+$/.test(code)){showToast('รหัสสาขาใช้ได้เฉพาะ a-z 0-9 - _','danger');return;}
+  if(locations.find(l=>l.code===code&&l.id!==id)){showToast('รหัสสาขานี้มีอยู่แล้ว','danger');return;}
+  const {error}=await _sb.from('locations').update({code,name}).eq('id',id);
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  const loc=locations.find(l=>l.id===id);
+  if(loc){loc.code=code;loc.name=name;}
+  renderAdminLocations();showToast('แก้ไขสาขาสำเร็จ','success');
+}
+async function addLocation(){
+  const codeEl=document.getElementById('new-loc-code');
+  const nameEl=document.getElementById('new-loc-name');
+  const code=codeEl.value.trim().toLowerCase();
+  const name=nameEl.value.trim();
+  if(!code||!name){showToast('กรุณาระบุรหัสและชื่อสาขา','danger');return;}
+  if(!/^[a-z0-9_-]+$/.test(code)){showToast('รหัสสาขาใช้ได้เฉพาะ a-z 0-9 - _','danger');return;}
+  if(locations.find(l=>l.code===code)){showToast('รหัสสาขานี้มีอยู่แล้ว','danger');return;}
+  const {data,error}=await _sb.from('locations').insert({code,name}).select().single();
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  locations.push(data);
+  codeEl.value='';nameEl.value='';
+  renderAdminLocations();showToast(`เพิ่มสาขา "${name}" สำเร็จ`,'success');
+}
+async function deleteLoc(id){
+  const loc=locations.find(l=>l.id===id);if(!loc)return;
+  if(loc.code===currentSite){showToast('ไม่สามารถลบสาขาที่กำลังใช้งาน','danger');return;}
+  if(!confirm(`ลบสาขา "${loc.name}" ?\n(ข้อมูลหลักสูตร/รอบของสาขานี้จะไม่ถูกลบ)`))return;
+  const {error}=await _sb.from('locations').delete().eq('id',id);
+  if(error){showToast('ลบไม่สำเร็จ','danger');return;}
+  locations=locations.filter(l=>l.id!==id);
+  renderAdminLocations();showToast(`ลบสาขา "${loc.name}" สำเร็จ`,'success');
+}
+
+/* ══ ADMIN USERS ══ */
+function renderAdminUsers(){
+  const el=document.getElementById('admin-users-list');
+  if(!el)return;
+  if(!adminUsers.length){
+    el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);">ยังไม่มีผู้ใช้งาน</div>';
+    return;
+  }
+  el.innerHTML=adminUsers.map(u=>`
+    <div class="master-item" id="au-row-${u.id}">
+      <div style="display:flex;gap:8px;align-items:center;flex:1;flex-wrap:wrap;">
+        <i class="ti ti-user-shield" style="color:var(--primary);font-size:16px;"></i>
+        <span style="font-weight:500;">${u.username}</span>
+        ${u.id===currentAdminUser?.id?'<span style="font-size:11px;background:var(--success-light);color:var(--success);padding:1px 7px;border-radius:20px;font-weight:600;">กำลังใช้งาน</span>':''}
+      </div>
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-ghost btn-sm" onclick="editAdminUserInline(${u.id})"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAdminUser(${u.id})"
+          ${u.id===currentAdminUser?.id||adminUsers.length<=1?' disabled title="ไม่สามารถลบได้"':''}><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`).join('');
+}
+function editAdminUserInline(id){
+  const user=adminUsers.find(u=>u.id===id);if(!user)return;
+  const el=document.getElementById(`au-row-${id}`);if(!el)return;
+  el.innerHTML=`
+    <div style="display:flex;gap:6px;flex:1;align-items:center;flex-wrap:wrap;">
+      <input class="form-control" id="au-inp-user-${id}" value="${user.username}" placeholder="ชื่อผู้ใช้"
+        style="width:150px;height:32px;font-size:13px;">
+      <input class="form-control" type="password" id="au-inp-pass-${id}" placeholder="รหัสผ่านใหม่ (เว้นว่าง=คงเดิม)"
+        style="flex:1;min-width:180px;height:32px;font-size:13px;"
+        onkeydown="if(event.key==='Enter')saveAdminUserInline(${id});if(event.key==='Escape')renderAdminUsers();">
+    </div>
+    <div style="display:flex;gap:4px;">
+      <button class="btn btn-success btn-sm" onclick="saveAdminUserInline(${id})"><i class="ti ti-check"></i></button>
+      <button class="btn btn-ghost btn-sm" onclick="renderAdminUsers()"><i class="ti ti-x"></i></button>
+    </div>`;
+  document.getElementById(`au-inp-user-${id}`).focus();
+}
+async function saveAdminUserInline(id){
+  const username=document.getElementById(`au-inp-user-${id}`).value.trim();
+  const newPass=document.getElementById(`au-inp-pass-${id}`).value;
+  if(!username){showToast('กรุณาระบุชื่อผู้ใช้','danger');return;}
+  if(adminUsers.find(a=>a.username===username&&a.id!==id)){showToast('ชื่อผู้ใช้นี้มีอยู่แล้ว','danger');return;}
+  const payload={username};
+  if(newPass)payload.password=newPass;
+  const {error}=await _sb.from('admin_users').update(payload).eq('id',id);
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  const user=adminUsers.find(u=>u.id===id);
+  if(user)user.username=username;
+  if(currentAdminUser?.id===id)currentAdminUser.username=username;
+  renderAdminUsers();showToast('แก้ไขผู้ใช้งานสำเร็จ','success');
+}
+async function addAdminUser(){
+  const uEl=document.getElementById('new-au-username');
+  const pEl=document.getElementById('new-au-password');
+  const username=uEl.value.trim();
+  const password=pEl.value;
+  if(!username||!password){showToast('กรุณาระบุชื่อผู้ใช้และรหัสผ่าน','danger');return;}
+  if(adminUsers.find(a=>a.username===username)){showToast('ชื่อผู้ใช้นี้มีอยู่แล้ว','danger');return;}
+  const {data,error}=await _sb.from('admin_users').insert({username,password}).select('id,username,created_at').single();
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  adminUsers.push(data);
+  uEl.value='';pEl.value='';
+  renderAdminUsers();showToast(`เพิ่มผู้ใช้ "${username}" สำเร็จ`,'success');
+}
+async function deleteAdminUser(id){
+  const user=adminUsers.find(u=>u.id===id);if(!user)return;
+  if(user.id===currentAdminUser?.id){showToast('ไม่สามารถลบบัญชีที่กำลังใช้งานอยู่','danger');return;}
+  if(adminUsers.length<=1){showToast('ต้องมีผู้ใช้งานอย่างน้อย 1 คน','danger');return;}
+  if(!confirm(`ลบผู้ใช้ "${user.username}" ?`))return;
+  const {error}=await _sb.from('admin_users').delete().eq('id',id);
+  if(error){showToast('ลบไม่สำเร็จ','danger');return;}
+  adminUsers=adminUsers.filter(u=>u.id!==id);
+  renderAdminUsers();showToast(`ลบผู้ใช้ "${user.username}" สำเร็จ`,'success');
+}
+function toggleNewPass(){
+  const inp=document.getElementById('new-au-password');
+  const icon=document.getElementById('new-au-eye');
+  if(inp.type==='password'){inp.type='text';icon.className='ti ti-eye-off';}
+  else{inp.type='password';icon.className='ti ti-eye';}
 }
 
 /* ══ ADMIN REGS ══ */
@@ -1247,9 +1725,11 @@ async function adminSubmitReg(){
     reg_date:new Date().toISOString().split('T')[0],attended:false
   }).select().single();
   if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
-  registrations.push(_mReg(data));
+  const nr=_mReg(data);
+  registrations.push(nr);
   closeModal('modal-admin-add-reg');renderAdmin();
   showToast(`เพิ่ม ${prefix}${fname} ${lname} สำเร็จ`,'success');
+  pushNotify(nr);
 }
 function adminOpenEditReg(regId){
   const reg=getReg(regId);if(!reg)return;

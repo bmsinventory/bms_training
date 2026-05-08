@@ -22,7 +22,12 @@
 </div>
 
 <nav class="nav">
-  <div class="nav-brand"><i class="ti ti-building-warehouse"></i><span>WMS Training</span></div>
+  <div class="nav-brand">
+    <i class="ti ti-building-hospital"></i>
+    <span>BMS Training</span>
+    <span class="nav-brand-dot"></span>
+    <span class="nav-site-badge" id="nav-site-badge"></span>
+  </div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('register')" id="tab-register">
       <i class="ti ti-pencil-plus"></i><span>ลงทะเบียน</span>
@@ -42,15 +47,34 @@
 <!-- ═══ REGISTER ═══ -->
 <div class="page active" id="page-register">
   <div class="step-bar">
-    <div class="step active" id="step1"><div class="step-num">1</div><div class="step-label">ประเภทอบรม</div></div>
+    <div class="step active" id="step1"><div class="step-num">1</div><div class="step-label">เลือกหลักสูตร</div></div>
     <div class="step-line" id="line1"></div>
-    <div class="step" id="step2"><div class="step-num">2</div><div class="step-label">เลือกรอบ</div></div>
+    <div class="step" id="step2"><div class="step-num">2</div><div class="step-label">เลือกรอบอบรม</div></div>
     <div class="step-line" id="line2"></div>
     <div class="step" id="step3"><div class="step-num">3</div><div class="step-label">กรอกข้อมูล</div></div>
   </div>
   <div id="view-categories">
-    <div class="section-header"><div class="section-title"><i class="ti ti-category"></i>ประเภทการอบรม</div></div>
+    <div class="cat-page-header">
+      <h2 class="cat-page-title"><i class="ti ti-books"></i>หลักสูตรอบรม</h2>
+      <p class="cat-page-sub">เลือกหลักสูตรที่ต้องการ แล้วเลือกรอบและกรอกข้อมูลเพื่อลงทะเบียน</p>
+    </div>
+    <div class="cat-search-bar">
+      <div class="cat-search-wrap">
+        <i class="ti ti-search"></i>
+        <input type="text" id="cat-search" class="cat-search-input" placeholder="ค้นหาหลักสูตร..." oninput="filterCats()">
+      </div>
+      <div class="cat-filter-pills" id="cat-status-pills">
+        <button class="cat-filter-pill active" onclick="setCatFilter('all',this)"><i class="ti ti-layout-grid"></i>ทั้งหมด</button>
+        <button class="cat-filter-pill" onclick="setCatFilter('avail',this)"><i class="ti ti-circle-check"></i>มีที่ว่าง</button>
+        <button class="cat-filter-pill" onclick="setCatFilter('near',this)"><i class="ti ti-alert-circle"></i>ใกล้เต็ม</button>
+        <button class="cat-filter-pill" onclick="setCatFilter('full',this)"><i class="ti ti-lock"></i>เต็มแล้ว</button>
+      </div>
+    </div>
     <div class="cat-grid" id="cat-grid"></div>
+    <div class="cat-empty" id="cat-empty">
+      <i class="ti ti-search-off"></i>
+      <p>ไม่พบหลักสูตรที่ค้นหา</p>
+    </div>
   </div>
   <div id="view-sessions" style="display:none;">
     <button class="back-btn" onclick="goBackToCategories()"><i class="ti ti-arrow-left"></i>เลือกประเภทอื่น</button>
@@ -190,9 +214,14 @@
 <div class="page" id="page-admin">
   <div class="section-header">
     <div class="section-title"><i class="ti ti-settings"></i>Admin</div>
-    <button class="btn btn-ghost btn-sm" onclick="adminLogout()" title="ออกจากระบบ" style="color:var(--danger);gap:6px;">
-      <i class="ti ti-logout"></i>ออกจากระบบ
-    </button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-sm" onclick="openImportModal()" style="gap:6px;" title="นำเข้าข้อมูล CSV">
+        <i class="ti ti-table-import"></i>นำเข้าข้อมูล
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="adminLogout()" title="ออกจากระบบ" style="color:var(--danger);gap:6px;">
+        <i class="ti ti-logout"></i>ออกจากระบบ
+      </button>
+    </div>
   </div>
   <div class="stats-grid" id="admin-stats"></div>
   <div class="admin-tabs">
@@ -200,6 +229,8 @@
     <button class="admin-tab" onclick="switchAdminTab('categories')"><i class="ti ti-category"></i> ประเภท</button>
     <button class="admin-tab" onclick="switchAdminTab('masters')"><i class="ti ti-list"></i> ข้อมูลพื้นฐาน</button>
     <button class="admin-tab" onclick="switchAdminTab('registrations')"><i class="ti ti-users"></i> ผู้ลงทะเบียน</button>
+    <button class="admin-tab" onclick="switchAdminTab('locations')"><i class="ti ti-map-pin"></i> สาขา</button>
+    <button class="admin-tab" onclick="switchAdminTab('users')"><i class="ti ti-users-group"></i> ผู้ใช้งาน</button>
   </div>
 
   <!-- Sessions -->
@@ -286,9 +317,126 @@
       <div class="table-wrap"><table><thead><tr><th>#</th><th>คำนำหน้า</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th>ประเภท</th><th>รอบ</th><th>วันที่ลง</th><th>สถานะ</th><th>QR</th><th>แก้ไข</th><th>ลบ</th></tr></thead><tbody id="admin-reg-tbody"></tbody></table></div>
     </div>
   </div>
+
+  <!-- Locations -->
+  <div class="admin-section" id="asec-locations">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-map-pin"></i>จัดการสาขา</div>
+      </div>
+      <div id="loc-list" style="margin-bottom:16px;"></div>
+      <div style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">เพิ่มสาขาใหม่</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+          <div class="form-group" style="margin-bottom:0;flex:0 0 180px;">
+            <label class="form-label">รหัสสาขา</label>
+            <input class="form-control" id="new-loc-code" placeholder="เช่น theme_3" onkeydown="if(event.key==='Enter')addLocation()">
+          </div>
+          <div class="form-group" style="margin-bottom:0;flex:1;min-width:160px;">
+            <label class="form-label">ชื่อสาขา</label>
+            <input class="form-control" id="new-loc-name" placeholder="เช่น สาขา 3" onkeydown="if(event.key==='Enter')addLocation()">
+          </div>
+          <button class="btn btn-primary" onclick="addLocation()" style="height:40px;"><i class="ti ti-plus"></i>เพิ่มสาขา</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px;display:flex;align-items:center;gap:4px;">
+          <i class="ti ti-info-circle"></i>รหัสสาขาใช้ใน URL: <code style="background:var(--bg);padding:1px 6px;border-radius:4px;font-size:11px;">?site=รหัสสาขา</code> — ใช้ได้เฉพาะ a-z, 0-9, -, _
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Users -->
+  <div class="admin-section" id="asec-users">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-users-group"></i>จัดการผู้ใช้งาน Admin</div>
+      </div>
+      <div id="admin-users-list" style="margin-bottom:16px;"></div>
+      <div style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">เพิ่มผู้ใช้งานใหม่</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+          <div class="form-group" style="margin-bottom:0;flex:0 0 180px;">
+            <label class="form-label">ชื่อผู้ใช้</label>
+            <input class="form-control" id="new-au-username" placeholder="username" onkeydown="if(event.key==='Enter')addAdminUser()">
+          </div>
+          <div class="form-group" style="margin-bottom:0;flex:1;min-width:180px;">
+            <label class="form-label">รหัสผ่าน</label>
+            <div style="position:relative;">
+              <input class="form-control" type="password" id="new-au-password" placeholder="password" style="padding-right:40px;" onkeydown="if(event.key==='Enter')addAdminUser()">
+              <button type="button" onclick="toggleNewPass()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);padding:0;">
+                <i class="ti ti-eye" id="new-au-eye"></i>
+              </button>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addAdminUser()" style="height:40px;"><i class="ti ti-plus"></i>เพิ่มผู้ใช้</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Register Form - Redesigned -->
+<!-- Import Data Modal -->
+<div class="modal-overlay" id="modal-import">
+  <div class="modal" style="max-width:660px;padding:0;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#0f766e,#0d9488);padding:18px 22px;color:#fff;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="background:rgba(255,255,255,.15);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;"><i class="ti ti-table-import"></i></div>
+        <div>
+          <div style="font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.8px;">Admin</div>
+          <div style="font-weight:700;font-size:17px;">นำเข้าข้อมูล (Import CSV)</div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:20px 22px;max-height:68vh;overflow-y:auto;">
+      <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:16px;">
+        <div class="form-group" style="flex:1;margin-bottom:0;">
+          <label class="form-label">ประเภทข้อมูลที่ต้องการนำเข้า</label>
+          <select class="form-control" id="import-type" onchange="onImportTypeChange()">
+            <option value="trainer">วิทยากร</option>
+            <option value="venue">สถานที่</option>
+            <option value="dept">แผนก</option>
+            <option value="prefix">คำนำหน้า</option>
+            <option value="category">ประเภทการอบรม</option>
+            <option value="session">รอบอบรม</option>
+          </select>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="downloadImportTemplate()" style="height:40px;white-space:nowrap;gap:6px;">
+          <i class="ti ti-download"></i>ดาวน์โหลด Template
+        </button>
+      </div>
+      <div id="import-dropzone" class="import-dropzone"
+           onclick="document.getElementById('import-file-input').click()"
+           ondragover="event.preventDefault();this.classList.add('dragover')"
+           ondragleave="this.classList.remove('dragover')"
+           ondrop="event.preventDefault();this.classList.remove('dragover');onImportFileDrop(event)">
+        <input type="file" id="import-file-input" accept=".csv" style="display:none;" onchange="onImportFileChange(event)">
+        <i class="ti ti-file-spreadsheet" style="font-size:32px;"></i>
+        <div style="font-weight:600;font-size:14px;">คลิกหรือลากไฟล์ CSV มาวางที่นี่</div>
+        <div style="font-size:12px;opacity:.7;">รองรับเฉพาะไฟล์ .csv (UTF-8 หรือ UTF-8 BOM)</div>
+      </div>
+      <div id="import-preview-area" style="display:none;margin-top:16px;">
+        <div id="import-stats" style="margin-bottom:10px;"></div>
+        <div id="import-preview-table" style="overflow-x:auto;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;font-size:12px;"></div>
+        <div style="margin-top:12px;padding:12px 14px;background:var(--bg);border-radius:8px;">
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;margin-bottom:8px;">
+            <input type="checkbox" id="import-clear" style="width:16px;height:16px;margin-top:1px;cursor:pointer;" onchange="refreshImportStats()">
+            <div>
+              <div style="font-weight:600;">ลบข้อมูลเดิมทั้งหมดก่อนนำเข้า</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">ถ้าไม่เลือก — จะข้ามรายการที่ซ้ำ เพิ่มเฉพาะรายการใหม่</div>
+            </div>
+          </label>
+          <div id="import-mode-info" style="font-size:12px;padding:6px 10px;border-radius:6px;background:#fff;border:1px solid var(--border);"></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;padding:0 22px 20px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-import')" style="flex:1;"><i class="ti ti-x"></i>ยกเลิก</button>
+      <button class="btn btn-primary" id="import-submit-btn" onclick="executeImport()" style="flex:2;justify-content:center;display:none;gap:6px;"><i class="ti ti-table-import"></i>นำเข้าข้อมูล</button>
+    </div>
+  </div>
+</div>
+
 <!-- Admin Login -->
 <div class="modal-overlay" id="modal-admin-login">
   <div class="modal" style="max-width:380px;padding:0;overflow:hidden;">
