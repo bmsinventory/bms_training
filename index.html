@@ -1,1370 +1,435 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BMS Inventory Training</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Supabase JS Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WMS Training System</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<!-- qrcode-generator: renders directly to table/svg, we'll use it via canvas -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<link rel="stylesheet" href="style.css">
 
-    <style>
-        body { font-family: 'Sarabun', sans-serif; }
-        .material-symbols-outlined { vertical-align: middle; font-size: 1.25em; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .animate-spin { animation: spin 1s linear infinite; }
-        @media print {
-            @page { size: A4; margin: 0; }
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            #print-container { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; display: block !important; background: white !important; z-index: 9999 !important; }
-            .print-page { break-after: page; height: 297mm; }
-            .print-page:last-child { break-after: auto; }
-            .no-print { display: none !important; }
-            .font-print { font-family: 'TH SarabunPSK', 'Sarabun', sans-serif !important; font-size: 14pt !important; line-height: 1.2 !important; }
-            .font-print-head { font-family: 'TH SarabunPSK', 'Sarabun', sans-serif !important; font-size: 16pt !important; font-weight: bold !important; }
-        }
-    </style>
 </head>
-<body class="bg-slate-100 text-slate-800">
-<div id="root"></div>
-
-<script type="text/babel">
-const { useState, useEffect, useMemo, useRef, useCallback } = React;
-
-// ─────────────────────────────────────────────
-// SUPABASE CONFIG (แก้ไขค่าตรงนี้)
-// ─────────────────────────────────────────────
-const DEFAULT_SUPABASE_URL = 'https://aukxjxtuknucflaafwlo.supabase.co';
-const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1a3hqeHR1a251Y2ZsYWFmd2xvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODM3ODksImV4cCI6MjA5MzU1OTc4OX0.WJbGeWu6mjU9BvES8cX9972RvYteUAZyMve8DcKy2mk';
-
-// ─────────────────────────────────────────────
-// Helper Components
-// ─────────────────────────────────────────────
-const Icon = ({ name, className = '' }) => (
-    <span className={`material-symbols-outlined flex-shrink-0 ${className}`}>{name}</span>
-);
-
-const Spinner = () => (
-    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
-);
-
-// ─────────────────────────────────────────────
-// Helper Functions
-// ─────────────────────────────────────────────
-const formatDateTh = (dateString) => {
-    if (!dateString) return '-';
-    try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return dateString;
-        return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
-    } catch { return dateString; }
-};
-
-const formatTimeTh = (t) => {
-    if (!t) return '';
-    if (t.length === 5) return t;
-    try {
-        const d = new Date(t);
-        if (!isNaN(d.getTime())) return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
-        return t.substring(0, 5);
-    } catch { return t; }
-};
-
-const formatTimeRange = (start, end) => {
-    if (!start || !end) return '';
-    return `เวลา ${formatTimeTh(start)} - ${formatTimeTh(end)} น.`;
-};
-
-const uuid = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
-
-// ─────────────────────────────────────────────
-// Supabase REST API wrapper (ไม่ใช้ Apps Script)
-// ─────────────────────────────────────────────
-function createSupabaseClient(url, key) {
-    const headers = {
-        'apikey': key,
-        'Authorization': `Bearer ${key}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-    };
-
-    const request = async (path, method = 'GET', body = null, extra = {}) => {
-        const res = await fetch(`${url}/rest/v1/${path}`, {
-            method,
-            headers: { ...headers, ...extra },
-            body: body ? JSON.stringify(body) : undefined
-        });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.message || `HTTP ${res.status}`);
-        }
-        const text = await res.text();
-        return text ? JSON.parse(text) : [];
-    };
-
-    return {
-        // ─── READ ───
-        getDepartments: () => request('departments?select=*&order=name.asc'),
-        getPrefixes: () => request('prefixes?select=*&order=name.asc'),
-        getSessions: () => request('sessions?select=*&order=date.asc'),
-        getRegistrations: () => request('registrations?select=*&order=created_at.asc'),
-        getAdmins: () => request('admins?select=username,name'),
-
-        // ─── DEPARTMENTS ───
-        addDepartment: (name) => request('departments', 'POST', { id: uuid(), name }),
-        updateDepartment: (id, name) => request(`departments?id=eq.${id}`, 'PATCH', { name }),
-        deleteDepartment: (id) => request(`departments?id=eq.${id}`, 'DELETE'),
-        importDepartments: (items) => request('departments', 'POST', items.map(i => ({ id: uuid(), name: i.name }))),
-
-        // ─── PREFIXES ───
-        addPrefix: (name) => request('prefixes', 'POST', { id: uuid(), name }),
-        deletePrefix: (id) => request(`prefixes?id=eq.${id}`, 'DELETE'),
-
-        // ─── SESSIONS ───
-        addSession: (s) => request('sessions', 'POST', { id: uuid(), ...s }),
-        updateSession: (id, s) => request(`sessions?id=eq.${id}`, 'PATCH', s),
-        deleteSession: (id) => request(`sessions?id=eq.${id}`, 'DELETE'),
-        importSessions: (items) => request('sessions', 'POST', items.map(i => ({ id: uuid(), ...i }))),
-
-        // ─── ADMINS ───
-        loginAdmin: async (username, password) => {
-            const data = await request(`admins?username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=username,name`);
-            return data.length > 0 ? data[0] : null;
-        },
-        addAdmin: (a) => request('admins', 'POST', a),
-        updateAdmin: (username, data) => request(`admins?username=eq.${encodeURIComponent(username)}`, 'PATCH', data),
-        deleteAdmin: (username) => request(`admins?username=eq.${encodeURIComponent(username)}`, 'DELETE'),
-
-        // ─── REGISTRATIONS ───
-        register: (payload) => request('registrations', 'POST', {
-            id: uuid(), ...payload,
-            created_at: new Date().toISOString(),
-            attended: false, remark: '', login_status: '', login_remark: ''
-        }),
-        updateCheckin: (items) => {
-            return Promise.all(items.map(r =>
-                request(`registrations?id=eq.${r.id}`, 'PATCH', {
-                    attended: r.attended,
-                    remark: r.remark || ''
-                })
-            ));
-        },
-        updateLoginStatus: (items) => {
-            return Promise.all(items.map(r =>
-                request(`registrations?id=eq.${r.id}`, 'PATCH', {
-                    login_status: r.loginStatus || '',
-                    login_remark: r.loginRemark || ''
-                })
-            ));
-        },
-        countRegistrations: async (sessionId) => {
-            const res = await fetch(`${url}/rest/v1/registrations?session_id=eq.${sessionId}&select=id`, {
-                headers: { ...headers, 'Prefer': 'count=exact' }
-            });
-            return parseInt(res.headers.get('content-range')?.split('/')[1] || '0', 10);
-        }
-    };
-}
-
-// ─────────────────────────────────────────────
-// SQL SETUP SCRIPT (แสดงให้ user copy ไปรัน)
-// ─────────────────────────────────────────────
-const SQL_SETUP = `-- รันใน Supabase SQL Editor (เพียงครั้งเดียว)
-
-create table if not exists departments (
-  id text primary key,
-  name text not null
-);
-
-create table if not exists prefixes (
-  id text primary key,
-  name text not null
-);
-
-insert into prefixes (id, name) values
-  (gen_random_uuid()::text, 'นาย'),
-  (gen_random_uuid()::text, 'นาง'),
-  (gen_random_uuid()::text, 'น.ส.'),
-  (gen_random_uuid()::text, 'ดร.')
-on conflict do nothing;
-
-create table if not exists sessions (
-  id text primary key,
-  topic text not null,
-  description text default '',
-  date text,
-  start_time text,
-  end_time text,
-  max_seats integer default 30
-);
-
-create table if not exists registrations (
-  id text primary key,
-  prefix text,
-  full_name text,
-  position text,
-  department text,
-  session_id text,
-  created_at timestamptz default now(),
-  attended boolean default false,
-  remark text default '',
-  login_status text default '',
-  login_remark text default ''
-);
-
-create table if not exists admins (
-  username text primary key,
-  password text not null,
-  name text not null
-);
-
-insert into admins (username, password, name)
-values ('admin', '1234', 'Default Admin')
-on conflict do nothing;
-
--- เปิด RLS (Row Level Security) - อ่านได้ทุกคน, เขียนได้ทุกคน (ปรับตามต้องการ)
-alter table departments enable row level security;
-alter table prefixes enable row level security;
-alter table sessions enable row level security;
-alter table registrations enable row level security;
-alter table admins enable row level security;
-
-create policy "public read" on departments for select using (true);
-create policy "public write" on departments for all using (true);
-create policy "public read" on prefixes for select using (true);
-create policy "public write" on prefixes for all using (true);
-create policy "public read" on sessions for select using (true);
-create policy "public write" on sessions for all using (true);
-create policy "public read" on registrations for select using (true);
-create policy "public write" on registrations for all using (true);
-create policy "public read" on admins for select using (true);
-create policy "public write" on admins for all using (true);`;
-
-// ─────────────────────────────────────────────
-// MAIN APP
-// ─────────────────────────────────────────────
-function App() {
-    const [supabaseUrl, setSupabaseUrl] = useState(() => localStorage.getItem('sb_url') || DEFAULT_SUPABASE_URL);
-    const [supabaseKey, setSupabaseKey] = useState(() => localStorage.getItem('sb_key') || DEFAULT_SUPABASE_KEY);
-    const [isConnected, setIsConnected] = useState(false);
-    const [isConnecting, setIsConnecting] = useState(false);
-    const [connectError, setConnectError] = useState('');
-    const [showSetup, setShowSetup] = useState(false);
-
-    const [db, setDb] = useState(null);
-
-    const [activeTab, setActiveTab] = useState('register');
-    const [adminSubTab, setAdminSubTab] = useState('manage');
-    const [currentUser, setCurrentUser] = useState(null);
-
-    // Data
-    const [departments, setDepartments] = useState([]);
-    const [prefixes, setPrefixes] = useState([]);
-    const [sessions, setSessions] = useState([]);
-    const [registrations, setRegistrations] = useState([]);
-    const [loading, setLoading] = useState(false);
-
-    // Login
-    const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-    const [loginError, setLoginError] = useState('');
-    const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-    // Register form
-    const [selectedTopic, setSelectedTopic] = useState('');
-    const [formData, setFormData] = useState({ prefix: '', fullName: '', position: '', department: '', sessionId: '' });
-    const [submitStatus, setSubmitStatus] = useState('idle');
-    const [errorMsg, setErrorMsg] = useState('');
-
-    // Admin manage
-    const [newDept, setNewDept] = useState('');
-    const [editingDept, setEditingDept] = useState(null);
-    const [newPrefix, setNewPrefix] = useState('');
-    const [newSession, setNewSession] = useState({ topic: '', description: '', date: '', start_time: '', end_time: '', max_seats: 30 });
-    const [editingSession, setEditingSession] = useState(null);
-    const [admins, setAdmins] = useState([]);
-    const [newAdmin, setNewAdmin] = useState({ username: '', password: '', name: '' });
-
-    // Checkin
-    const [filterTopic, setFilterTopic] = useState('');
-    const [filterSessionId, setFilterSessionId] = useState('');
-    const [checkinList, setCheckinList] = useState([]);
-    const [isSavingCheckin, setIsSavingCheckin] = useState(false);
-
-    // User check
-    const [userCheckSearch, setUserCheckSearch] = useState('');
-    const [userCheckFilterStatus, setUserCheckFilterStatus] = useState('');
-    const [userCheckList, setUserCheckList] = useState([]);
-    const [isSavingUserCheck, setIsSavingUserCheck] = useState(false);
-
-    // Export
-    const [exportTopic, setExportTopic] = useState('');
-    const [exportSessionId, setExportSessionId] = useState('');
-    const [showPrintPreview, setShowPrintPreview] = useState(false);
-    const [printConfig, setPrintConfig] = useState({
-        hospitalName: 'โรงพยาบาลตัวอย่าง',
-        speakerName: '',
-        bmsSignerName: '',
-        bmsSignerPosition: 'เจ้าหน้าที่ฝึกอบรม',
-        bmsSignerCompany: 'บริษัท บางกอก เมดิคอล ซอฟต์แวร์ จำกัด',
-        hospitalSignerName: '',
-        hospitalSignerPosition: 'หัวหน้าศูนย์คอมพิวเตอร์',
-        hospitalSignerOrg: 'โรงพยาบาลตัวอย่าง',
-        logo: null
-    });
-
-    // Public search
-    const [publicSearchName, setPublicSearchName] = useState('');
-    const [publicSearchTopic, setPublicSearchTopic] = useState('');
-    const [publicSearchSessionId, setPublicSearchSessionId] = useState('');
-
-    // Import
-    const [importStatus, setImportStatus] = useState('');
-
-    // Dashboard
-    const [statDetail, setStatDetail] = useState(null);
-
-    // ─── Connect ───
-    const handleConnect = async (urlOverride, keyOverride) => {
-        const url = (urlOverride || supabaseUrl).trim().replace(/\/$/, '');
-        const key = (keyOverride || supabaseKey).trim();
-        if (!url || !key) { setConnectError('กรุณากรอก URL และ API Key'); return; }
-        setIsConnecting(true);
-        setConnectError('');
-        try {
-            const client = createSupabaseClient(url, key);
-            await client.getDepartments(); // test connection
-            setDb(client);
-            setIsConnected(true);
-            localStorage.setItem('sb_url', url);
-            localStorage.setItem('sb_key', key);
-            setSupabaseUrl(url);
-            setSupabaseKey(key);
-        } catch (e) {
-            setConnectError('เชื่อมต่อไม่ได้: ' + e.message + ' — ตรวจสอบ URL / Key และ RLS Policy');
-        } finally {
-            setIsConnecting(false);
-        }
-    };
-
-    useEffect(() => {
-        if (supabaseUrl && supabaseKey) handleConnect(supabaseUrl, supabaseKey);
-    }, []);
-
-    // ─── Fetch ───
-    const fetchAll = useCallback(async (silent = false) => {
-        if (!db) return;
-        if (!silent) setLoading(true);
-        try {
-            const [depts, prefs, sess, regs] = await Promise.all([
-                db.getDepartments(), db.getPrefixes(), db.getSessions(), db.getRegistrations()
-            ]);
-            setDepartments(depts || []);
-            setPrefixes(prefs || []);
-            // คำนวณ registeredCount
-            const regsBySess = {};
-            (regs || []).forEach(r => {
-                regsBySess[r.session_id] = (regsBySess[r.session_id] || 0) + 1;
-            });
-            setSessions((sess || []).map(s => ({ ...s, registeredCount: regsBySess[s.id] || 0 })));
-            setRegistrations(regs || []);
-        } catch (e) { console.error(e); }
-        finally { if (!silent) setLoading(false); }
-    }, [db]);
-
-    const fetchAdmins = useCallback(async () => {
-        if (!db) return;
-        try { setAdmins(await db.getAdmins()); } catch {}
-    }, [db]);
-
-    useEffect(() => { if (isConnected) fetchAll(); }, [isConnected, fetchAll]);
-    useEffect(() => { if (currentUser) fetchAdmins(); }, [currentUser, fetchAdmins]);
-
-    // ─── Memos ───
-    const uniqueTopics = useMemo(() => [...new Set(sessions.map(s => s.topic))].sort(), [sessions]);
-    const filteredSessions = useMemo(() => sessions.filter(s => s.topic === selectedTopic).sort((a, b) => new Date(a.date) - new Date(b.date)), [sessions, selectedTopic]);
-
-    const publicFilteredRegistrations = useMemo(() => {
-        if (!publicSearchName && !publicSearchTopic && !publicSearchSessionId) return [];
-        return registrations.filter(r => {
-            const matchName = !publicSearchName || r.full_name?.toLowerCase().includes(publicSearchName.toLowerCase());
-            const sess = sessions.find(s => s.id === r.session_id);
-            const matchTopic = !publicSearchTopic || sess?.topic === publicSearchTopic;
-            const matchSess = !publicSearchSessionId || r.session_id === publicSearchSessionId;
-            return matchName && matchTopic && matchSess;
-        });
-    }, [registrations, sessions, publicSearchName, publicSearchTopic, publicSearchSessionId]);
-
-    useEffect(() => {
-        if (!filterSessionId) { setCheckinList([]); return; }
-        setCheckinList(registrations
-            .filter(r => r.session_id === filterSessionId)
-            .map(r => ({ ...r, attended: r.attended === true || r.attended === 'true', remark: r.remark || '' }))
-        );
-    }, [filterSessionId, registrations]);
-
-    useEffect(() => {
-        if (activeTab !== 'admin' || adminSubTab !== 'user_check') return;
-        setUserCheckList(registrations.filter(r => {
-            const matchSearch = !userCheckSearch || r.full_name?.toLowerCase().includes(userCheckSearch.toLowerCase()) || r.department?.toLowerCase().includes(userCheckSearch.toLowerCase());
-            let matchStatus = true;
-            if (userCheckFilterStatus === 'empty') matchStatus = !r.login_status;
-            else if (userCheckFilterStatus) matchStatus = r.login_status === userCheckFilterStatus;
-            return matchSearch && matchStatus;
-        }).map(r => ({ ...r, loginStatus: r.login_status || '', loginRemark: r.login_remark || '' })));
-    }, [registrations, userCheckSearch, userCheckFilterStatus, activeTab, adminSubTab]);
-
-    const departmentStats = useMemo(() => {
-        const stats = {};
-        departments.forEach(d => { stats[d.name] = { total: 0, attended: 0 }; });
-        registrations.forEach(r => {
-            const dept = r.department || 'ไม่ระบุ';
-            if (!stats[dept]) stats[dept] = { total: 0, attended: 0 };
-            stats[dept].total++;
-            if (r.attended === true || r.attended === 'true') stats[dept].attended++;
-        });
-        return Object.entries(stats).map(([name, v]) => ({ name, total: v.total, attended: v.attended, absent: v.total - v.attended })).filter(s => s.total > 0).sort((a, b) => b.total - a.total);
-    }, [registrations, departments]);
-
-    const topicStats = useMemo(() => {
-        const stats = {};
-        sessions.forEach(s => { if (!stats[s.topic]) stats[s.topic] = { total: 0, attended: 0 }; });
-        registrations.forEach(r => {
-            const sess = sessions.find(s => s.id === r.session_id);
-            if (sess) {
-                stats[sess.topic].total++;
-                if (r.attended === true || r.attended === 'true') stats[sess.topic].attended++;
-            }
-        });
-        return Object.entries(stats).map(([name, v]) => ({ name, total: v.total, attended: v.attended, absent: v.total - v.attended })).filter(s => s.total > 0).sort((a, b) => b.total - a.total);
-    }, [registrations, sessions]);
-
-    const unregisteredDepts = useMemo(() => {
-        const regDepts = new Set(registrations.map(r => r.department));
-        return departments.filter(d => !regDepts.has(d.name));
-    }, [departments, registrations]);
-
-    const totalAttended = useMemo(() => registrations.filter(r => r.attended === true || r.attended === 'true').length, [registrations]);
-
-    const statDetailList = useMemo(() => {
-        if (!statDetail) return [];
-        return (statDetail.type === 'department'
-            ? registrations.filter(r => r.department === statDetail.name)
-            : registrations.filter(r => sessions.find(s => s.id === r.session_id)?.topic === statDetail.name)
-        ).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
-    }, [statDetail, registrations, sessions]);
-
-    const getExportRegs = () => exportSessionId ? registrations.filter(r => r.session_id === exportSessionId) : [];
-    const getChunkedRegs = () => {
-        const data = getExportRegs();
-        if (!data.length) return [[]];
-        const chunks = [];
-        for (let i = 0; i < data.length; i += 25) chunks.push(data.slice(i, i + 25));
-        return chunks;
-    };
-
-    const calcProgress = (cur, max) => {
-        const pct = Math.min((cur / max) * 100, 100);
-        return { pct, color: pct >= 100 ? 'bg-red-500' : pct > 70 ? 'bg-yellow-500' : 'bg-green-500' };
-    };
-
-    // ─── Handlers ───
-    const handleRegister = async (e) => {
-        e.preventDefault();
-        setErrorMsg('');
-        const miss = [];
-        if (!formData.prefix) miss.push('คำนำหน้า');
-        if (!formData.fullName?.trim()) miss.push('ชื่อ-นามสกุล');
-        if (!formData.position?.trim()) miss.push('ตำแหน่ง');
-        if (!formData.department) miss.push('หน่วยงาน');
-        if (!selectedTopic) miss.push('หัวข้อการอบรม');
-        else if (!formData.sessionId) miss.push('รอบการอบรม');
-        if (miss.length) { setErrorMsg('กรุณากรอก: ' + miss.join(', ')); return; }
-
-        const sess = sessions.find(s => s.id === formData.sessionId);
-        if (!sess) return;
-        if (sess.registeredCount >= sess.max_seats) { setErrorMsg('รอบอบรมนี้เต็มแล้ว'); return; }
-
-        setSubmitStatus('submitting');
-        try {
-            await db.register({
-                prefix: formData.prefix,
-                full_name: formData.fullName,
-                position: formData.position,
-                department: formData.department,
-                session_id: formData.sessionId
-            });
-            setSubmitStatus('success');
-            setFormData({ prefix: '', fullName: '', position: '', department: '', sessionId: '' });
-            setSelectedTopic('');
-            await new Promise(r => setTimeout(r, 1500));
-            fetchAll(true);
-            setSubmitStatus('idle');
-        } catch (e) {
-            setErrorMsg('เกิดข้อผิดพลาด: ' + e.message);
-            setSubmitStatus('error');
-        }
-    };
-
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        setLoginError('');
-        setIsLoggingIn(true);
-        try {
-            const user = await db.loginAdmin(loginForm.username, loginForm.password);
-            if (user) { setCurrentUser(user); setLoginForm({ username: '', password: '' }); }
-            else setLoginError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
-        } catch { setLoginError('เกิดข้อผิดพลาดในการเชื่อมต่อ'); }
-        finally { setIsLoggingIn(false); }
-    };
-
-    const handleSaveCheckin = async () => {
-        setIsSavingCheckin(true);
-        try {
-            await db.updateCheckin(checkinList);
-            await fetchAll(true);
-        } catch (e) { alert('บันทึกไม่สำเร็จ: ' + e.message); }
-        finally { setIsSavingCheckin(false); }
-    };
-
-    const handleSaveUserCheck = async () => {
-        setIsSavingUserCheck(true);
-        try {
-            await db.updateLoginStatus(userCheckList);
-            alert('บันทึกการตรวจสอบสิทธิ์เรียบร้อยแล้ว');
-            await fetchAll(true);
-        } catch (e) { alert('บันทึกไม่สำเร็จ: ' + e.message); }
-        finally { setIsSavingUserCheck(false); }
-    };
-
-    const handleFileUpload = (e, type) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setImportStatus(`กำลังอ่านไฟล์...`);
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-            const text = ev.target?.result;
-            const lines = text.split('\n').filter(l => l.trim());
-            if (lines.length <= 1) { setImportStatus('ไม่พบข้อมูล'); return; }
-            try {
-                if (type === 'department') {
-                    const items = lines.slice(1).map(l => ({ name: l.replace('\r', '').split(',')[0].trim() })).filter(i => i.name);
-                    await db.importDepartments(items);
-                } else {
-                    const items = lines.slice(1).map(l => {
-                        const cols = l.replace('\r', '').split(',');
-                        return { topic: cols[0]?.trim(), description: cols[1]?.trim() || '', date: cols[2]?.trim(), start_time: cols[3]?.trim(), end_time: cols[4]?.trim(), max_seats: parseInt(cols[5]?.trim()) || 30 };
-                    }).filter(i => i.topic);
-                    await db.importSessions(items);
-                }
-                setImportStatus('นำเข้าข้อมูลสำเร็จ!');
-                await fetchAll();
-            } catch (e) { setImportStatus('เกิดข้อผิดพลาด: ' + e.message); }
-        };
-        reader.readAsText(file);
-        e.target.value = '';
-    };
-
-    const handleDownloadTemplate = (type) => {
-        const csv = type === 'department'
-            ? "\uFEFFชื่อหน่วยงาน\nแผนกฉุกเฉิน\nฝ่ายบุคคล"
-            : "\uFEFFหัวข้ออบรม,รายละเอียด,วันที่ (2024-01-31),เวลาเริ่ม (09:00),เวลาสิ้นสุด (12:00),จำนวนรับ\nอบรมการใช้ระบบ,เบื้องต้น,2024-03-15,09:00,12:00,50";
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `template_${type}.csv`;
-        link.click();
-    };
-
-    const handleExportCSV = () => {
-        const regs = getExportRegs();
-        let csv = "\uFEFFลำดับ,ชื่อ-นามสกุล,ตำแหน่ง,หน่วยงาน,ลายเซ็น\n";
-        regs.forEach((r, i) => { csv += `${i+1},"${r.prefix}${r.full_name}","${r.position}","${r.department}",\n`; });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-        link.download = `รายชื่อ_${sessions.find(s => s.id === exportSessionId)?.topic || 'training'}.csv`;
-        link.click();
-    };
-
-    const handleLogoUpload = (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => setPrintConfig(p => ({ ...p, logo: reader.result }));
-            reader.readAsDataURL(file);
-        }
-    };
-
-    // ─────────────────────────────────────────────
-    // CONNECTION SCREEN
-    // ─────────────────────────────────────────────
-    if (!isConnected) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 flex items-center justify-center p-4">
-                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden">
-                    <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-8 text-white text-center">
-                        <Icon name="domain" className="text-[56px] mb-3" />
-                        <h1 className="text-2xl font-bold">BMS Inventory Training</h1>
-                        <p className="text-emerald-100 text-sm mt-1">ระบบลงทะเบียนอบรม — Supabase Edition</p>
-                    </div>
-                    <div className="p-8">
-                        <h2 className="font-bold text-slate-800 mb-2 flex items-center"><Icon name="link" className="mr-2 text-emerald-600"/> ตั้งค่าการเชื่อมต่อ Supabase</h2>
-                        <p className="text-slate-500 text-sm mb-6">กรอก URL และ anon key จาก Supabase Project ของคุณ</p>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Supabase Project URL</label>
-                                <input className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-mono" placeholder="https://xxxxxxxxxxxx.supabase.co" value={supabaseUrl} onChange={e => setSupabaseUrl(e.target.value)} />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Supabase anon / public key</label>
-                                <input className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-mono" placeholder="eyJhbGci..." value={supabaseKey} onChange={e => setSupabaseKey(e.target.value)} />
-                            </div>
-                            {connectError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-xl flex items-start"><Icon name="error" className="mr-2 text-[16px] flex-shrink-0 mt-0.5"/>{connectError}</div>}
-                            <button onClick={() => handleConnect()} disabled={isConnecting} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white py-3 rounded-xl font-bold text-base flex items-center justify-center transition-colors">
-                                {isConnecting ? <><Spinner /><span className="ml-2">กำลังเชื่อมต่อ...</span></> : <><Icon name="link" className="mr-2"/>เชื่อมต่อ Supabase</>}
-                            </button>
-                        </div>
-                        <div className="mt-6 pt-6 border-t border-slate-100">
-                            <button onClick={() => setShowSetup(!showSetup)} className="text-sm text-emerald-600 flex items-center hover:underline">
-                                <Icon name="code" className="mr-1 text-[16px]"/>{showSetup ? 'ซ่อน' : 'แสดง'} SQL สำหรับสร้างตาราง (รันครั้งแรก)
-                            </button>
-                            {showSetup && (
-                                <div className="mt-3 bg-slate-900 rounded-xl p-4 relative">
-                                    <button onClick={() => navigator.clipboard.writeText(SQL_SETUP)} className="absolute top-3 right-3 bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1 rounded-lg flex items-center">
-                                        <Icon name="content_copy" className="mr-1 text-[14px]"/>Copy
-                                    </button>
-                                    <pre className="text-green-400 text-xs overflow-auto max-h-64 font-mono">{SQL_SETUP}</pre>
-                                </div>
-                            )}
-                        </div>
-                        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-700 space-y-1">
-                            <p className="font-bold flex items-center"><Icon name="info" className="mr-1 text-[14px]"/>วิธีเริ่มต้น (ฟรี)</p>
-                            <p>1. สมัคร <strong>supabase.com</strong> → สร้าง Project ใหม่</p>
-                            <p>2. ไปที่ <strong>SQL Editor</strong> → วาง SQL ด้านบน → Run</p>
-                            <p>3. ไปที่ <strong>Settings → API</strong> → Copy URL และ anon key</p>
-                            <p>4. กรอกค่าด้านบนแล้วกดเชื่อมต่อ</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // ─────────────────────────────────────────────
-    // PRINT PREVIEW
-    // ─────────────────────────────────────────────
-    if (showPrintPreview) {
-        const chunks = getChunkedRegs();
-        const exportSess = sessions.find(s => s.id === exportSessionId);
-        return (
-            <div className="fixed inset-0 z-[100] bg-gray-100 overflow-auto flex flex-col items-center" id="print-container">
-                <div className="no-print w-full bg-slate-800 text-white p-4 flex justify-between items-center sticky top-0 shadow-lg z-50">
-                    <h2 className="text-xl font-bold flex items-center"><Icon name="print" className="mr-2"/> Print Preview</h2>
-                    <div className="flex space-x-3">
-                        <button onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700 px-6 py-2 rounded-lg flex items-center"><Icon name="print" className="mr-2"/> พิมพ์ / บันทึก PDF</button>
-                        <button onClick={() => setShowPrintPreview(false)} className="bg-white/10 hover:bg-white/20 px-6 py-2 rounded-lg flex items-center"><Icon name="close" className="mr-2"/> ปิด</button>
-                    </div>
-                </div>
-                <div>
-                    {chunks.map((pageData, pi) => {
-                        const empty = Array(25 - pageData.length).fill(null);
-                        return (
-                            <div key={pi} className="print-page w-[210mm] min-h-[297mm] bg-white p-[15mm] shadow-2xl my-8 mx-auto box-border text-black flex flex-col font-print relative">
-                                {chunks.length > 1 && <div className="absolute top-2 right-2 text-xs text-gray-400">หน้า {pi+1}</div>}
-                                <div className="border-b-2 border-black pb-3 mb-3 relative min-h-[110px]">
-                                    {printConfig.logo && <div className="absolute left-0 top-0"><img src={printConfig.logo} className="h-[70px] object-contain" /></div>}
-                                    <div className="text-center pt-12 mb-3"><h2 className="font-print-head">ใบเซ็นชื่อผู้เข้าร่วมอบรมการใช้งานโปรแกรม BMS-INVENTORY</h2></div>
-                                    <div className="flex w-full text-sm">
-                                        <div className="w-[60%] pr-4 space-y-1">
-                                            <div className="flex"><span className="font-bold w-24">สถานพยาบาล:</span>{printConfig.hospitalName}</div>
-                                            <div className="flex"><span className="font-bold w-24">ระบบงาน:</span>{exportSess?.topic || '...'}</div>
-                                        </div>
-                                        <div className="w-[40%] space-y-1">
-                                            <div className="flex"><span className="font-bold w-16">วันที่:</span>{formatDateTh(exportSess?.date)}</div>
-                                            <div className="flex"><span className="font-bold w-16">วิทยากร:</span>{printConfig.speakerName || '...'}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <table className="w-full border-collapse border border-black flex-grow table-fixed text-sm">
-                                    <thead><tr className="bg-gray-200">
-                                        <th className="border border-black px-2 py-1 text-center font-print" style={{width:'6%'}}>ลำดับ</th>
-                                        <th className="border border-black px-2 py-1 font-print" style={{width:'32%'}}>ชื่อ-นามสกุล</th>
-                                        <th className="border border-black px-2 py-1 font-print" style={{width:'24%'}}>ตำแหน่ง</th>
-                                        <th className="border border-black px-2 py-1 font-print" style={{width:'23%'}}>แผนก</th>
-                                        <th className="border border-black px-2 py-1 font-print" style={{width:'15%'}}>ลายมือชื่อ</th>
-                                    </tr></thead>
-                                    <tbody>
-                                        {pageData.map((r, idx) => (
-                                            <tr key={r.id} className="h-[9.5mm]">
-                                                <td className="border border-black px-2 text-center font-print">{pi*25+idx+1}</td>
-                                                <td className="border border-black px-2 font-print">{r.prefix}{r.full_name}</td>
-                                                <td className="border border-black px-2 font-print">{r.position}</td>
-                                                <td className="border border-black px-2 font-print">{r.department}</td>
-                                                <td className="border border-black px-2 font-print"></td>
-                                            </tr>
-                                        ))}
-                                        {empty.map((_, idx) => (
-                                            <tr key={'e'+idx} className="h-[9.5mm]">
-                                                <td className="border border-black px-2 text-center font-print">{pi*25+pageData.length+idx+1}</td>
-                                                <td className="border border-black px-2 font-print"></td>
-                                                <td className="border border-black px-2 font-print"></td>
-                                                <td className="border border-black px-2 font-print"></td>
-                                                <td className="border border-black px-2 font-print"></td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                <div className="flex justify-between pt-5 mt-auto px-8">
-                                    <div className="text-center w-5/12 text-sm">
-                                        <div className="border-b border-dashed border-black w-3/4 mx-auto mb-1"></div>
-                                        <p className="font-bold">({printConfig.bmsSignerName || '...................................'})</p>
-                                        <p>{printConfig.bmsSignerPosition}</p>
-                                        <p>{printConfig.bmsSignerCompany}</p>
-                                    </div>
-                                    <div className="text-center w-5/12 text-sm">
-                                        <div className="border-b border-dashed border-black w-3/4 mx-auto mb-1"></div>
-                                        <p className="font-bold">({printConfig.hospitalSignerName || '...................................'})</p>
-                                        <p>{printConfig.hospitalSignerPosition}</p>
-                                        <p>{printConfig.hospitalSignerOrg}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-        );
-    }
-
-    // ─────────────────────────────────────────────
-    // MAIN UI
-    // ─────────────────────────────────────────────
-    const tabs = [
-        { id: 'register', icon: 'group', text: 'ลงทะเบียน' },
-        { id: 'check_status', icon: 'description', text: 'ตรวจสอบรายชื่อ' },
-        { id: 'dashboard', icon: 'bar_chart', text: 'สถิติ' },
-        { id: 'unregistered', icon: 'campaign', text: 'หน่วยงานตกหล่น' },
-        { id: 'admin', icon: 'settings', text: 'ผู้ดูแล' },
-    ];
-
-    return (
-        <div className="min-h-screen flex flex-col">
-            {/* HEADER */}
-            <header className="bg-gradient-to-r from-emerald-700 to-emerald-900 text-white shadow-lg sticky top-0 z-50 no-print">
-                <div className="container mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
-                    <div className="flex items-center space-x-3">
-                        <div className="bg-white/20 p-2 rounded-lg"><Icon name="domain" className="text-[28px]"/></div>
-                        <div>
-                            <h1 className="text-lg md:text-2xl font-bold">BMS INVENTORY</h1>
-                            <p className="text-emerald-100 text-xs flex items-center">
-                                <span className="w-2 h-2 bg-green-400 rounded-full inline-block mr-1"></span>
-                                เชื่อมต่อ Supabase แล้ว
-                                <button onClick={() => { localStorage.removeItem('sb_url'); localStorage.removeItem('sb_key'); setIsConnected(false); setDb(null); setCurrentUser(null); }} className="ml-3 text-red-300 hover:text-red-100 text-xs">ตัดการเชื่อมต่อ</button>
-                            </p>
-                        </div>
-                    </div>
-                    <nav className="flex space-x-1 bg-emerald-800/50 p-1 rounded-xl overflow-x-auto">
-                        {tabs.map(tab => (
-                            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-white text-emerald-900 shadow-md font-semibold' : 'text-emerald-100 hover:bg-white/10'}`}>
-                                <Icon name={tab.icon} className="text-[16px] mr-1.5"/>{tab.text}
-                            </button>
-                        ))}
-                    </nav>
-                </div>
-            </header>
-
-            <main className="container mx-auto px-4 py-6 flex-grow">
-
-                {/* ─── REGISTER ─── */}
-                {activeTab === 'register' && (
-                    <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border overflow-hidden">
-                        <div className="bg-emerald-600 px-6 py-4 flex justify-between items-center">
-                            <h2 className="text-white font-semibold text-lg flex items-center"><Icon name="group" className="mr-2"/>ลงทะเบียนอบรม</h2>
-                            {loading && <Spinner/>}
-                        </div>
-                        <div className="p-6 md:p-8">
-                            {submitStatus === 'success' ? (
-                                <div className="text-center py-12">
-                                    <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4"><Icon name="check_circle" className="text-[40px]"/></div>
-                                    <h3 className="text-2xl font-bold text-green-700 mb-2">ลงทะเบียนสำเร็จ!</h3>
-                                    <p className="text-slate-500 mb-6">บันทึกข้อมูลเรียบร้อยแล้ว</p>
-                                    <button onClick={() => setSubmitStatus('idle')} className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700">กลับหน้าแรก</button>
-                                </div>
-                            ) : (
-                                <form onSubmit={handleRegister} className="space-y-5">
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                        <div><label className="block text-sm font-medium mb-1">คำนำหน้า <span className="text-red-500">*</span></label>
-                                            <select className="w-full rounded-lg border p-2.5 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.prefix} onChange={e => setFormData({...formData, prefix: e.target.value})}>
-                                                <option value="">-- เลือก --</option>
-                                                {prefixes.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="md:col-span-3"><label className="block text-sm font-medium mb-1">ชื่อ-นามสกุล <span className="text-red-500">*</span></label>
-                                            <input type="text" className="w-full rounded-lg border p-2.5 outline-none focus:ring-2 focus:ring-emerald-500" placeholder="ระบุชื่อและนามสกุลจริง" value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div><label className="block text-sm font-medium mb-1">ตำแหน่ง <span className="text-red-500">*</span></label>
-                                            <input type="text" className="w-full rounded-lg border p-2.5 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} />
-                                        </div>
-                                        <div><label className="block text-sm font-medium mb-1">หน่วยงาน <span className="text-red-500">*</span></label>
-                                            <select className="w-full rounded-lg border p-2.5 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})}>
-                                                <option value="">-- เลือกหน่วยงาน --</option>
-                                                {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div className="pt-4 border-t">
-                                        <div className="mb-4">
-                                            <label className="block text-sm font-bold text-slate-700 mb-2"><Icon name="filter_alt" className="text-emerald-600 text-[16px] mr-1"/>1. เลือกหัวข้อการอบรม <span className="text-red-500">*</span></label>
-                                            <select className="w-full rounded-lg border p-3 bg-slate-50 outline-none focus:ring-2 focus:ring-emerald-500" value={selectedTopic} onChange={e => { setSelectedTopic(e.target.value); setFormData({...formData, sessionId: ''}); }}>
-                                                <option value="">-- กรุณาเลือกหัวข้อ --</option>
-                                                {uniqueTopics.map(t => <option key={t} value={t}>{t}</option>)}
-                                            </select>
-                                        </div>
-                                        {selectedTopic && (
-                                            <div className="space-y-3">
-                                                <label className="block text-sm font-bold text-slate-700 mb-2"><Icon name="calendar_month" className="text-emerald-600 text-[16px] mr-1"/>2. เลือกรอบอบรม <span className="text-red-500">*</span></label>
-                                                {filteredSessions.length === 0
-                                                    ? <p className="text-slate-400 text-center italic p-4 border border-dashed rounded-lg">ไม่พบรอบอบรม</p>
-                                                    : filteredSessions.map(sess => {
-                                                        const isFull = sess.registeredCount >= sess.max_seats;
-                                                        const { pct, color } = calcProgress(sess.registeredCount, sess.max_seats);
-                                                        return (
-                                                            <label key={sess.id} className={`relative block border rounded-xl p-4 transition-all ${isFull ? 'opacity-60 bg-slate-100 cursor-not-allowed' : 'cursor-pointer hover:border-emerald-300'} ${formData.sessionId === sess.id ? 'border-emerald-500 bg-emerald-50' : ''}`}>
-                                                                <input type="radio" name="session" value={sess.id} disabled={isFull} checked={formData.sessionId === sess.id} onChange={e => setFormData({...formData, sessionId: e.target.value})} className="absolute top-4 right-4 h-5 w-5"/>
-                                                                <div className="pr-8">
-                                                                    <div className="font-bold text-lg mb-1">{formatDateTh(sess.date)}</div>
-                                                                    <div className="text-sm text-slate-600 mb-3"><span className="bg-slate-100 px-2 py-1 rounded inline-flex items-center"><Icon name="schedule" className="text-[14px] mr-1"/>{formatTimeRange(sess.start_time, sess.end_time)}</span></div>
-                                                                    <div className="flex justify-between text-xs mb-1">
-                                                                        <span className={isFull ? 'text-red-600 font-bold' : 'text-slate-500'}>{isFull ? '❌ เต็มแล้ว' : `ว่าง ${Math.max(0, sess.max_seats - sess.registeredCount)} ที่นั่ง`}</span>
-                                                                        <span>{sess.registeredCount}/{sess.max_seats} คน</span>
-                                                                    </div>
-                                                                    <div className="w-full bg-slate-200 rounded-full h-2"><div className={`h-2 rounded-full ${color}`} style={{width: `${pct}%`}}></div></div>
-                                                                </div>
-                                                            </label>
-                                                        );
-                                                    })}
-                                            </div>
-                                        )}
-                                    </div>
-                                    {errorMsg && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex items-center"><Icon name="error" className="text-[16px] mr-2"/>{errorMsg}</div>}
-                                    <button type="submit" disabled={submitStatus === 'submitting'} className="w-full font-bold py-3 rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 flex items-center justify-center">
-                                        {submitStatus === 'submitting' ? <><Spinner/><span className="ml-2">กำลังบันทึก...</span></> : 'ยืนยันการลงทะเบียน'}
-                                    </button>
-                                </form>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* ─── CHECK STATUS ─── */}
-                {activeTab === 'check_status' && (
-                    <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border overflow-hidden">
-                        <div className="bg-emerald-600 px-6 py-4"><h2 className="text-white font-semibold text-lg flex items-center"><Icon name="description" className="mr-2"/>ตรวจสอบรายชื่อ</h2></div>
-                        <div className="p-6">
-                            <div className="space-y-4 mb-6 bg-slate-50 p-4 rounded-lg border">
-                                <div><label className="block text-xs font-bold text-slate-500 mb-2">ค้นหาตามชื่อ</label>
-                                    <div className="relative"><Icon name="search" className="absolute left-3 top-2.5 text-slate-400 text-[16px]"/><input type="text" className="w-full border rounded-lg pl-9 p-2 text-sm" placeholder="พิมพ์ชื่อ..." value={publicSearchName} onChange={e => setPublicSearchName(e.target.value)}/></div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div><label className="block text-xs font-bold text-slate-500 mb-2">กรองตามหัวข้อ</label>
-                                        <select className="w-full border rounded-lg p-2 text-sm" value={publicSearchTopic} onChange={e => { setPublicSearchTopic(e.target.value); setPublicSearchSessionId(''); }}>
-                                            <option value="">-- ทั้งหมด --</option>{uniqueTopics.map(t => <option key={t} value={t}>{t}</option>)}
-                                        </select>
-                                    </div>
-                                    <div><label className="block text-xs font-bold text-slate-500 mb-2">กรองตามรอบ</label>
-                                        <select className="w-full border rounded-lg p-2 text-sm" value={publicSearchSessionId} onChange={e => setPublicSearchSessionId(e.target.value)} disabled={!publicSearchTopic}>
-                                            <option value="">-- ทั้งหมด --</option>
-                                            {sessions.filter(s => s.topic === publicSearchTopic).map(s => <option key={s.id} value={s.id}>{formatDateTh(s.date)}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="overflow-x-auto border rounded-lg">
-                                <table className="w-full text-sm text-left"><thead className="bg-slate-100"><tr>
-                                    <th className="px-4 py-3">ชื่อ-นามสกุล</th><th className="px-4 py-3">ตำแหน่ง/หน่วยงาน</th><th className="px-4 py-3">รอบอบรม</th><th className="px-4 py-3 text-center">สถานะ</th>
-                                </tr></thead>
-                                <tbody className="divide-y">
-                                    {publicFilteredRegistrations.length > 0 ? publicFilteredRegistrations.map((r, i) => {
-                                        const sess = sessions.find(s => s.id === r.session_id);
-                                        return <tr key={i} className="hover:bg-slate-50">
-                                            <td className="px-4 py-3 font-medium">{r.prefix}{r.full_name}</td>
-                                            <td className="px-4 py-3"><div>{r.position}</div><div className="text-xs text-slate-400">{r.department}</div></td>
-                                            <td className="px-4 py-3">{sess ? <><div className="font-medium">{sess.topic}</div><div className="text-xs text-slate-400">{formatDateTh(sess.date)}</div></> : '-'}</td>
-                                            <td className="px-4 py-3 text-center"><span className="inline-flex items-center text-green-700 bg-green-50 px-2.5 py-1 rounded-full text-xs font-bold border border-green-100"><Icon name="check" className="text-[12px] mr-1"/>ลงทะเบียนแล้ว</span></td>
-                                        </tr>;
-                                    }) : <tr><td colSpan="4" className="text-center py-8 text-slate-400">ไม่พบข้อมูล</td></tr>}
-                                </tbody></table>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* ─── DASHBOARD ─── */}
-                {activeTab === 'dashboard' && (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {[
-                                { label: 'ผู้ลงทะเบียนทั้งหมด', val: registrations.length, unit: 'คน', icon: 'group', color: 'text-blue-500' },
-                                { label: 'เข้าอบรมแล้ว', val: totalAttended, unit: 'คน', icon: 'how_to_reg', color: 'text-green-500' },
-                                { label: 'รอบอบรม', val: sessions.length, unit: 'รอบ', icon: 'calendar_month', color: 'text-purple-500' },
-                                { label: 'หน่วยงาน', val: departments.length, unit: 'แห่ง', icon: 'domain', color: 'text-orange-500' },
-                            ].map(s => (
-                                <div key={s.label} className="bg-white p-5 rounded-xl shadow-sm border">
-                                    <div className="flex justify-between items-start"><p className="text-slate-500 text-sm">{s.label}</p><Icon name={s.icon} className={s.color}/></div>
-                                    <p className="text-3xl font-bold mt-2">{s.val} <span className="text-sm font-normal text-slate-400">{s.unit}</span></p>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {[
-                                { title: 'สถิติแยกตามหน่วยงาน', icon: 'domain', stats: departmentStats, type: 'department' },
-                                { title: 'สถิติแยกตามหัวข้อ', icon: 'pie_chart', stats: topicStats, type: 'topic' },
-                            ].map(panel => (
-                                <div key={panel.title} className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                                    <div className="px-6 py-4 border-b bg-slate-50 font-bold flex items-center"><Icon name={panel.icon} className="text-[16px] mr-2 text-slate-500"/>{panel.title}</div>
-                                    <div className="p-6 overflow-y-auto max-h-96">
-                                        {panel.stats.map(stat => (
-                                            <div key={stat.name} className="mb-4 cursor-pointer hover:bg-slate-50 p-2 rounded-lg" onClick={() => setStatDetail({ type: panel.type, name: stat.name })}>
-                                                <div className="flex justify-between text-sm mb-1"><span className="truncate max-w-[200px]">{stat.name}</span><span>{stat.total} คน</span></div>
-                                                <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden flex">
-                                                    {stat.attended > 0 && <div className="bg-emerald-500 h-full text-[10px] text-white flex items-center justify-center" style={{width:`${(stat.attended/stat.total)*100}%`}}>{stat.attended}</div>}
-                                                    {stat.absent > 0 && <div className="bg-rose-400 h-full text-[10px] text-white flex items-center justify-center" style={{width:`${(stat.absent/stat.total)*100}%`}}>{stat.absent}</div>}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* ─── UNREGISTERED ─── */}
-                {activeTab === 'unregistered' && (
-                    <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                        <div className="px-6 py-4 bg-rose-600 font-bold flex items-center text-white justify-between">
-                            <div><Icon name="campaign" className="mr-2"/>หน่วยงานที่ยังไม่ลงทะเบียน</div>
-                            <span className="bg-rose-800 px-2 py-1 rounded-full text-xs">{unregisteredDepts.length} แห่ง</span>
-                        </div>
-                        <div className="p-6"><div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {unregisteredDepts.map(d => <div key={d.id} className="p-3 border border-rose-100 bg-rose-50 rounded-lg flex items-center text-rose-800 text-sm"><Icon name="close" className="text-[16px] text-rose-500 mr-2"/>{d.name}</div>)}
-                            {unregisteredDepts.length === 0 && <p className="text-slate-400 col-span-3 text-center py-8">ทุกหน่วยงานลงทะเบียนแล้ว 🎉</p>}
-                        </div></div>
-                    </div>
-                )}
-
-                {/* ─── ADMIN ─── */}
-                {activeTab === 'admin' && (
-                    !currentUser ? (
-                        <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-sm border mt-10 text-center">
-                            <Icon name="security" className="text-[48px] text-slate-400 mb-4"/>
-                            <h2 className="text-xl font-bold mb-6">เข้าสู่ระบบผู้ดูแล</h2>
-                            <form onSubmit={handleLogin} className="space-y-4 text-left">
-                                <div><input type="text" placeholder="Username" className="w-full border p-2.5 rounded-lg" value={loginForm.username} onChange={e => setLoginForm({...loginForm, username: e.target.value})} required/></div>
-                                <div><input type="password" placeholder="Password" className="w-full border p-2.5 rounded-lg" value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} required/></div>
-                                {loginError && <p className="text-red-600 text-sm">{loginError}</p>}
-                                <button type="submit" className="w-full bg-slate-800 text-white py-3 rounded-lg font-bold flex items-center justify-center">
-                                    {isLoggingIn ? <><Spinner/><span className="ml-2">กำลังตรวจสอบ...</span></> : 'เข้าสู่ระบบ'}
-                                </button>
-                            </form>
-                        </div>
-                    ) : (
-                        <div className="space-y-6">
-                            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border">
-                                <div className="flex items-center"><Icon name="person" className="text-[24px] bg-slate-100 p-2 rounded-full mr-3"/><div><h2 className="font-bold">{currentUser.name}</h2></div></div>
-                                <button onClick={() => setCurrentUser(null)} className="text-red-600 text-sm flex items-center"><Icon name="logout" className="text-[16px] mr-1"/>ออกจากระบบ</button>
-                            </div>
-
-                            {/* Admin Sub Tabs */}
-                            <div className="flex space-x-1 bg-slate-200 p-1 rounded-lg overflow-x-auto">
-                                {[
-                                    { id: 'manage', icon: 'grid_view', text: 'ตั้งค่าข้อมูล' },
-                                    { id: 'import', icon: 'upload_file', text: 'นำเข้า' },
-                                    { id: 'checkin', icon: 'fact_check', text: 'เช็คชื่อ' },
-                                    { id: 'user_check', icon: 'verified_user', text: 'สิทธิ์ใช้งาน' },
-                                    { id: 'export', icon: 'table_view', text: 'พิมพ์รายชื่อ' },
-                                ].map(t => (
-                                    <button key={t.id} onClick={() => setAdminSubTab(t.id)} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap ${adminSubTab === t.id ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                                        <Icon name={t.icon} className="text-[16px] mr-2"/>{t.text}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* ─── MANAGE ─── */}
-                            {adminSubTab === 'manage' && (
-                                <div className="space-y-6">
-                                    <div className="grid md:grid-cols-2 gap-6">
-                                        {/* Departments */}
-                                        <div className="bg-white p-6 rounded-xl border">
-                                            <h3 className="font-bold mb-4 flex items-center"><Icon name="domain" className="mr-2 text-emerald-600"/>จัดการหน่วยงาน</h3>
-                                            <div className="flex gap-2 mb-4">
-                                                <input className="flex-1 border p-2 rounded-lg text-sm" placeholder="ชื่อหน่วยงานใหม่" value={newDept} onChange={e => setNewDept(e.target.value)} onKeyDown={e => { if(e.key==='Enter'){e.preventDefault();if(newDept.trim()){db.addDepartment(newDept.trim()).then(()=>{setNewDept('');fetchAll();})}}}}/>
-                                                <button onClick={() => { if(newDept.trim()) db.addDepartment(newDept.trim()).then(()=>{setNewDept('');fetchAll();}); }} className="bg-emerald-600 text-white px-3 rounded-lg"><Icon name="add"/></button>
-                                            </div>
-                                            <ul className="space-y-2 max-h-48 overflow-y-auto">
-                                                {departments.map(d => <li key={d.id} className="flex justify-between bg-slate-50 p-2.5 rounded-lg text-sm">
-                                                    {editingDept?.id === d.id
-                                                        ? <div className="flex w-full gap-1">
-                                                            <input className="flex-1 border px-2 rounded" value={editingDept.name} onChange={e => setEditingDept({...editingDept, name: e.target.value})}/>
-                                                            <button onClick={() => { db.updateDepartment(editingDept.id, editingDept.name).then(()=>{setEditingDept(null);fetchAll();}); }} className="text-green-600 px-1"><Icon name="check"/></button>
-                                                            <button onClick={() => setEditingDept(null)} className="text-slate-400 px-1"><Icon name="close"/></button>
-                                                          </div>
-                                                        : <><span className="truncate">{d.name}</span><div className="flex">
-                                                            <button onClick={() => setEditingDept(d)} className="text-blue-500 px-1"><Icon name="edit" className="text-[16px]"/></button>
-                                                            <button onClick={() => { if(window.confirm('ลบหน่วยงาน?')) db.deleteDepartment(d.id).then(fetchAll); }} className="text-red-500 px-1"><Icon name="delete" className="text-[16px]"/></button>
-                                                          </div></>}
-                                                </li>)}
-                                            </ul>
-                                        </div>
-
-                                        {/* Prefixes */}
-                                        <div className="bg-white p-6 rounded-xl border">
-                                            <h3 className="font-bold mb-4 flex items-center"><Icon name="text_fields" className="mr-2 text-emerald-600"/>จัดการคำนำหน้า</h3>
-                                            <div className="flex gap-2 mb-4">
-                                                <input className="flex-1 border p-2 rounded-lg text-sm" placeholder="คำนำหน้าใหม่" value={newPrefix} onChange={e => setNewPrefix(e.target.value)}/>
-                                                <button onClick={() => { if(newPrefix.trim()) db.addPrefix(newPrefix.trim()).then(()=>{setNewPrefix('');fetchAll();}); }} className="bg-emerald-600 text-white px-3 rounded-lg"><Icon name="add"/></button>
-                                            </div>
-                                            <ul className="space-y-2 max-h-48 overflow-y-auto">
-                                                {prefixes.map(p => <li key={p.id} className="flex justify-between bg-slate-50 p-2.5 rounded-lg text-sm">
-                                                    <span>{p.name}</span>
-                                                    <button onClick={() => { if(window.confirm('ลบ?')) db.deletePrefix(p.id).then(fetchAll); }} className="text-red-500"><Icon name="delete" className="text-[16px]"/></button>
-                                                </li>)}
-                                            </ul>
-                                        </div>
-                                    </div>
-
-                                    {/* Sessions */}
-                                    <div className="bg-white p-6 rounded-xl border">
-                                        <h3 className="font-bold mb-4 flex items-center"><Icon name="calendar_month" className="mr-2 text-emerald-600"/>จัดการรอบอบรม</h3>
-                                        {/* Add new session */}
-                                        <div className="bg-slate-50 p-4 rounded-xl mb-4 border">
-                                            <p className="text-xs font-bold text-slate-500 mb-3">เพิ่มรอบใหม่</p>
-                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                                <div className="md:col-span-2"><input className="w-full border p-2 rounded-lg text-sm" placeholder="หัวข้ออบรม *" value={newSession.topic} onChange={e => setNewSession({...newSession, topic: e.target.value})}/></div>
-                                                <div><input type="number" className="w-full border p-2 rounded-lg text-sm" placeholder="จำนวนรับ" value={newSession.max_seats} onChange={e => setNewSession({...newSession, max_seats: parseInt(e.target.value)||30})}/></div>
-                                                <div><input type="date" className="w-full border p-2 rounded-lg text-sm" value={newSession.date} onChange={e => setNewSession({...newSession, date: e.target.value})}/></div>
-                                                <div><input type="time" className="w-full border p-2 rounded-lg text-sm" placeholder="เวลาเริ่ม" value={newSession.start_time} onChange={e => setNewSession({...newSession, start_time: e.target.value})}/></div>
-                                                <div><input type="time" className="w-full border p-2 rounded-lg text-sm" placeholder="เวลาสิ้นสุด" value={newSession.end_time} onChange={e => setNewSession({...newSession, end_time: e.target.value})}/></div>
-                                            </div>
-                                            <button onClick={() => { if(!newSession.topic) return; db.addSession(newSession).then(()=>{setNewSession({topic:'',description:'',date:'',start_time:'',end_time:'',max_seats:30});fetchAll();}); }} className="mt-3 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm flex items-center"><Icon name="add" className="mr-1"/>เพิ่มรอบอบรม</button>
-                                        </div>
-                                        {/* Sessions table */}
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
-                                                <thead><tr className="bg-slate-50">
-                                                    <th className="p-3 text-left">หัวข้อ</th><th className="p-3 text-left">วัน-เวลา</th><th className="p-3 text-center">คน</th><th className="p-3 text-right">Action</th>
-                                                </tr></thead>
-                                                <tbody>{sessions.map(s => (
-                                                    <tr key={s.id} className="border-b hover:bg-slate-50">
-                                                        {editingSession?.id === s.id ? <>
-                                                            <td className="p-3">
-                                                                <input className="w-full border rounded p-1 mb-1 text-sm" value={editingSession.topic} onChange={e => setEditingSession({...editingSession, topic: e.target.value})}/>
-                                                            </td>
-                                                            <td className="p-3">
-                                                                <input type="date" className="w-full border rounded p-1 mb-1 text-sm" value={editingSession.date} onChange={e => setEditingSession({...editingSession, date: e.target.value})}/>
-                                                                <div className="flex gap-1">
-                                                                    <input type="time" className="w-1/2 border rounded p-1 text-sm" value={editingSession.start_time||''} onChange={e => setEditingSession({...editingSession, start_time: e.target.value})}/>
-                                                                    <input type="time" className="w-1/2 border rounded p-1 text-sm" value={editingSession.end_time||''} onChange={e => setEditingSession({...editingSession, end_time: e.target.value})}/>
-                                                                </div>
-                                                            </td>
-                                                            <td className="p-3 text-center"><input type="number" className="w-16 border rounded p-1 text-sm text-center" value={editingSession.max_seats} onChange={e => setEditingSession({...editingSession, max_seats: parseInt(e.target.value)||30})}/></td>
-                                                            <td className="p-3 text-right">
-                                                                <button onClick={() => { db.updateSession(editingSession.id, { topic: editingSession.topic, date: editingSession.date, start_time: editingSession.start_time, end_time: editingSession.end_time, max_seats: editingSession.max_seats }).then(()=>{setEditingSession(null);fetchAll();}); }} className="text-green-600 bg-green-50 p-2 rounded mr-1"><Icon name="check" className="text-[16px]"/></button>
-                                                                <button onClick={() => setEditingSession(null)} className="text-gray-500 bg-gray-50 p-2 rounded"><Icon name="close" className="text-[16px]"/></button>
-                                                            </td>
-                                                        </> : <>
-                                                            <td className="p-3"><div className="font-medium">{s.topic}</div></td>
-                                                            <td className="p-3 text-slate-600">{formatDateTh(s.date)}<br/><span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">{formatTimeRange(s.start_time, s.end_time)}</span></td>
-                                                            <td className="p-3 text-center"><span className={`px-2 py-1 rounded-full text-xs font-bold ${s.registeredCount >= s.max_seats ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{s.registeredCount}/{s.max_seats}</span></td>
-                                                            <td className="p-3 text-right">
-                                                                <button onClick={() => setEditingSession({...s})} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg"><Icon name="edit" className="text-[16px]"/></button>
-                                                                <button onClick={() => { if(window.confirm('ลบรอบอบรมนี้?')) db.deleteSession(s.id).then(fetchAll); }} className="text-red-500 hover:bg-red-50 p-2 rounded-lg"><Icon name="delete" className="text-[16px]"/></button>
-                                                            </td>
-                                                        </>}
-                                                    </tr>
-                                                ))}</tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* ─── IMPORT ─── */}
-                            {adminSubTab === 'import' && (
-                                <div className="bg-white rounded-xl shadow-sm border p-8">
-                                    <div className="grid md:grid-cols-2 gap-8">
-                                        {[
-                                            { type: 'department', title: 'นำเข้าหน่วยงาน', color: 'text-blue-600' },
-                                            { type: 'session', title: 'นำเข้ารอบอบรม', color: 'text-purple-600' }
-                                        ].map(item => (
-                                            <div key={item.type} className="border rounded-xl p-6 bg-slate-50 text-center">
-                                                <h3 className="font-bold mb-2">{item.title}</h3>
-                                                <button onClick={() => handleDownloadTemplate(item.type)} className={`${item.color} text-sm mb-4 block mx-auto underline`}>ดาวน์โหลดแม่แบบ CSV</button>
-                                                <input type="file" accept=".csv" onChange={e => handleFileUpload(e, item.type)} className="text-sm"/>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {importStatus && <div className="mt-6 p-4 bg-slate-800 text-white text-center rounded-xl">{importStatus}</div>}
-                                </div>
-                            )}
-
-                            {/* ─── CHECKIN ─── */}
-                            {adminSubTab === 'checkin' && (
-                                <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                                    <div className="bg-emerald-600 px-6 py-4 flex justify-between items-center">
-                                        <h2 className="text-white font-semibold text-lg flex items-center"><Icon name="fact_check" className="mr-2"/>เช็คชื่อ (Check-in)</h2>
-                                        <button onClick={() => fetchAll(true)} className="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs flex items-center"><Icon name="refresh" className="text-[14px] mr-1"/>รีโหลด</button>
-                                    </div>
-                                    <div className="p-6">
-                                        <div className="grid md:grid-cols-2 gap-4 mb-6 bg-slate-50 p-4 rounded-xl border">
-                                            <div><label className="block text-xs font-bold text-slate-500 mb-2">1. หัวข้ออบรม</label>
-                                                <select className="w-full border rounded-lg p-2.5 text-sm outline-none" value={filterTopic} onChange={e => { setFilterTopic(e.target.value); setFilterSessionId(''); }}>
-                                                    <option value="">-- เลือกหัวข้อ --</option>{uniqueTopics.map(t => <option key={t} value={t}>{t}</option>)}
-                                                </select>
-                                            </div>
-                                            <div><label className="block text-xs font-bold text-slate-500 mb-2">2. รอบวันที่</label>
-                                                <select className="w-full border rounded-lg p-2.5 text-sm outline-none" value={filterSessionId} onChange={e => setFilterSessionId(e.target.value)} disabled={!filterTopic}>
-                                                    <option value="">-- เลือกรอบ --</option>
-                                                    {sessions.filter(s => s.topic === filterTopic).map(s => <option key={s.id} value={s.id}>{formatDateTh(s.date)} ({formatTimeRange(s.start_time, s.end_time)})</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
-                                        {filterSessionId && (
-                                            <div>
-                                                <div className="flex justify-between items-center mb-4">
-                                                    <h3 className="font-bold flex items-center"><Icon name="groups" className="mr-2 text-emerald-600"/>รายชื่อ ({checkinList.length} คน)</h3>
-                                                    <button onClick={handleSaveCheckin} disabled={isSavingCheckin} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg flex items-center text-sm shadow-md disabled:opacity-50">
-                                                        {isSavingCheckin ? <><Spinner/><span className="ml-2">กำลังบันทึก...</span></> : <><Icon name="save" className="mr-2"/>บันทึก</>}
-                                                    </button>
-                                                </div>
-                                                <div className="overflow-x-auto border rounded-xl">
-                                                    <table className="w-full text-sm">
-                                                        <thead className="bg-slate-100"><tr>
-                                                            <th className="px-4 py-3 text-center w-12">#</th>
-                                                            <th className="px-4 py-3">ชื่อ-นามสกุล</th>
-                                                            <th className="px-4 py-3">ตำแหน่ง/หน่วยงาน</th>
-                                                            <th className="px-4 py-3 text-center w-24">เข้าอบรม</th>
-                                                            <th className="px-4 py-3">หมายเหตุ</th>
-                                                        </tr></thead>
-                                                        <tbody className="divide-y">
-                                                            {checkinList.map((r, i) => (
-                                                                <tr key={r.id} className={`hover:bg-slate-50 ${r.attended ? 'bg-green-50/50' : ''}`}>
-                                                                    <td className="px-4 py-3 text-center text-slate-500">{i+1}</td>
-                                                                    <td className="px-4 py-3 font-medium">{r.prefix}{r.full_name}</td>
-                                                                    <td className="px-4 py-3 text-slate-600"><div>{r.position}</div><div className="text-xs text-slate-400">{r.department}</div></td>
-                                                                    <td className="px-4 py-3 text-center">
-                                                                        <label className="relative inline-flex items-center cursor-pointer">
-                                                                            <input type="checkbox" className="sr-only peer" checked={!!r.attended} onChange={e => setCheckinList(prev => prev.map(x => x.id === r.id ? {...x, attended: e.target.checked} : x))}/>
-                                                                            <div className="w-11 h-6 bg-slate-200 peer-focus:ring-2 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                                                                        </label>
-                                                                    </td>
-                                                                    <td className="px-4 py-3"><input type="text" className="border rounded-lg px-3 py-2 w-full text-sm outline-none focus:border-emerald-500" placeholder="หมายเหตุ..." value={r.remark||''} onChange={e => setCheckinList(prev => prev.map(x => x.id === r.id ? {...x, remark: e.target.value} : x))}/></td>
-                                                                </tr>
-                                                            ))}
-                                                            {checkinList.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-slate-400">ยังไม่มีผู้ลงทะเบียนในรอบนี้</td></tr>}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* ─── USER CHECK ─── */}
-                            {adminSubTab === 'user_check' && (
-                                <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                                    <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center">
-                                        <h2 className="text-white font-semibold text-lg flex items-center"><Icon name="verified_user" className="mr-2"/>ตรวจสอบสิทธิ์ผู้ใช้งาน</h2>
-                                        <button onClick={() => fetchAll(true)} className="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs flex items-center"><Icon name="refresh" className="text-[14px] mr-1"/>รีโหลด</button>
-                                    </div>
-                                    <div className="p-6">
-                                        <div className="flex flex-col md:flex-row gap-4 mb-6 bg-slate-50 p-4 rounded-xl border items-center">
-                                            <div className="relative flex-1 w-full"><Icon name="search" className="absolute left-3 top-2.5 text-slate-400 text-[20px]"/>
-                                                <input type="text" className="w-full border rounded-lg pl-10 p-2.5 text-sm outline-none" placeholder="ค้นหาชื่อ หรือ หน่วยงาน..." value={userCheckSearch} onChange={e => setUserCheckSearch(e.target.value)}/>
-                                            </div>
-                                            <select className="border rounded-lg p-2.5 text-sm outline-none bg-white min-w-[160px]" value={userCheckFilterStatus} onChange={e => setUserCheckFilterStatus(e.target.value)}>
-                                                <option value="">-- ทุกสถานะ --</option>
-                                                <option value="has_login">✅ มี Login</option>
-                                                <option value="no_login">⚠️ ไม่มี Login</option>
-                                                <option value="disabled">🚫 ปิดใช้งาน</option>
-                                                <option value="empty">❓ ยังไม่ระบุ</option>
-                                            </select>
-                                            <button onClick={handleSaveUserCheck} disabled={isSavingUserCheck} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg flex items-center text-sm shadow-md disabled:opacity-50 whitespace-nowrap">
-                                                {isSavingUserCheck ? <><Spinner/><span className="ml-2">บันทึก...</span></> : <><Icon name="save" className="mr-2"/>บันทึกสถานะ</>}
-                                            </button>
-                                        </div>
-                                        <div className="overflow-x-auto border rounded-xl max-h-[600px] overflow-y-auto">
-                                            <table className="w-full text-sm">
-                                                <thead className="bg-slate-100 sticky top-0 z-10"><tr>
-                                                    <th className="px-4 py-3 text-center w-12">#</th>
-                                                    <th className="px-4 py-3">ชื่อ-นามสกุล</th>
-                                                    <th className="px-4 py-3">ตำแหน่ง/หน่วยงาน</th>
-                                                    <th className="px-4 py-3 w-48">สถานะ Login</th>
-                                                    <th className="px-4 py-3">หมายเหตุ</th>
-                                                </tr></thead>
-                                                <tbody className="divide-y">
-                                                    {userCheckList.map((r, i) => (
-                                                        <tr key={r.id} className="hover:bg-slate-50">
-                                                            <td className="px-4 py-3 text-center text-slate-500">{i+1}</td>
-                                                            <td className="px-4 py-3 font-medium">{r.prefix}{r.full_name}</td>
-                                                            <td className="px-4 py-3 text-slate-600"><div>{r.position}</div><div className="text-xs text-slate-400">{r.department}</div></td>
-                                                            <td className="px-4 py-3">
-                                                                <select className={`w-full border rounded-lg p-2 text-sm outline-none ${r.loginStatus==='has_login'?'bg-green-50 border-green-200 text-green-700':r.loginStatus==='no_login'?'bg-yellow-50 border-yellow-200 text-yellow-700':r.loginStatus==='disabled'?'bg-red-50 border-red-200 text-red-700':'bg-white border-slate-300'}`}
-                                                                    value={r.loginStatus||''} onChange={e => setUserCheckList(prev => prev.map(x => x.id === r.id ? {...x, loginStatus: e.target.value} : x))}>
-                                                                    <option value="">- ระบุสถานะ -</option>
-                                                                    <option value="has_login">✅ มี Login แล้ว</option>
-                                                                    <option value="no_login">⚠️ ไม่มี Login</option>
-                                                                    <option value="disabled">🚫 ปิดการใช้งาน</option>
-                                                                </select>
-                                                            </td>
-                                                            <td className="px-4 py-3"><input type="text" className="border rounded-lg px-3 py-2 w-full text-sm outline-none" placeholder="หมายเหตุ..." value={r.loginRemark||''} onChange={e => setUserCheckList(prev => prev.map(x => x.id === r.id ? {...x, loginRemark: e.target.value} : x))}/></td>
-                                                        </tr>
-                                                    ))}
-                                                    {userCheckList.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-slate-400">ไม่พบรายชื่อ</td></tr>}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* ─── EXPORT / PRINT ─── */}
-                            {adminSubTab === 'export' && (
-                                <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                                    <div className="bg-emerald-600 px-6 py-4"><h2 className="text-white font-semibold text-lg flex items-center"><Icon name="table_view" className="mr-2"/>พิมพ์รายชื่อ (Export)</h2></div>
-                                    <div className="p-6">
-                                        {/* Print config */}
-                                        <div className="mb-8 border bg-slate-50 p-6 rounded-xl">
-                                            <h3 className="font-bold mb-4 flex items-center"><Icon name="settings_applications" className="mr-2 text-emerald-600"/>ตั้งค่าหัวกระดาษ</h3>
-                                            <div className="grid md:grid-cols-2 gap-4">
-                                                <div><label className="block text-xs font-bold text-slate-500 mb-1">ชื่อหน่วยงาน/โรงพยาบาล</label><input className="w-full border rounded-lg p-2 text-sm outline-none" value={printConfig.hospitalName} onChange={e => setPrintConfig({...printConfig, hospitalName: e.target.value})}/></div>
-                                                <div><label className="block text-xs font-bold text-slate-500 mb-1">ชื่อวิทยากร</label><input className="w-full border rounded-lg p-2 text-sm outline-none" value={printConfig.speakerName} onChange={e => setPrintConfig({...printConfig, speakerName: e.target.value})}/></div>
-                                                <div className="md:col-span-2">
-                                                    <label className="block text-xs font-bold text-slate-500 mb-2">Logo</label>
-                                                    <label className="cursor-pointer bg-white border hover:bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-sm flex items-center w-fit shadow-sm">
-                                                        <Icon name="image" className="mr-2"/>อัปโหลดรูปภาพ<input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload}/>
-                                                    </label>
-                                                    {printConfig.logo && <span className="mt-2 text-xs text-green-700 flex items-center"><Icon name="check_circle" className="text-[14px] mr-1"/>มีรูปภาพแล้ว</span>}
-                                                </div>
-                                            </div>
-                                            <div className="grid md:grid-cols-2 gap-4 mt-4 pt-4 border-t">
-                                                <div className="bg-white p-4 rounded-lg border space-y-2">
-                                                    <h4 className="text-sm font-bold text-emerald-700">ผู้ลงนาม (ฝั่ง BMS)</h4>
-                                                    <input className="w-full border rounded-lg p-2 text-sm outline-none" placeholder="ชื่อ-นามสกุล" value={printConfig.bmsSignerName} onChange={e => setPrintConfig({...printConfig, bmsSignerName: e.target.value})}/>
-                                                    <input className="w-full border rounded-lg p-2 text-sm outline-none" placeholder="ตำแหน่ง" value={printConfig.bmsSignerPosition} onChange={e => setPrintConfig({...printConfig, bmsSignerPosition: e.target.value})}/>
-                                                    <input className="w-full border rounded-lg p-2 text-sm outline-none" placeholder="บริษัท" value={printConfig.bmsSignerCompany} onChange={e => setPrintConfig({...printConfig, bmsSignerCompany: e.target.value})}/>
-                                                </div>
-                                                <div className="bg-white p-4 rounded-lg border space-y-2">
-                                                    <h4 className="text-sm font-bold text-blue-700">ผู้ลงนาม (ฝั่งโรงพยาบาล)</h4>
-                                                    <input className="w-full border rounded-lg p-2 text-sm outline-none" placeholder="ชื่อ-นามสกุล" value={printConfig.hospitalSignerName} onChange={e => setPrintConfig({...printConfig, hospitalSignerName: e.target.value})}/>
-                                                    <input className="w-full border rounded-lg p-2 text-sm outline-none" placeholder="ตำแหน่ง" value={printConfig.hospitalSignerPosition} onChange={e => setPrintConfig({...printConfig, hospitalSignerPosition: e.target.value})}/>
-                                                    <input className="w-full border rounded-lg p-2 text-sm outline-none" placeholder="หน่วยงาน" value={printConfig.hospitalSignerOrg} onChange={e => setPrintConfig({...printConfig, hospitalSignerOrg: e.target.value})}/>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {/* Filter */}
-                                        <div className="grid md:grid-cols-2 gap-4 mb-6">
-                                            <div><label className="block text-xs font-bold text-slate-500 mb-2">1. หัวข้ออบรม</label>
-                                                <select className="w-full border rounded-lg p-2.5 text-sm outline-none" value={exportTopic} onChange={e => { setExportTopic(e.target.value); setExportSessionId(''); }}>
-                                                    <option value="">-- เลือกหัวข้อ --</option>{uniqueTopics.map(t => <option key={t} value={t}>{t}</option>)}
-                                                </select>
-                                            </div>
-                                            <div><label className="block text-xs font-bold text-slate-500 mb-2">2. รอบวันที่</label>
-                                                <select className="w-full border rounded-lg p-2.5 text-sm outline-none" value={exportSessionId} onChange={e => setExportSessionId(e.target.value)} disabled={!exportTopic}>
-                                                    <option value="">-- เลือกรอบ --</option>
-                                                    {sessions.filter(s => s.topic === exportTopic).map(s => <option key={s.id} value={s.id}>{formatDateTh(s.date)} ({formatTimeRange(s.start_time, s.end_time)})</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
-                                        {exportSessionId && (
-                                            <div>
-                                                <div className="flex justify-between items-center mb-4">
-                                                    <h3 className="font-bold flex items-center"><Icon name="groups" className="mr-2 text-emerald-600"/>ตัวอย่างรายชื่อ ({getExportRegs().length} คน)</h3>
-                                                    <div className="flex space-x-3">
-                                                        <button onClick={() => setShowPrintPreview(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center text-sm shadow-md"><Icon name="print" className="mr-2"/>พิมพ์เอกสาร</button>
-                                                        <button onClick={handleExportCSV} className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg flex items-center text-sm shadow-md"><Icon name="download" className="mr-2"/>โหลด Excel</button>
-                                                    </div>
-                                                </div>
-                                                <div className="overflow-x-auto border rounded-xl max-h-[500px] overflow-y-auto">
-                                                    <table className="w-full text-sm">
-                                                        <thead className="bg-slate-100 sticky top-0 z-10"><tr>
-                                                            <th className="px-4 py-3 text-center w-12">ลำดับ</th>
-                                                            <th className="px-4 py-3">ชื่อ-นามสกุล</th>
-                                                            <th className="px-4 py-3">ตำแหน่ง</th>
-                                                            <th className="px-4 py-3">หน่วยงาน</th>
-                                                        </tr></thead>
-                                                        <tbody className="divide-y">
-                                                            {getExportRegs().map((r, i) => (
-                                                                <tr key={r.id} className="hover:bg-slate-50">
-                                                                    <td className="px-4 py-3 text-center text-slate-500">{i+1}</td>
-                                                                    <td className="px-4 py-3 font-medium">{r.prefix}{r.full_name}</td>
-                                                                    <td className="px-4 py-3 text-slate-600">{r.position}</td>
-                                                                    <td className="px-4 py-3 text-slate-600">{r.department}</td>
-                                                                </tr>
-                                                            ))}
-                                                            {getExportRegs().length === 0 && <tr><td colSpan={4} className="text-center py-8 text-slate-400">ยังไม่มีผู้ลงทะเบียนในรอบนี้</td></tr>}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )
-                )}
-            </main>
-
-            {/* ─── STAT MODAL ─── */}
-            {statDetail && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col overflow-hidden">
-                        <div className="p-4 border-b bg-emerald-600 text-white flex justify-between items-center">
-                            <h3 className="font-bold text-lg flex items-center"><Icon name="list_alt" className="mr-2"/>รายชื่อ: {statDetail.name} <span className="ml-2 text-sm bg-emerald-700 px-2 py-0.5 rounded-full">{statDetailList.length} คน</span></h3>
-                            <button onClick={() => setStatDetail(null)} className="p-1 hover:bg-emerald-700 rounded-full"><Icon name="close"/></button>
-                        </div>
-                        <div className="overflow-y-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-slate-50 sticky top-0 shadow-sm z-10"><tr>
-                                    <th className="px-4 py-3 text-center w-12">ลำดับ</th>
-                                    <th className="px-4 py-3">ชื่อ-นามสกุล</th>
-                                    <th className="px-4 py-3">หัวข้ออบรม</th>
-                                    <th className="px-4 py-3 text-center w-32">สถานะ</th>
-                                </tr></thead>
-                                <tbody className="divide-y">
-                                    {statDetailList.map((r, i) => {
-                                        const sess = sessions.find(s => s.id === r.session_id);
-                                        const isAtt = r.attended === true || r.attended === 'true';
-                                        return <tr key={r.id} className="hover:bg-slate-50">
-                                            <td className="px-4 py-3 text-center text-slate-500">{i+1}</td>
-                                            <td className="px-4 py-3"><div className="font-medium">{r.prefix}{r.full_name}</div><div className="text-xs text-slate-500">{r.position} | {r.department}</div></td>
-                                            <td className="px-4 py-3">{sess ? <><div>{sess.topic}</div><div className="text-xs text-slate-500">{formatDateTh(sess.date)}</div></> : '-'}</td>
-                                            <td className="px-4 py-3 text-center">{isAtt ? <span className="inline-flex items-center text-green-700 bg-green-50 px-2.5 py-1 rounded-full text-xs font-bold border border-green-200"><Icon name="check_circle" className="text-[14px] mr-1"/>เข้าร่วมแล้ว</span> : <span className="inline-flex items-center text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full text-xs font-bold border border-rose-200"><Icon name="cancel" className="text-[14px] mr-1"/>ไม่เข้าร่วม</span>}</td>
-                                        </tr>;
-                                    })}
-                                    {statDetailList.length === 0 && <tr><td colSpan="4" className="p-8 text-center text-slate-400">ไม่มีข้อมูล</td></tr>}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div className="p-4 border-t bg-slate-50 text-right">
-                            <button onClick={() => setStatDetail(null)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium">ปิด</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+<body>
+
+<nav class="nav">
+  <div class="nav-brand"><i class="ti ti-building-warehouse"></i><span>WMS Training</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('register')" id="tab-register">
+      <i class="ti ti-pencil-plus"></i><span>ลงทะเบียน</span>
+    </button>
+    <button class="nav-tab checkin-tab" onclick="showPage('checkin')" id="tab-checkin">
+      <i class="ti ti-scan"></i><span>เช็คชื่อ</span>
+    </button>
+    <button class="nav-tab" onclick="showPage('track')" id="tab-track">
+      <i class="ti ti-chart-bar"></i><span>ติดตาม</span>
+    </button>
+    <button class="nav-tab" onclick="showPage('admin')" id="tab-admin">
+      <i class="ti ti-adjustments-horizontal"></i><span>Admin</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ═══ REGISTER ═══ -->
+<div class="page active" id="page-register">
+  <div class="step-bar">
+    <div class="step active" id="step1"><div class="step-num">1</div><div class="step-label">ประเภทอบรม</div></div>
+    <div class="step-line" id="line1"></div>
+    <div class="step" id="step2"><div class="step-num">2</div><div class="step-label">เลือกรอบ</div></div>
+    <div class="step-line" id="line2"></div>
+    <div class="step" id="step3"><div class="step-num">3</div><div class="step-label">กรอกข้อมูล</div></div>
+  </div>
+  <div id="view-categories">
+    <div class="section-header"><div class="section-title"><i class="ti ti-category"></i>ประเภทการอบรม</div></div>
+    <div class="cat-grid" id="cat-grid"></div>
+  </div>
+  <div id="view-sessions" style="display:none;">
+    <button class="back-btn" onclick="goBackToCategories()"><i class="ti ti-arrow-left"></i>เลือกประเภทอื่น</button>
+    <div class="breadcrumb" id="breadcrumb"></div>
+    <div class="section-header"><div class="section-title" id="sessions-heading"><i class="ti ti-calendar-event"></i>รอบอบรม</div></div>
+    <div class="filter-tabs" id="sess-filters">
+      <button class="filter-tab active" onclick="filterSess('all',this)">ทั้งหมด</button>
+      <button class="filter-tab" onclick="filterSess('avail',this)">มีที่ว่าง</button>
+      <button class="filter-tab" onclick="filterSess('full',this)">เต็มแล้ว</button>
+    </div>
+    <div class="session-list" id="session-list"></div>
+  </div>
+</div>
+
+<!-- ═══ CHECKIN (รวมเช็คชื่อ + Scan QR) ═══ -->
+<div class="page" id="page-checkin">
+
+  <!-- Page Hero -->
+  <div class="checkin-hero">
+    <div class="checkin-hero-left">
+      <div class="hero-icon-wrap"><i class="ti ti-scan"></i></div>
+      <div>
+        <div class="hero-title">เช็คชื่อผู้เข้าอบรม</div>
+        <div class="hero-sub">สแกน QR Code หรือติ๊กชื่อจากรายการ</div>
+      </div>
+    </div>
+    <div id="checkin-live-stats" class="hero-stats"></div>
+  </div>
+
+  <!-- Sub-tabs inside checkin page -->
+  <div class="checkin-subtabs">
+    <button class="checkin-subtab active" onclick="switchCheckinTab('scan',this)" id="subtab-scan">
+      <i class="ti ti-qrcode"></i>
+      <span>Scan QR</span>
+    </button>
+    <button class="checkin-subtab" onclick="switchCheckinTab('list',this)" id="subtab-list">
+      <i class="ti ti-list-check"></i>
+      <span>รายชื่อ</span>
+    </button>
+  </div>
+
+  <!-- ── SUB: SCAN ── -->
+  <div class="checkin-sub active" id="csub-scan">
+    <div class="scan-area">
+      <div class="scan-header">
+        <div class="scan-header-title">
+          <div id="scan-status-dot" class="status-dot offline"></div>
+          <span id="scan-status-txt">กล้องปิดอยู่</span>
         </div>
-    );
-}
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-success btn-sm" id="btn-start-scan" onclick="startScan()">
+            <i class="ti ti-camera"></i>เปิดกล้อง
+          </button>
+          <button class="btn btn-ghost btn-sm" id="btn-stop-scan" onclick="stopScan()" style="display:none;">
+            <i class="ti ti-camera-off"></i>ปิดกล้อง
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="manualCheckIn()">
+            <i class="ti ti-keyboard"></i>พิมพ์ชื่อ
+          </button>
+        </div>
+      </div>
+      <div class="cam-wrap">
+        <video id="scanner-video" playsinline muted></video>
+        <div class="scan-overlay" id="scan-overlay" style="display:none;">
+          <div class="scan-frame"><div class="scan-line"></div></div>
+        </div>
+        <div class="scan-idle" id="scan-idle">
+          <div class="scan-idle-icon"><i class="ti ti-qrcode"></i></div>
+          <div class="scan-idle-txt">กดปุ่ม <strong>เปิดกล้อง</strong> แล้วส่อง QR ของผู้เข้าอบรม</div>
+          <div class="scan-idle-hint">QR Code มีข้อมูลครบ — สแกนแล้วบันทึกทันที ไม่ต้องเลือกรอบ</div>
+        </div>
+      </div>
+    </div>
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-</script>
+    <!-- Scan Result -->
+    <div id="scan-result-area"></div>
+
+    <!-- Scan Log -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-history"></i>ประวัติการสแกนวันนี้</div>
+        <button class="btn btn-ghost btn-sm" onclick="clearScanLog()"><i class="ti ti-trash"></i>ล้าง</button>
+      </div>
+      <div id="scan-log-list">
+        <div class="empty" style="padding:24px;">
+          <i class="ti ti-wave-sine" style="font-size:32px;display:block;margin-bottom:8px;opacity:.3;"></i>
+          <p>ยังไม่มีการสแกน</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SUB: LIST ── -->
+  <div class="checkin-sub" id="csub-list">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="ti ti-filter"></i>เลือกรอบอบรม</div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+        <div class="form-group" style="flex:1;min-width:150px;margin:0;">
+          <label class="form-label">ประเภทอบรม</label>
+          <select class="form-control" id="att-cat-sel" onchange="attFilterCat()"><option value="">ทุกประเภท</option></select>
+        </div>
+        <div class="form-group" style="flex:1;min-width:150px;margin:0;">
+          <label class="form-label">รอบอบรม</label>
+          <select class="form-control" id="att-sess-sel" onchange="loadAttendance()"><option value="">เลือกรอบ...</option></select>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="exportAttendance()" title="Export CSV">
+          <i class="ti ti-table-export"></i>Export
+        </button>
+      </div>
+    </div>
+    <div id="att-content">
+      <div class="empty"><i class="ti ti-calendar-search" style="font-size:40px;display:block;margin-bottom:10px;opacity:.35;"></i><p>เลือกรอบอบรมเพื่อดูรายชื่อ</p></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ TRACK ═══ -->
+<div class="page" id="page-track">
+  <div class="section-header"><div class="section-title"><i class="ti ti-user-search"></i>ติดตามการลงทะเบียน</div></div>
+  <div class="card">
+    <div class="card-header"><div class="card-title"><i class="ti ti-search"></i>ค้นหาผู้ลงทะเบียน</div></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">ชื่อ - นามสกุล</label><input class="form-control" id="track-name" placeholder="ค้นหาด้วยชื่อ..." oninput="trackSearch()"></div>
+      <div class="form-group"><label class="form-label">ตำแหน่ง</label><input class="form-control" id="track-pos" placeholder="ค้นหาด้วยตำแหน่ง..." oninput="trackSearch()"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <select class="form-control" id="track-cat" style="flex:1;min-width:150px;" onchange="trackSearch()"><option value="">ทุกประเภท</option></select>
+      <select class="form-control" id="track-sess" style="flex:1;min-width:150px;" onchange="trackSearch()"><option value="">ทุกรอบ</option></select>
+      <button class="btn btn-ghost btn-sm" onclick="clearTrack()"><i class="ti ti-refresh"></i></button>
+    </div>
+  </div>
+  <div id="track-results"></div>
+</div>
+
+<!-- ═══ ADMIN ═══ -->
+<div class="page" id="page-admin">
+  <div class="section-header"><div class="section-title"><i class="ti ti-settings"></i>Admin</div></div>
+  <div class="stats-grid" id="admin-stats"></div>
+  <div class="admin-tabs">
+    <button class="admin-tab active" onclick="switchAdminTab('sessions')"><i class="ti ti-calendar"></i> รอบอบรม</button>
+    <button class="admin-tab" onclick="switchAdminTab('categories')"><i class="ti ti-category"></i> ประเภท</button>
+    <button class="admin-tab" onclick="switchAdminTab('masters')"><i class="ti ti-list"></i> ข้อมูลพื้นฐาน</button>
+    <button class="admin-tab" onclick="switchAdminTab('registrations')"><i class="ti ti-users"></i> ผู้ลงทะเบียน</button>
+  </div>
+
+  <!-- Sessions -->
+  <div class="admin-section active" id="asec-sessions">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-calendar-plus"></i>จัดการรอบอบรม</div>
+        <button class="btn btn-primary btn-sm" onclick="openAddSession()"><i class="ti ti-plus"></i>เพิ่มรอบ</button>
+      </div>
+      <div style="margin-bottom:12px;">
+        <select class="form-control" id="admin-filter-cat" onchange="renderAdminSessions()" style="max-width:260px;"><option value="">ทุกประเภท</option></select>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>ประเภท</th><th>รอบอบรม</th><th>วันที่</th><th>เวลา</th><th>สถานที่</th><th>วิทยากร</th><th>ลง/ทั้งหมด</th><th>เข้าอบรม</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody id="admin-sess-tbody"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- Categories -->
+  <div class="admin-section" id="asec-categories">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-category"></i>จัดการประเภทอบรม</div>
+        <button class="btn btn-primary btn-sm" onclick="openAddCat()"><i class="ti ti-plus"></i>เพิ่มประเภท</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>ประเภท</th><th>คำอธิบาย</th><th>รอบ</th><th>ผู้ลงทะเบียน</th><th>จัดการ</th></tr></thead><tbody id="admin-cat-tbody"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- Masters -->
+  <div class="admin-section" id="asec-masters">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;flex-wrap:wrap;">
+      <!-- Trainers -->
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-header"><div class="card-title"><i class="ti ti-user-check"></i>วิทยากร</div></div>
+        <div class="master-list" id="trainer-list"></div>
+        <div class="master-add-row">
+          <input class="form-control" id="new-trainer-input" placeholder="ชื่อวิทยากร..." style="flex:1;" onkeydown="if(event.key==='Enter')addMaster('trainer')">
+          <button class="btn btn-primary btn-sm" onclick="addMaster('trainer')"><i class="ti ti-plus"></i></button>
+        </div>
+      </div>
+      <!-- Venues -->
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-header"><div class="card-title"><i class="ti ti-map-pin"></i>สถานที่</div></div>
+        <div class="master-list" id="venue-list"></div>
+        <div class="master-add-row">
+          <input class="form-control" id="new-venue-input" placeholder="ชื่อสถานที่..." style="flex:1;" onkeydown="if(event.key==='Enter')addMaster('venue')">
+          <button class="btn btn-primary btn-sm" onclick="addMaster('venue')"><i class="ti ti-plus"></i></button>
+        </div>
+      </div>
+      <!-- Departments -->
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-header"><div class="card-title"><i class="ti ti-building"></i>แผนก</div></div>
+        <div class="master-list" id="dept-list"></div>
+        <div class="master-add-row">
+          <input class="form-control" id="new-dept-input" placeholder="ชื่อแผนก..." style="flex:1;" onkeydown="if(event.key==='Enter')addMaster('dept')">
+          <button class="btn btn-primary btn-sm" onclick="addMaster('dept')"><i class="ti ti-plus"></i></button>
+        </div>
+      </div>
+      <!-- Prefixes -->
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-header"><div class="card-title"><i class="ti ti-id-badge"></i>คำนำหน้าชื่อ</div></div>
+        <div class="master-list" id="prefix-list"></div>
+        <div class="master-add-row">
+          <input class="form-control" id="new-prefix-input" placeholder="เช่น นาย, นาง..." style="flex:1;" onkeydown="if(event.key==='Enter')addMaster('prefix')">
+          <button class="btn btn-primary btn-sm" onclick="addMaster('prefix')"><i class="ti ti-plus"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registrations -->
+  <div class="admin-section" id="asec-registrations">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="ti ti-list-details"></i>รายชื่อผู้ลงทะเบียน</div></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <div style="position:relative;flex:1;min-width:150px;">
+          <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:15px;"></i>
+          <input class="form-control" id="admin-search" placeholder="ค้นหา..." oninput="renderAdminRegs()" style="padding-left:32px;">
+        </div>
+        <select class="form-control" id="admin-filter-sess" style="width:200px;" onchange="renderAdminRegs()"><option value="">ทุกรอบ</option></select>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>คำนำหน้า</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th>ประเภท</th><th>รอบ</th><th>วันที่ลง</th><th>สถานะ</th><th>QR</th><th>ลบ</th></tr></thead><tbody id="admin-reg-tbody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- Register Form - Redesigned -->
+<div class="modal-overlay" id="modal-register">
+  <div class="modal" style="max-width:520px;padding:0;overflow:hidden;">
+    <!-- Modal header with session info -->
+    <div id="reg-modal-header" style="background:linear-gradient(135deg,#1a3a6b,#1a56a0);padding:18px 22px;color:#fff;">
+      <div style="font-size:11px;opacity:.7;margin-bottom:2px;text-transform:uppercase;letter-spacing:.8px;">กรอกข้อมูลเพื่อลงทะเบียน</div>
+      <div id="reg-sess-title" style="font-family:Prompt,sans-serif;font-size:16px;font-weight:700;"></div>
+      <div id="reg-sess-meta" style="font-size:12px;opacity:.8;margin-top:4px;display:flex;gap:14px;flex-wrap:wrap;"></div>
+      <div id="reg-seat-info" style="margin-top:8px;"></div>
+    </div>
+
+    <!-- Form body -->
+    <div style="padding:20px 22px;">
+      <!-- Name row: prefix + first + last all on one line feel -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">ข้อมูลส่วนตัว</div>
+        <div class="reg-name-row">
+          <div class="reg-field-prefix">
+            <div class="reg-field-label">คำนำหน้า <span style="color:var(--danger)">*</span></div>
+            <select class="form-control" id="reg-prefix"></select>
+          </div>
+          <div class="reg-field-fname">
+            <div class="reg-field-label">ชื่อ <span style="color:var(--danger)">*</span></div>
+            <input class="form-control" id="reg-fname" placeholder="ชื่อ" oninput="previewRegName()">
+          </div>
+          <div class="reg-field-lname">
+            <div class="reg-field-label">นามสกุล <span style="color:var(--danger)">*</span></div>
+            <input class="form-control" id="reg-lname" placeholder="นามสกุล" oninput="previewRegName()">
+          </div>
+        </div>
+        <!-- Live name preview -->
+        <div id="reg-name-preview" style="display:none;margin-top:8px;padding:8px 12px;background:var(--success-light);border-radius:8px;font-size:13px;font-weight:600;color:#065f46;display:flex;align-items:center;gap:8px;">
+          <i class="ti ti-user-check"></i><span id="reg-name-preview-txt"></span>
+        </div>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin-bottom:16px;"></div>
+
+      <!-- Work info -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">ข้อมูลงาน</div>
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom:0;">
+            <div class="reg-field-label">ตำแหน่ง <span style="color:var(--danger)">*</span></div>
+            <input class="form-control" id="reg-pos" placeholder="เช่น พนักงานคลังสินค้า">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <div class="reg-field-label">แผนก <span style="color:var(--danger)">*</span></div>
+            <select class="form-control" id="reg-dept"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Required hint -->
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">
+        <i class="ti ti-info-circle" style="vertical-align:-1px;"></i> กรอกข้อมูลที่มี <span style="color:var(--danger);font-weight:600;">*</span> ให้ครบทุกช่อง
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-ghost" onclick="closeModal('modal-register')" style="flex:1;">
+          <i class="ti ti-arrow-left"></i>ย้อนกลับ
+        </button>
+        <button class="btn btn-success" onclick="submitReg()" style="flex:2;justify-content:center;font-size:14px;padding:10px;">
+          <i class="ti ti-circle-check"></i>ยืนยันลงทะเบียน
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- QR Viewer -->
+<div class="modal-overlay" id="modal-qr">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-title"><i class="ti ti-qrcode"></i>QR Code ยืนยันตัวตน</div>
+    <div class="qr-modal-inner" id="qr-modal-inner"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-qr')"><i class="ti ti-x"></i>ปิด</button>
+      <button class="btn btn-primary" onclick="saveQRasImage()"><i class="ti ti-download"></i>บันทึกรูปลงเครื่อง</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manual Check-in -->
+<div class="modal-overlay" id="modal-manual">
+  <div class="modal">
+    <div class="modal-title"><i class="ti ti-keyboard"></i>เช็คชื่อด้วยชื่อ</div>
+    <div class="form-group">
+      <label class="form-label">ค้นหาชื่อ</label>
+      <input class="form-control" id="manual-search" placeholder="พิมพ์ชื่อ หรือนามสกุล..." oninput="manualSearchResult()">
+    </div>
+    <div id="manual-results" style="max-height:280px;overflow-y:auto;"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-manual')">ปิด</button></div>
+  </div>
+</div>
+
+<!-- Add Category -->
+<div class="modal-overlay" id="modal-add-cat">
+  <div class="modal">
+    <div class="modal-title"><i class="ti ti-category-plus"></i>เพิ่มประเภทการอบรม</div>
+    <div class="form-group"><label class="form-label">ชื่อประเภท <span>*</span></label><input class="form-control" id="nc-name" placeholder="เช่น การรับสินค้า"></div>
+    <div class="form-group"><label class="form-label">คำอธิบาย</label><input class="form-control" id="nc-desc" placeholder="อธิบายหัวข้อโดยย่อ"></div>
+    <div class="form-group"><label class="form-label">ไอคอน (Tabler name)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input class="form-control" id="nc-icon" placeholder="เช่น box, truck, archive" oninput="previewIcon()">
+        <span id="icon-preview" style="font-size:22px;color:var(--primary);width:36px;text-align:center;"><i class="ti ti-box"></i></span>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">สีธีม</label>
+      <select class="form-control" id="nc-color">
+        <option value="blue">น้ำเงิน</option><option value="teal">เขียวมรกต</option>
+        <option value="amber">เหลือง</option><option value="red">แดง</option>
+        <option value="purple">ม่วง</option><option value="green">เขียว</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-cat')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="submitAddCat()"><i class="ti ti-plus"></i>เพิ่ม</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Session -->
+<div class="modal-overlay" id="modal-session">
+  <div class="modal modal-wide">
+    <div class="modal-title" id="sess-modal-title"><i class="ti ti-calendar-plus"></i>เพิ่มรอบอบรม</div>
+    <input type="hidden" id="sess-edit-id">
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">ประเภท <span>*</span></label><select class="form-control" id="ns-cat"><option value="">เลือกประเภท...</option></select></div>
+      <div class="form-group"><label class="form-label">ชื่อรอบ <span>*</span></label><input class="form-control" id="ns-name" placeholder="เช่น รอบที่ 1 / กลุ่ม A"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">วันที่ <span>*</span></label><input class="form-control" id="ns-date" type="date"></div>
+      <div class="form-group"><label class="form-label">จำนวนที่นั่ง <span>*</span></label><input class="form-control" id="ns-cap" type="number" min="1" placeholder="20"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">เวลาเริ่ม</label><input class="form-control" id="ns-time-start" type="time" value="09:00"></div>
+      <div class="form-group"><label class="form-label">เวลาสิ้นสุด</label><input class="form-control" id="ns-time-end" type="time" value="16:00"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">สถานที่ <span>*</span></label>
+        <select class="form-control" id="ns-venue"><option value="">เลือกสถานที่...</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">วิทยากร <span>*</span></label>
+        <select class="form-control" id="ns-trainer"><option value="">เลือกวิทยากร...</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-session')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="submitSession()"><i class="ti ti-check"></i>บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><i class="ti ti-circle-check"></i><span id="toast-msg"></span></div>
+
+<script src="app.js"></script>
 </body>
 </html>
+
