@@ -7,7 +7,10 @@
       "Bash(git add *)",
       "Bash(git reset *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "PowerShell(Select-String -Path \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\app.js\" -Pattern \"checkin|scan|QR\" -CaseSensitive:$false | Select-Object -First 20 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })",
+      "PowerShell(Select-String -Path \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\app.js\" -Pattern \"scan|camera|video|getUserMedia|jsQR|html5qr\" -CaseSensitive:$false | Select-Object -First 30 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })",
+      "PowerShell(Select-String -Path \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\index.html\" -Pattern \"script|jsQR|qrcode\" -CaseSensitive:$false | Select-Object -First 20 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })"
     ]
   }
 }

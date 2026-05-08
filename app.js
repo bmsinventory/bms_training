@@ -44,7 +44,7 @@ async function pushNotify(reg){
     `👤 ชื่อ-สกุล: ${reg.prefix}${reg.fname} ${reg.lname}`,
     `💼 ตำแหน่ง: ${reg.position||'-'}`,
     `🏢 หน่วยงาน: ${reg.dept||'-'}`,
-    `📚 หัวข้อ: ${s?s.name:'-'}`,
+    `📚 หัวข้อ: ${s?`${getCat(s.catId)?.name||'-'} : ${s.name}`:'-'}`,
     `📅 เวลา: ${dateStr} เวลา ${timeStr}`,
   ];
   try{
@@ -691,27 +691,13 @@ async function submitReg(){
 
 /* ══════════════════ QR CODE ══════════════════ */
 function buildQRPayload(reg){
-  const s=getSess(reg.sessionId);
-  const cat=s?getCat(s.catId):null;
-  return JSON.stringify({
-    v:2,
-    regId:reg.id,
-    sessionId:reg.sessionId,
-    name:`${reg.prefix||''}${reg.fname} ${reg.lname}`,
-    sessName:s?s.name:'',
-    catName:cat?cat.name:'',
-    date:s?s.date:'',
-    timeStart:s?s.timeStart:'',
-    timeEnd:s?s.timeEnd:'',
-    venue:s?s.venue:'',
-    trainer:s?s.trainer:''
-  });
+  return JSON.stringify({v:2,regId:reg.id});
 }
 
 /* ─── Pure-canvas QR renderer using qrcode-generator ─── */
 function makeQRCanvas(text, size, darkColor){
   darkColor = darkColor || '#1a56a0';
-  var qr = qrcode(0, 'M');
+  var qr = qrcode(0, 'H');
   qr.addData(text);
   qr.make();
   var modules = qr.getModuleCount();
@@ -916,14 +902,16 @@ function stopScan(){
   if(dot){dot.className='status-dot offline';}
   if(txt){txt.textContent='กล้องปิดอยู่';}
 }
+let _scanCanvas=null,_scanCtx=null;
 function processFrame(video){
+  if(!video.videoWidth||!video.videoHeight)return;
   try{
-    const canvas=document.createElement('canvas');
-    canvas.width=video.videoWidth;canvas.height=video.videoHeight;
-    const ctx=canvas.getContext('2d');ctx.drawImage(video,0,0);
-    const id=ctx.getImageData(0,0,canvas.width,canvas.height);
-    const code=jsQR(id.data,id.width,id.height);
-    if(code){handleQRData(code.data);stopScan();}
+    if(!_scanCanvas){_scanCanvas=document.createElement('canvas');_scanCtx=_scanCanvas.getContext('2d');}
+    _scanCanvas.width=video.videoWidth;_scanCanvas.height=video.videoHeight;
+    _scanCtx.drawImage(video,0,0);
+    const id=_scanCtx.getImageData(0,0,_scanCanvas.width,_scanCanvas.height);
+    const code=jsQR(id.data,id.width,id.height,{inversionAttempts:'dontInvert'});
+    if(code&&code.data){handleQRData(code.data);stopScan();}
   }catch(e){}
 }
 function handleQRData(raw){
@@ -1135,7 +1123,7 @@ async function markAllPresent(sid){
   loadAttendance();showToast('เช็คชื่อทั้งหมดสำเร็จ','success');
 }
 async function clearAllAtt(sid){
-  if(!confirm('ล้างการเช็คชื่อทั้งหมดในรอบนี้?'))return;
+  if(!await showConfirm('ล้างการเช็คชื่อทั้งหมดในรอบนี้?','',{okLabel:'ล้างข้อมูล',danger:true}))return;
   const toClr=registrations.filter(r=>r.sessionId===sid&&r.attended);
   if(!toClr.length){showToast('ไม่มีรายการที่เช็คชื่อ','warn');return;}
   const {error}=await _sb.from('registrations').update({attended:false,attended_time:null}).in('id',toClr.map(r=>r.id));
@@ -1309,7 +1297,7 @@ async function addMaster(key){
 async function removeMaster(key,idx){
   const cfg=MASTER_CFG[key];
   const arr=cfg.list();
-  if(!confirm(`ลบ "${arr[idx]}" ?`))return;
+  if(!await showConfirm(`ลบ "${arr[idx]}"?`,'',{okLabel:'ลบ'}))return;
   const id=(masterIds[key]||[])[idx];
   if(id){
     const {error}=await _sb.from('master_items').delete().eq('id',id);
@@ -1418,7 +1406,7 @@ async function submitSession(){
   closeModal('modal-session');renderAdmin();
 }
 async function deleteSess(id){
-  if(!confirm('ลบรอบนี้?'))return;
+  if(!await showConfirm('ลบรอบอบรมนี้?','',{okLabel:'ลบ'}))return;
   const {error}=await _sb.from('sessions').delete().eq('id',id);
   if(error){showToast('ลบไม่สำเร็จ','danger');return;}
   sessions=sessions.filter(x=>x.id!==id);
@@ -1494,7 +1482,7 @@ async function submitAddCat(){
 async function deleteCat(id){
   const c=getCat(id);
   const sc=sessions.filter(s=>s.catId===id).length;
-  if(!confirm(`ลบประเภท "${c.name}" ? (มี ${sc} รอบ)`))return;
+  if(!await showConfirm(`ลบประเภท "${c.name}"?`,sc?`มี ${sc} รอบที่จะถูกลบด้วย`:'',{okLabel:'ลบ'}))return;
   const {error}=await _sb.from('categories').delete().eq('id',id);
   if(error){showToast('ลบไม่สำเร็จ','danger');return;}
   const sids=sessions.filter(s=>s.catId===id).map(s=>s.id);
@@ -1570,7 +1558,7 @@ async function addLocation(){
 async function deleteLoc(id){
   const loc=locations.find(l=>l.id===id);if(!loc)return;
   if(loc.code===currentSite){showToast('ไม่สามารถลบสาขาที่กำลังใช้งาน','danger');return;}
-  if(!confirm(`ลบสาขา "${loc.name}" ?\n(ข้อมูลหลักสูตร/รอบของสาขานี้จะไม่ถูกลบ)`))return;
+  if(!await showConfirm(`ลบสาขา "${loc.name}"?`,'ข้อมูลหลักสูตร/รอบของสาขานี้จะไม่ถูกลบ',{okLabel:'ลบ'}))return;
   const {error}=await _sb.from('locations').delete().eq('id',id);
   if(error){showToast('ลบไม่สำเร็จ','danger');return;}
   locations=locations.filter(l=>l.id!==id);
@@ -1647,7 +1635,7 @@ async function deleteAdminUser(id){
   const user=adminUsers.find(u=>u.id===id);if(!user)return;
   if(user.id===currentAdminUser?.id){showToast('ไม่สามารถลบบัญชีที่กำลังใช้งานอยู่','danger');return;}
   if(adminUsers.length<=1){showToast('ต้องมีผู้ใช้งานอย่างน้อย 1 คน','danger');return;}
-  if(!confirm(`ลบผู้ใช้ "${user.username}" ?`))return;
+  if(!await showConfirm(`ลบผู้ใช้ "${user.username}"?`,'',{okLabel:'ลบ'}))return;
   const {error}=await _sb.from('admin_users').delete().eq('id',id);
   if(error){showToast('ลบไม่สำเร็จ','danger');return;}
   adminUsers=adminUsers.filter(u=>u.id!==id);
@@ -1688,7 +1676,7 @@ function renderAdminRegs(){
   }).join('');
 }
 async function deleteReg(id){
-  if(!confirm('ยืนยันลบ?'))return;
+  if(!await showConfirm('ลบรายการลงทะเบียนนี้?','',{okLabel:'ลบ'}))return;
   const {error}=await _sb.from('registrations').delete().eq('id',id);
   if(error){showToast('ลบไม่สำเร็จ','danger');return;}
   registrations=registrations.filter(r=>r.id!==id);renderAdminRegs();showToast('ลบสำเร็จ','success');
@@ -1718,7 +1706,7 @@ async function adminSubmitReg(){
   if(dup){
     const dupSess=getSess(dup.sessionId);
     if(dup.sessionId===sessId){showToast(`${fname} ${lname} ลงทะเบียนรอบนี้ไว้แล้ว`,'danger');return;}
-    if(!confirm(`${fname} ${lname} ลงทะเบียน "${dupSess?dupSess.name:'รอบอื่น'}" ในประเภทนี้อยู่แล้ว\nต้องการเพิ่มรายการซ้ำหรือไม่?`))return;
+    if(!await showConfirm(`${fname} ${lname} ลงทะเบียน "${dupSess?dupSess.name:'รอบอื่น'}" ในประเภทนี้อยู่แล้ว`,`ต้องการเพิ่มรายการซ้ำหรือไม่?`,{okLabel:'เพิ่มรายการ',danger:false}))return;
   }
   const {data,error}=await _sb.from('registrations').insert({
     session_id:sessId,prefix,fname,lname,position:pos,dept,
@@ -1829,6 +1817,25 @@ async function submitEditReg(){
 
 /* ══ UTILS ══ */
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+function showConfirm(msg,subMsg='',{okLabel='ตกลง',danger=true}={}){
+  return new Promise(resolve=>{
+    document.getElementById('confirm-msg').textContent=msg;
+    const sub=document.getElementById('confirm-sub');
+    sub.textContent=subMsg;sub.style.display=subMsg?'block':'none';
+    document.getElementById('confirm-icon').innerHTML=danger
+      ?'<i class="ti ti-alert-triangle" style="color:var(--danger)"></i>'
+      :'<i class="ti ti-help-circle" style="color:var(--primary)"></i>';
+    const okBtn=document.getElementById('confirm-ok-btn');
+    okBtn.className='btn '+(danger?'btn-danger':'btn-primary');
+    okBtn.innerHTML=(danger?'<i class="ti ti-trash"></i>':'<i class="ti ti-check"></i>')+okLabel;
+    document.getElementById('modal-confirm').classList.add('open');
+    const done=(v)=>{closeModal('modal-confirm');resolve(v);};
+    const ok=()=>done(true);
+    const cancel=()=>done(false);
+    okBtn.onclick=ok;
+    document.getElementById('confirm-cancel-btn').onclick=cancel;
+  });
+}
 function showToast(msg,type='success'){
   const t=document.getElementById('toast');
   t.querySelector('#toast-msg').textContent=msg;

@@ -61,7 +61,7 @@
     <div class="cat-search-bar">
       <div class="cat-search-wrap">
         <i class="ti ti-search"></i>
-        <input type="text" id="cat-search" class="cat-search-input" placeholder="ค้นหาหลักสูตร..." oninput="filterCats()">
+        <input type="text" id="cat-search" class="cat-search-input" placeholder="ค้นหาหลักสูตร..." oninput="filterCats()" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')">
       </div>
       <div class="cat-filter-pills" id="cat-status-pills">
         <button class="cat-filter-pill active" onclick="setCatFilter('all',this)"><i class="ti ti-layout-grid"></i>ทั้งหมด</button>
@@ -437,6 +437,19 @@
   </div>
 </div>
 
+<!-- Confirm Dialog -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal" style="max-width:360px;text-align:center;padding:28px 24px 24px;">
+    <div id="confirm-icon" style="font-size:44px;margin-bottom:12px;"></div>
+    <div id="confirm-msg" style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;"></div>
+    <div id="confirm-sub" style="font-size:13px;color:var(--text-muted);margin-bottom:22px;line-height:1.6;"></div>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button class="btn btn-ghost" id="confirm-cancel-btn" style="min-width:90px;"><i class="ti ti-x"></i>ยกเลิก</button>
+      <button class="btn" id="confirm-ok-btn" style="min-width:100px;justify-content:center;"></button>
+    </div>
+  </div>
+</div>
+
 <!-- Admin Login -->
 <div class="modal-overlay" id="modal-admin-login">
   <div class="modal" style="max-width:380px;padding:0;overflow:hidden;">
@@ -454,12 +467,12 @@
     <div style="padding:20px 22px;">
       <div class="form-group">
         <label class="form-label"><i class="ti ti-user"></i> ชื่อผู้ใช้</label>
-        <input class="form-control" id="login-user" type="text" placeholder="กรอกชื่อผู้ใช้" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+        <input class="form-control" id="login-user" type="text" placeholder="กรอกชื่อผู้ใช้" autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
       </div>
       <div class="form-group">
         <label class="form-label"><i class="ti ti-key"></i> รหัสผ่าน</label>
         <div style="position:relative;">
-          <input class="form-control" id="login-pass" type="password" placeholder="กรอกรหัสผ่าน" autocomplete="current-password" onkeydown="if(event.key==='Enter')adminLogin()" style="padding-right:40px;">
+          <input class="form-control" id="login-pass" type="password" placeholder="กรอกรหัสผ่าน" autocomplete="off" onkeydown="if(event.key==='Enter')adminLogin()" style="padding-right:40px;">
           <button type="button" onclick="toggleLoginPass()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;padding:0;line-height:1;">
             <i class="ti ti-eye" id="login-eye-icon"></i>
           </button>
