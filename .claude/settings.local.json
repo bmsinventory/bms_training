@@ -1,38 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(Get-ChildItem \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\")",
-      "Bash(Select-Object Name, Length, LastWriteTime)",
-      "Bash(git init *)",
+      "Bash(wc -l index.html style.css app.js)",
+      "Bash(powershell -Command \"Get-Item index.html,style.css,app.js | Select-Object Name,Length\")",
       "Bash(git remote *)",
       "Bash(git add *)",
+      "Bash(git reset *)",
       "Bash(git commit -m ' *)",
-      "Bash(git branch *)",
-      "Bash(git push *)",
-      "Bash(gh --version)",
-      "PowerShell(gh --version 2>&1)",
-      "PowerShell(winget install --id GitHub.cli --silent --accept-package-agreements --accept-source-agreements 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh auth login --hostname github.com --git-protocol https --web 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; cd \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\"; git push -u origin main 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh auth setup-git 2>&1; cd \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\"; git push -u origin main 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh api repos/bmsinventory/bms-training/pages --method POST -f source='{\"branch\":\"main\",\"path\":\"/\"}' 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh api repos/bmsinventory/bms-training/pages 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh api repos/bmsinventory/bms-training --jq '.private' 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh api repos/bmsinventory/bms-training/pages --method PUT -f build_type='legacy' -f source='{\"branch\":\"main\",\"path\":\"/\"}' 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh api repos/bmsinventory/bms-training/pages/builds --method POST 2>&1)",
-      "PowerShell(Start-Sleep -Seconds 15; $env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh api repos/bmsinventory/bms-training/pages --jq '{status:.status, url:.html_url}' 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh api repos/bmsinventory/bms-training/pages/builds/latest 2>&1)",
-      "PowerShell(Start-Sleep -Seconds 20; $env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh api repos/bmsinventory/bms-training/pages --jq '{status:.status, url:.html_url}' 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh api repos/bmsinventory/bms-training/pages/builds/latest --jq '{status:.status, error:.error}' 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; cd \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\"; git add .nojekyll; git commit -m \"Add .nojekyll to bypass Jekyll processing\"; git push 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh api repos/bmsinventory/bms-training/pages --jq '{status:.status, url:.html_url}' 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh api repos/bmsinventory/bms-training/pages --method PUT -H \"Accept: application/vnd.github+json\" -f build_type='workflow' 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; cd \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\"; git add .github/workflows/deploy.yml; git commit -m \"Add GitHub Actions workflow for Pages deployment\"; git push 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh auth refresh --scopes workflow 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh auth refresh --hostname github.com --scopes workflow --web 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh auth refresh --hostname github.com --scopes workflow 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; cd \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\"; git push 2>&1)",
-      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh run list --repo bmsinventory/bms-training --limit 3 --json status,conclusion,name,createdAt 2>&1)"
+      "Bash(git push *)"
     ]
   }
 }

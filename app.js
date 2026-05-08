@@ -7,38 +7,53 @@ const CM={
   purple:{bg:'#ede9fe',c:'#5b21b6'},green:{bg:'#dcfce7',c:'#166534'}
 };
 
-let categories=[
-  {id:1,name:'การรับสินค้า (Receiving)',desc:'ขั้นตอนรับสินค้าเข้าคลัง, ตรวจนับ, GR',icon:'package-import',color:'blue'},
-  {id:2,name:'การจัดเก็บสินค้า (Putaway)',desc:'การจัดวาง, Bin Location, FEFO/FIFO',icon:'archive',color:'teal'},
-  {id:3,name:'การเบิกจ่าย (Picking)',desc:'การหยิบสินค้า, Wave Picking, Packing',icon:'truck-delivery',color:'amber'},
-  {id:4,name:'การนับสต๊อก (Inventory)',desc:'Cycle Count, Annual Count, Stock Adj.',icon:'clipboard-check',color:'green'},
-];
-
-let trainers=['ทีม WMS Support','คุณสมชาย ใจดี','คุณวิไล รักษา','คุณรัตนา เก่งกว่า'];
-let venues=['ห้องอบรม A','ห้องอบรม B','ห้องประชุมใหญ่','ห้อง Training 1','ออนไลน์ (Zoom)'];
-let departments=['คลังสินค้า','จัดซื้อ','ขนส่ง / โลจิสติกส์','บัญชี / การเงิน','ไอที','ฝ่ายผลิต','ทรัพยากรบุคคล'];
-let prefixes=['นาย','นาง','นางสาว','ดร.','ผศ.ดร.','รศ.ดร.'];
-
-let sessions=[
-  {id:1,catId:1,name:'รอบที่ 1 – กลุ่ม A',date:'2025-06-10',timeStart:'09:00',timeEnd:'12:00',venue:'ห้องอบรม A',trainer:'ทีม WMS Support',capacity:20},
-  {id:2,catId:1,name:'รอบที่ 2 – กลุ่ม B',date:'2025-06-11',timeStart:'13:00',timeEnd:'16:00',venue:'ห้องอบรม A',trainer:'คุณสมชาย ใจดี',capacity:15},
-  {id:3,catId:2,name:'รอบที่ 1',date:'2025-06-12',timeStart:'09:00',timeEnd:'16:00',venue:'ห้องอบรม B',trainer:'คุณวิไล รักษา',capacity:18},
-  {id:4,catId:3,name:'รอบที่ 1 – เช้า',date:'2025-06-13',timeStart:'09:00',timeEnd:'12:00',venue:'ห้องประชุมใหญ่',trainer:'ทีม WMS Support',capacity:25},
-  {id:5,catId:4,name:'รอบที่ 1',date:'2025-06-20',timeStart:'09:00',timeEnd:'12:00',venue:'ห้องอบรม A',trainer:'คุณรัตนา เก่งกว่า',capacity:12},
-];
-
-let registrations=[
-  {id:1,sessionId:1,prefix:'นาย',fname:'สมศักดิ์',lname:'มั่นใจ',position:'พนักงานคลัง',dept:'คลังสินค้า',regDate:'2025-05-20',attended:false,attendedTime:null},
-  {id:2,sessionId:1,prefix:'นางสาว',fname:'วิภา',lname:'สุขใจ',position:'หัวหน้าแผนก',dept:'คลังสินค้า',regDate:'2025-05-21',attended:true,attendedTime:'09:05'},
-  {id:3,sessionId:1,prefix:'นาย',fname:'ชาญชัย',lname:'หาญกล้า',position:'ผู้ช่วยผู้จัดการ',dept:'คลังสินค้า',regDate:'2025-05-22',attended:true,attendedTime:'09:12'},
-  {id:4,sessionId:2,prefix:'นาย',fname:'ปิติ',lname:'ดีมาก',position:'เจ้าหน้าที่จัดซื้อ',dept:'จัดซื้อ',regDate:'2025-05-22',attended:false,attendedTime:null},
-  {id:5,sessionId:3,prefix:'นางสาว',fname:'รัตนา',lname:'เก่งกว่า',position:'พนักงานขนส่ง',dept:'ขนส่ง / โลจิสติกส์',regDate:'2025-05-22',attended:false,attendedTime:null},
-  {id:6,sessionId:4,prefix:'นาง',fname:'สุดา',lname:'ใจงาม',position:'เจ้าหน้าที่คลัง',dept:'คลังสินค้า',regDate:'2025-05-23',attended:false,attendedTime:null},
-];
-
-let nextId=7,nextSessId=6,nextCatId=5;
+let categories=[];
+let trainers=[],venues=[],departments=[],prefixes=[];
+let sessions=[];
+let registrations=[];
+let nextId=1,nextSessId=1,nextCatId=1;
 let selectedCatId=null,selectedSessId=null,sessFilt='all';
 let scanStream=null,scanInterval=null,scanLog=[];
+let isAdminLoggedIn=false;
+const ADMIN_CREDS=[{user:'admin',pass:'1234'}];
+
+/* ══════════════════════════════════════════════
+   SUPABASE
+══════════════════════════════════════════════ */
+const SUPABASE_URL='https://aukxjxtuknucflaafwlo.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1a3hqeHR1a251Y2ZsYWFmd2xvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODM3ODksImV4cCI6MjA5MzU1OTc4OX0.WJbGeWu6mjU9BvES8cX9972RvYteUAZyMve8DcKy2mk';
+const _sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+// parallel id arrays for master_items (index matches the string arrays)
+let masterIds={trainer:[],venue:[],dept:[],prefix:[]};
+// row mappers: DB → app format
+const _mCat=r=>({id:r.id,name:r.name,desc:r.description||'',icon:r.icon||'box',color:r.color||'blue'});
+const _mSess=r=>({id:r.id,catId:r.cat_id,name:r.name,date:r.date,timeStart:r.time_start,timeEnd:r.time_end,venue:r.venue||'',trainer:r.trainer||'',capacity:r.capacity});
+const _mReg=r=>({id:r.id,sessionId:r.session_id,prefix:r.prefix||'',fname:r.fname,lname:r.lname,position:r.position||'',dept:r.dept||'',regDate:r.reg_date,attended:r.attended||false,attendedTime:r.attended_time||null});
+const ICON_LIST=[
+  'box','boxes','package','package-import','package-export','packages',
+  'truck','truck-delivery','truck-loading','truck-return',
+  'building-warehouse','building-factory','building','building-store',
+  'archive','stack','stack-2','layers-subtract',
+  'clipboard','clipboard-check','clipboard-list','clipboard-text','clipboard-data',
+  'chart-bar','chart-line','chart-pie','trending-up','trending-down',
+  'users','user','user-check','user-plus','user-group','user-star',
+  'certificate','award','medal','trophy',
+  'book','book-2','book-open','books','school',
+  'pencil','pencil-plus','edit','notes','presentation',
+  'settings','adjustments','adjustments-horizontal','tool','tools',
+  'barcode','scan','qrcode',
+  'calculator','coin','currency-baht','receipt',
+  'list','list-check','list-details','table','database',
+  'calendar','calendar-event','clock','alarm',
+  'star','heart','flag','tag','tags','bookmark',
+  'check-circle','circle-check','alert-circle','info',
+  'refresh','arrows-exchange',
+  'map-pin','location','compass',
+  'forklift','crane',
+  'category','category-2','layout-grid','layout-list',
+  'recycle','leaf','plant-2',
+  'shield','lock','key','eye',
+];
 
 /* ══════════════════ HELPERS ══════════════════ */
 const getCount=sid=>registrations.filter(r=>r.sessionId===sid).length;
@@ -58,9 +73,56 @@ const capBadge=p=>{
 };
 const nowTime=()=>new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
 const sessTxt=s=>s?`${s.timeStart||''} – ${s.timeEnd||''} น.`:'';
+function findDupReg(fname,lname,catId,excludeRegId=null){
+  return registrations.find(r=>{
+    if(excludeRegId!=null&&r.id===excludeRegId)return false;
+    if(r.fname!==fname||r.lname!==lname)return false;
+    const s=getSess(r.sessionId);
+    return s&&s.catId===catId;
+  });
+}
+function canEditReg(reg){
+  const s=getSess(reg.sessionId);
+  if(!s||reg.attended)return false;
+  const today=new Date();today.setHours(0,0,0,0);
+  const sessDay=new Date(s.date);sessDay.setHours(0,0,0,0);
+  return today<sessDay;
+}
+
+/* ══════════════════ DB INIT ══════════════════ */
+function setLoading(on){document.getElementById('app-loading').classList.toggle('hidden',!on);}
+async function loadAllData(){
+  const [cR,sR,rR,mR]=await Promise.all([
+    _sb.from('categories').select('*').order('id'),
+    _sb.from('sessions').select('*').order('id'),
+    _sb.from('registrations').select('*').order('id'),
+    _sb.from('master_items').select('*').order('type,sort_order,id'),
+  ]);
+  if(cR.error||sR.error||rR.error||mR.error)throw new Error('โหลดข้อมูลล้มเหลว');
+  categories=(cR.data||[]).map(_mCat);
+  sessions=(sR.data||[]).map(_mSess);
+  registrations=(rR.data||[]).map(_mReg);
+  const ms=mR.data||[];
+  trainers=ms.filter(m=>m.type==='trainer').map(m=>m.value);
+  venues=ms.filter(m=>m.type==='venue').map(m=>m.value);
+  departments=ms.filter(m=>m.type==='dept').map(m=>m.value);
+  prefixes=ms.filter(m=>m.type==='prefix').map(m=>m.value);
+  masterIds.trainer=ms.filter(m=>m.type==='trainer').map(m=>m.id);
+  masterIds.venue=ms.filter(m=>m.type==='venue').map(m=>m.id);
+  masterIds.dept=ms.filter(m=>m.type==='dept').map(m=>m.id);
+  masterIds.prefix=ms.filter(m=>m.type==='prefix').map(m=>m.id);
+}
+async function initApp(){
+  setLoading(true);
+  try{await loadAllData();}
+  catch(e){console.error(e);showToast('โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ','danger');}
+  setLoading(false);
+  renderCategories();
+}
 
 /* ══════════════════ PAGE NAV ══════════════════ */
 function showPage(p){
+  if(p==='admin'&&!isAdminLoggedIn){openAdminLogin();return;}
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
@@ -69,6 +131,48 @@ function showPage(p){
   if(p==='checkin'){initCheckinPage();}
   if(p==='track'){populateTrackFilters();trackSearch();}
   if(p==='admin')renderAdmin();
+}
+/* ══════════════════ ADMIN LOGIN ══════════════════ */
+function openAdminLogin(){
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+  document.getElementById('login-pass').type='password';
+  document.getElementById('login-eye-icon').className='ti ti-eye';
+  document.getElementById('login-error').style.display='none';
+  document.getElementById('modal-admin-login').classList.add('open');
+  setTimeout(()=>document.getElementById('login-user').focus(),100);
+}
+function toggleLoginPass(){
+  const inp=document.getElementById('login-pass');
+  const icon=document.getElementById('login-eye-icon');
+  if(inp.type==='password'){inp.type='text';icon.className='ti ti-eye-off';}
+  else{inp.type='password';icon.className='ti ti-eye';}
+}
+function adminLogin(){
+  const u=document.getElementById('login-user').value.trim();
+  const p=document.getElementById('login-pass').value;
+  const ok=ADMIN_CREDS.some(c=>c.user===u&&c.pass===p);
+  if(ok){
+    isAdminLoggedIn=true;
+    closeModal('modal-admin-login');
+    document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
+    document.getElementById('page-admin').classList.add('active');
+    document.getElementById('tab-admin').classList.add('active');
+    renderAdmin();
+    showToast('ยินดีต้อนรับ เข้าสู่ระบบ Admin','success');
+  } else {
+    const errEl=document.getElementById('login-error');
+    document.getElementById('login-error-msg').textContent='ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+    errEl.style.cssText='display:flex;color:var(--danger);font-size:13px;margin-top:4px;padding:8px 12px;background:#fee2e2;border-radius:8px;align-items:center;gap:6px;';
+    document.getElementById('login-pass').value='';
+    document.getElementById('login-pass').focus();
+  }
+}
+function adminLogout(){
+  isAdminLoggedIn=false;
+  showPage('register');
+  showToast('ออกจากระบบ Admin แล้ว','info');
 }
 function switchCheckinTab(tab, el){
   document.querySelectorAll('.checkin-subtab').forEach(t=>t.classList.remove('active'));
@@ -234,7 +338,7 @@ function previewRegName(){
   if(fn||ln){prev.style.display='flex';txt.textContent=`${pre} ${fn} ${ln}`.trim();}
   else{prev.style.display='none';}
 }
-function submitReg(){
+async function submitReg(){
   const prefix=document.getElementById('reg-prefix').value;
   const fname=document.getElementById('reg-fname').value.trim();
   const lname=document.getElementById('reg-lname').value.trim();
@@ -243,10 +347,20 @@ function submitReg(){
   if(!prefix||!fname||!lname||!pos||!dept){showToast('กรุณากรอกข้อมูลให้ครบถ้วน','danger');return;}
   const s=getSess(selectedSessId);
   if(getCount(selectedSessId)>=s.capacity){showToast('ที่นั่งเต็มแล้ว','danger');return;}
-  if(registrations.find(r=>r.sessionId===selectedSessId&&r.fname===fname&&r.lname===lname)){
-    showToast(`${fname} ${lname} ลงทะเบียนรอบนี้แล้ว`,'danger');return;
+  const dup=findDupReg(fname,lname,s.catId);
+  if(dup){
+    const dupSess=getSess(dup.sessionId);
+    const msg=dup.sessionId===selectedSessId
+      ?`${fname} ${lname} ลงทะเบียนรอบนี้ไว้แล้ว`
+      :`${fname} ${lname} ลงทะเบียน "${dupSess?dupSess.name:'รอบอื่น'}" ในประเภทนี้ไว้แล้ว`;
+    showToast(msg,'danger');return;
   }
-  const nr={id:nextId++,sessionId:selectedSessId,prefix,fname,lname,position:pos,dept,regDate:new Date().toISOString().split('T')[0],attended:false,attendedTime:null};
+  const {data,error}=await _sb.from('registrations').insert({
+    session_id:selectedSessId,prefix,fname,lname,position:pos,dept,
+    reg_date:new Date().toISOString().split('T')[0],attended:false
+  }).select().single();
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  const nr=_mReg(data);
   registrations.push(nr);
   closeModal('modal-register');renderSessionList();renderCategories();
   showToast(`ลงทะเบียนสำเร็จ! ${prefix}${fname} ${lname}`,'success');
@@ -500,17 +614,14 @@ function handleQRData(raw){
     }
   }catch(e){showScanResult('error','QR ไม่ถูกต้อง','ไม่สามารถอ่านข้อมูล QR ได้',null);}
 }
-function processSmartCheckIn(data){
+async function processSmartCheckIn(data){
   const reg=getReg(data.regId);
-  if(!reg){
-    showScanResult('error','ไม่พบข้อมูล',`ไม่พบ REG-${data.regId} ในระบบ`,null,data);
-    return;
-  }
-  if(reg.attended){
-    showScanResult('already',`เช็คชื่อไปแล้ว เวลา ${reg.attendedTime}`,'',reg,data);
-    return;
-  }
-  reg.attended=true;reg.attendedTime=nowTime();
+  if(!reg){showScanResult('error','ไม่พบข้อมูล',`ไม่พบ REG-${data.regId} ในระบบ`,null,data);return;}
+  if(reg.attended){showScanResult('already',`เช็คชื่อไปแล้ว เวลา ${reg.attendedTime}`,'',reg,data);return;}
+  const time=nowTime();
+  const {error}=await _sb.from('registrations').update({attended:true,attended_time:time}).eq('id',reg.id);
+  if(error){showScanResult('error','บันทึกไม่สำเร็จ','กรุณาลองใหม่',null,data);return;}
+  reg.attended=true;reg.attendedTime=time;
   addScanLog(reg,'ok');
   showScanResult('ok','เช็คชื่อสำเร็จ! ✓','',reg,data);
   updateCheckinHeroStats();
@@ -606,9 +717,12 @@ function manualSearchResult(){
     </div>`;
   }).join('');
 }
-function manualMark(regId){
+async function manualMark(regId){
   const reg=getReg(regId);if(!reg)return;
-  reg.attended=true;reg.attendedTime=nowTime();
+  const time=nowTime();
+  const {error}=await _sb.from('registrations').update({attended:true,attended_time:time}).eq('id',regId);
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  reg.attended=true;reg.attendedTime=time;
   addScanLog(reg,'ok');manualSearchResult();
   showToast(`เช็คชื่อ ${reg.prefix||''}${reg.fname} สำเร็จ`,'success');
 }
@@ -680,19 +794,31 @@ function loadAttendance(){
       }
     </div>`;
 }
-function toggleAtt(regId){
+async function toggleAtt(regId){
   const reg=getReg(regId);if(!reg)return;
-  reg.attended=!reg.attended;reg.attendedTime=reg.attended?nowTime():null;
+  const newAtt=!reg.attended,newTime=newAtt?nowTime():null;
+  const {error}=await _sb.from('registrations').update({attended:newAtt,attended_time:newTime}).eq('id',regId);
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  reg.attended=newAtt;reg.attendedTime=newTime;
   loadAttendance();updateCheckinHeroStats();
   showToast(reg.attended?`✓ เช็คชื่อ ${reg.prefix||''}${reg.fname}`:`ยกเลิกเช็คชื่อ ${reg.fname}`,reg.attended?'success':'warn');
 }
-function markAllPresent(sid){
-  registrations.filter(r=>r.sessionId===sid&&!r.attended).forEach(r=>{r.attended=true;r.attendedTime=nowTime();});
+async function markAllPresent(sid){
+  const toMark=registrations.filter(r=>r.sessionId===sid&&!r.attended);
+  if(!toMark.length)return;
+  const time=nowTime();
+  const {error}=await _sb.from('registrations').update({attended:true,attended_time:time}).in('id',toMark.map(r=>r.id));
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  toMark.forEach(r=>{r.attended=true;r.attendedTime=time;});
   loadAttendance();showToast('เช็คชื่อทั้งหมดสำเร็จ','success');
 }
-function clearAllAtt(sid){
+async function clearAllAtt(sid){
   if(!confirm('ล้างการเช็คชื่อทั้งหมดในรอบนี้?'))return;
-  registrations.filter(r=>r.sessionId===sid).forEach(r=>{r.attended=false;r.attendedTime=null;});
+  const toClr=registrations.filter(r=>r.sessionId===sid&&r.attended);
+  if(!toClr.length){showToast('ไม่มีรายการที่เช็คชื่อ','warn');return;}
+  const {error}=await _sb.from('registrations').update({attended:false,attended_time:null}).in('id',toClr.map(r=>r.id));
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  toClr.forEach(r=>{r.attended=false;r.attendedTime=null;});
   loadAttendance();showToast('ล้างการเช็คชื่อแล้ว','warn');
 }
 function exportAttendance(){
@@ -746,7 +872,15 @@ function trackSearch(){
       <div style="text-align:right;flex-shrink:0;">
         ${capBadge(pct)}
         <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">ลง ${fmtDateShort(r.regDate)}</div>
-        <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showQR(${r.id})"><i class="ti ti-qrcode"></i>QR</button>
+        ${!r.attended?`<div style="font-size:10px;margin-top:3px;color:${canEditReg(r)?'var(--success)':'var(--danger)'};">
+          <i class="ti ti-${canEditReg(r)?'pencil':'lock'}"></i>${canEditReg(r)?'แก้ไขได้':'เลยกำหนดแก้ไข'}
+        </div>`:''}
+        <div style="display:flex;gap:4px;margin-top:6px;justify-content:flex-end;">
+          <button class="btn btn-ghost btn-sm" onclick="showQR(${r.id})"><i class="ti ti-qrcode"></i>QR</button>
+          ${canEditReg(r)
+            ?`<button class="btn btn-primary btn-sm" onclick="openEditReg(${r.id})"><i class="ti ti-edit"></i>แก้ไข</button>`
+            :`<button class="btn btn-ghost btn-sm" disabled style="opacity:.4;cursor:not-allowed;" title="ต้องแก้ไขก่อนวันอบรม 1 วัน"><i class="ti ti-edit-off"></i>แก้ไข</button>`}
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -784,7 +918,10 @@ function renderAdminCats(){
       <td style="font-size:12px;color:var(--text-muted);">${c.desc}</td>
       <td><span class="badge badge-blue">${cs.length} รอบ</span></td>
       <td><span class="badge badge-success">${cr} คน</span></td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteCat(${c.id})"><i class="ti ti-trash"></i></button></td>
+      <td><div style="display:flex;gap:4px;">
+        <button class="btn btn-ghost btn-sm" onclick="openEditCat(${c.id})" title="แก้ไข"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCat(${c.id})" title="ลบ"><i class="ti ti-trash"></i></button>
+      </div></td>
     </tr>`;
   }).join('');
 }
@@ -825,29 +962,69 @@ function renderMasters(){
     if(!el)return;
     const arr=cfg.list();
     if(!arr.length){el.innerHTML='<div style="text-align:center;padding:10px;font-size:12px;color:var(--text-muted);">ยังไม่มีข้อมูล</div>';return;}
-    el.innerHTML=arr.map((v,i)=>`<div class="master-item">
+    el.innerHTML=arr.map((v,i)=>`<div class="master-item" id="mi-${key}-${i}">
       <span><i class="ti ti-${cfg.icon} item-icon"></i>${v}</span>
-      <button class="btn btn-danger btn-sm" onclick="removeMaster('${key}',${i})"><i class="ti ti-trash"></i></button>
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-ghost btn-sm" onclick="editMasterInline('${key}',${i})"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="removeMaster('${key}',${i})"><i class="ti ti-trash"></i></button>
+      </div>
     </div>`).join('');
   });
 }
-function addMaster(key){
+async function addMaster(key){
   const cfg=MASTER_CFG[key];
   const input=document.getElementById(cfg.inputId);
   const val=input.value.trim();
   if(!val){showToast('กรุณาระบุข้อมูล','danger');return;}
   const arr=cfg.list();
   if(arr.includes(val)){showToast('มีข้อมูลนี้อยู่แล้ว','danger');return;}
-  cfg.setList([...arr,val]);input.value='';
-  renderMasters();showToast(`เพิ่ม "${val}" สำเร็จ`,'success');
+  const {data,error}=await _sb.from('master_items').insert({type:key,value:val,sort_order:arr.length}).select().single();
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  cfg.setList([...arr,val]);
+  masterIds[key]=[...(masterIds[key]||[]),data.id];
+  input.value='';renderMasters();showToast(`เพิ่ม "${val}" สำเร็จ`,'success');
 }
-function removeMaster(key,idx){
+async function removeMaster(key,idx){
   const cfg=MASTER_CFG[key];
   const arr=cfg.list();
   if(!confirm(`ลบ "${arr[idx]}" ?`))return;
+  const id=(masterIds[key]||[])[idx];
+  if(id){
+    const {error}=await _sb.from('master_items').delete().eq('id',id);
+    if(error){showToast('ลบไม่สำเร็จ','danger');return;}
+  }
   const name=arr[idx];
   cfg.setList(arr.filter((_,i)=>i!==idx));
+  if(masterIds[key])masterIds[key]=masterIds[key].filter((_,i)=>i!==idx);
   renderMasters();showToast(`ลบ "${name}" สำเร็จ`,'success');
+}
+function editMasterInline(key,idx){
+  const cfg=MASTER_CFG[key];
+  const arr=cfg.list();
+  const el=document.getElementById(`mi-${key}-${idx}`);if(!el)return;
+  el.innerHTML=`<input class="form-control" id="mi-inp-${key}-${idx}" value="${arr[idx]}" style="flex:1;height:32px;font-size:13px;"
+    onkeydown="if(event.key==='Enter')saveMasterInline('${key}',${idx});if(event.key==='Escape')renderMasters();">
+    <div style="display:flex;gap:4px;">
+      <button class="btn btn-success btn-sm" onclick="saveMasterInline('${key}',${idx})"><i class="ti ti-check"></i></button>
+      <button class="btn btn-ghost btn-sm" onclick="renderMasters()"><i class="ti ti-x"></i></button>
+    </div>`;
+  el.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 14px;border-bottom:1px solid var(--border);';
+  setTimeout(()=>document.getElementById(`mi-inp-${key}-${idx}`)?.focus(),30);
+}
+async function saveMasterInline(key,idx){
+  const cfg=MASTER_CFG[key];
+  const arr=cfg.list();
+  const input=document.getElementById(`mi-inp-${key}-${idx}`);if(!input)return;
+  const val=input.value.trim();
+  if(!val){showToast('กรุณาระบุข้อมูล','danger');return;}
+  if(arr.find((v,i)=>i!==idx&&v===val)){showToast('มีข้อมูลนี้อยู่แล้ว','danger');return;}
+  const id=(masterIds[key]||[])[idx];
+  if(id){
+    const {error}=await _sb.from('master_items').update({value:val}).eq('id',id);
+    if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  }
+  const old=arr[idx];arr[idx]=val;cfg.setList([...arr]);
+  renderMasters();showToast(`แก้ไข "${old}" → "${val}" สำเร็จ`,'success');
 }
 
 /* ══ ADD/EDIT SESSION ══ */
@@ -891,7 +1068,7 @@ function openEditSession(id){
   },50);
   document.getElementById('modal-session').classList.add('open');
 }
-function submitSession(){
+async function submitSession(){
   const editId=document.getElementById('sess-edit-id').value;
   const catId=parseInt(document.getElementById('ns-cat').value);
   const name=document.getElementById('ns-name').value.trim();
@@ -906,34 +1083,98 @@ function submitSession(){
     const s=getSess(parseInt(editId));
     const cnt=getCount(s.id);
     if(cap<cnt){showToast(`ที่นั่งต้องไม่น้อยกว่าผู้ลงทะเบียน (${cnt} คน)`,'danger');return;}
+    const {error}=await _sb.from('sessions').update({cat_id:catId,name,date,time_start:timeStart,time_end:timeEnd,venue,trainer,capacity:cap}).eq('id',s.id);
+    if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
     Object.assign(s,{catId,name,date,timeStart,timeEnd,venue,trainer,capacity:cap});
     showToast('แก้ไขรอบสำเร็จ','success');
   } else {
-    sessions.push({id:nextSessId++,catId,name,date,timeStart,timeEnd,venue,trainer,capacity:cap});
+    const {data,error}=await _sb.from('sessions').insert({cat_id:catId,name,date,time_start:timeStart,time_end:timeEnd,venue,trainer,capacity:cap}).select().single();
+    if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+    sessions.push(_mSess(data));
     showToast('เพิ่มรอบอบรมสำเร็จ','success');
   }
   closeModal('modal-session');renderAdmin();
 }
-function deleteSess(id){
+async function deleteSess(id){
   if(!confirm('ลบรอบนี้?'))return;
+  const {error}=await _sb.from('sessions').delete().eq('id',id);
+  if(error){showToast('ลบไม่สำเร็จ','danger');return;}
   sessions=sessions.filter(x=>x.id!==id);
   registrations=registrations.filter(r=>r.sessionId!==id);
   renderAdmin();showToast('ลบรอบสำเร็จ','success');
 }
 
-/* ══ ADD CATEGORY ══ */
-function openAddCat(){['nc-name','nc-desc','nc-icon'].forEach(id=>document.getElementById(id).value='');document.getElementById('modal-add-cat').classList.add('open');}
-function previewIcon(){const v=document.getElementById('nc-icon').value.trim();document.getElementById('icon-preview').innerHTML=`<i class="ti ti-${v||'box'}"></i>`;}
-function submitAddCat(){
+/* ══ ADD / EDIT CATEGORY ══ */
+function openAddCat(){
+  document.getElementById('nc-edit-id').value='';
+  document.getElementById('modal-add-cat-title').innerHTML='<i class="ti ti-category-plus"></i>เพิ่มประเภทการอบรม';
+  ['nc-name','nc-desc'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('nc-color').value='blue';
+  selectIcon('box');
+  document.getElementById('modal-add-cat').classList.add('open');
+}
+function openEditCat(id){
+  const c=getCat(id);
+  document.getElementById('nc-edit-id').value=id;
+  document.getElementById('modal-add-cat-title').innerHTML='<i class="ti ti-edit"></i>แก้ไขประเภทการอบรม';
+  document.getElementById('nc-name').value=c.name;
+  document.getElementById('nc-desc').value=c.desc||'';
+  document.getElementById('nc-color').value=c.color||'blue';
+  selectIcon(c.icon||'box');
+  document.getElementById('modal-add-cat').classList.add('open');
+}
+function toggleIconPicker(){
+  const panel=document.getElementById('icon-picker-panel');
+  const chev=document.getElementById('icon-picker-chevron');
+  if(panel.style.display!=='none'){
+    panel.style.display='none';chev.style.transform='rotate(0deg)';return;
+  }
+  renderIconGrid('');
+  document.getElementById('icon-search').value='';
+  panel.style.display='block';chev.style.transform='rotate(180deg)';
+  setTimeout(()=>document.getElementById('icon-search').focus(),50);
+}
+function filterIcons(){renderIconGrid(document.getElementById('icon-search').value.trim().toLowerCase());}
+function renderIconGrid(q){
+  const cur=document.getElementById('nc-icon').value||'box';
+  const list=q?ICON_LIST.filter(n=>n.includes(q)):ICON_LIST;
+  if(!list.length){
+    document.getElementById('icon-grid').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--text-muted);font-size:12px;">ไม่พบไอคอน</div>';
+    return;
+  }
+  document.getElementById('icon-grid').innerHTML=list.map(n=>`<div onclick="selectIcon('${n}')" title="${n}" class="icon-pick-item${n===cur?' selected':''}"><i class="ti ti-${n}"></i><span>${n}</span></div>`).join('');
+}
+function selectIcon(name){
+  document.getElementById('nc-icon').value=name;
+  document.getElementById('icon-picker-preview').innerHTML=`<i class="ti ti-${name}"></i>`;
+  document.getElementById('icon-picker-name').textContent=name;
+  document.getElementById('icon-picker-panel').style.display='none';
+  document.getElementById('icon-picker-chevron').style.transform='rotate(0deg)';
+}
+async function submitAddCat(){
   const name=document.getElementById('nc-name').value.trim();
   if(!name){showToast('กรุณาระบุชื่อประเภท','danger');return;}
-  categories.push({id:nextCatId++,name,desc:document.getElementById('nc-desc').value.trim(),icon:document.getElementById('nc-icon').value.trim()||'box',color:document.getElementById('nc-color').value});
-  closeModal('modal-add-cat');renderAdmin();showToast(`เพิ่มประเภท "${name}" สำเร็จ`,'success');
+  const payload={name,description:document.getElementById('nc-desc').value.trim(),icon:document.getElementById('nc-icon').value.trim()||'box',color:document.getElementById('nc-color').value};
+  const editId=document.getElementById('nc-edit-id').value;
+  if(editId){
+    const {error}=await _sb.from('categories').update(payload).eq('id',parseInt(editId));
+    if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+    Object.assign(getCat(parseInt(editId)),{name,desc:payload.description,icon:payload.icon,color:payload.color});
+    showToast(`แก้ไข "${name}" สำเร็จ`,'success');
+  } else {
+    const {data,error}=await _sb.from('categories').insert(payload).select().single();
+    if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+    categories.push(_mCat(data));
+    showToast(`เพิ่มประเภท "${name}" สำเร็จ`,'success');
+  }
+  closeModal('modal-add-cat');renderAdmin();
 }
-function deleteCat(id){
+async function deleteCat(id){
   const c=getCat(id);
   const sc=sessions.filter(s=>s.catId===id).length;
   if(!confirm(`ลบประเภท "${c.name}" ? (มี ${sc} รอบ)`))return;
+  const {error}=await _sb.from('categories').delete().eq('id',id);
+  if(error){showToast('ลบไม่สำเร็จ','danger');return;}
   const sids=sessions.filter(s=>s.catId===id).map(s=>s.id);
   sessions=sessions.filter(s=>s.catId!==id);
   registrations=registrations.filter(r=>!sids.includes(r.sessionId));
@@ -949,7 +1190,7 @@ function renderAdminRegs(){
   if(q)regs=regs.filter(r=>(r.fname+r.lname+(r.position||'')).toLowerCase().includes(q));
   if(sid)regs=regs.filter(r=>r.sessionId==sid);
   const tbody=document.getElementById('admin-reg-tbody');
-  if(!regs.length){tbody.innerHTML='<tr><td colspan="11"><div class="empty"><i class="ti ti-users-minus"></i><p>ไม่พบรายการ</p></div></td></tr>';return;}
+  if(!regs.length){tbody.innerHTML='<tr><td colspan="12"><div class="empty"><i class="ti ti-users-minus"></i><p>ไม่พบรายการ</p></div></td></tr>';return;}
   tbody.innerHTML=regs.map((r,i)=>{
     const s=getSess(r.sessionId),cat=s?getCat(s.catId):null;
     return`<tr>
@@ -963,13 +1204,70 @@ function renderAdminRegs(){
       <td style="font-size:12px;color:var(--text-muted);">${fmtDateShort(r.regDate)}</td>
       <td>${r.attended?`<span class="badge badge-success"><i class="ti ti-check"></i>${r.attendedTime}</span>`:'<span class="badge badge-gray">ยังไม่เช็ค</span>'}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="showQR(${r.id})"><i class="ti ti-qrcode"></i></button></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="adminOpenEditReg(${r.id})" title="แก้ไข"><i class="ti ti-edit"></i></button></td>
       <td><button class="btn btn-danger btn-sm" onclick="deleteReg(${r.id})"><i class="ti ti-trash"></i></button></td>
     </tr>`;
   }).join('');
 }
-function deleteReg(id){
+async function deleteReg(id){
   if(!confirm('ยืนยันลบ?'))return;
+  const {error}=await _sb.from('registrations').delete().eq('id',id);
+  if(error){showToast('ลบไม่สำเร็จ','danger');return;}
   registrations=registrations.filter(r=>r.id!==id);renderAdminRegs();showToast('ลบสำเร็จ','success');
+}
+function adminAddReg(){
+  populateSelect('ar-prefix',prefixes,'คำนำหน้า...');
+  populateSelect('ar-dept',departments,'เลือกแผนก...');
+  ['ar-fname','ar-lname','ar-pos'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ar-sess').innerHTML=sessions.map(ss=>{
+    const cnt=getCount(ss.id),cat=getCat(ss.catId);
+    const full=cnt>=ss.capacity;
+    return`<option value="${ss.id}"${full?' disabled':''}>${cat?cat.name+' — ':''}${ss.name} (${fmtDateShort(ss.date)})${full?' [เต็ม]':' ว่าง '+(ss.capacity-cnt)+' ที่'}</option>`;
+  }).join('');
+  document.getElementById('modal-admin-add-reg').classList.add('open');
+}
+async function adminSubmitReg(){
+  const sessId=parseInt(document.getElementById('ar-sess').value);
+  const prefix=document.getElementById('ar-prefix').value;
+  const fname=document.getElementById('ar-fname').value.trim();
+  const lname=document.getElementById('ar-lname').value.trim();
+  const pos=document.getElementById('ar-pos').value.trim();
+  const dept=document.getElementById('ar-dept').value;
+  if(!sessId||!prefix||!fname||!lname||!pos||!dept){showToast('กรุณากรอกข้อมูลให้ครบ','danger');return;}
+  const s=getSess(sessId);
+  if(getCount(sessId)>=s.capacity){showToast('ที่นั่งเต็มแล้ว','danger');return;}
+  const dup=findDupReg(fname,lname,s.catId);
+  if(dup){
+    const dupSess=getSess(dup.sessionId);
+    if(dup.sessionId===sessId){showToast(`${fname} ${lname} ลงทะเบียนรอบนี้ไว้แล้ว`,'danger');return;}
+    if(!confirm(`${fname} ${lname} ลงทะเบียน "${dupSess?dupSess.name:'รอบอื่น'}" ในประเภทนี้อยู่แล้ว\nต้องการเพิ่มรายการซ้ำหรือไม่?`))return;
+  }
+  const {data,error}=await _sb.from('registrations').insert({
+    session_id:sessId,prefix,fname,lname,position:pos,dept,
+    reg_date:new Date().toISOString().split('T')[0],attended:false
+  }).select().single();
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  registrations.push(_mReg(data));
+  closeModal('modal-admin-add-reg');renderAdmin();
+  showToast(`เพิ่ม ${prefix}${fname} ${lname} สำเร็จ`,'success');
+}
+function adminOpenEditReg(regId){
+  const reg=getReg(regId);if(!reg)return;
+  window._editRegId=regId;window._editRegAdmin=true;
+  populateSelect('edit-prefix',prefixes,'คำนำหน้า...');
+  document.getElementById('edit-prefix').value=reg.prefix||'';
+  document.getElementById('edit-fname').value=reg.fname;
+  document.getElementById('edit-lname').value=reg.lname;
+  document.getElementById('edit-pos').value=reg.position||'';
+  populateSelect('edit-dept',departments,'เลือกแผนก...');
+  document.getElementById('edit-dept').value=reg.dept;
+  document.getElementById('edit-sess').innerHTML=sessions.map(ss=>{
+    const cnt=getCount(ss.id),isCur=ss.id===reg.sessionId,cat=getCat(ss.catId);
+    const isFull=!isCur&&cnt>=ss.capacity;
+    return`<option value="${ss.id}"${isCur?' selected':''}${isFull?' disabled':''}>${cat?cat.name+' — ':''}${ss.name} — ${fmtDateShort(ss.date)}${isCur?' (ปัจจุบัน)':isFull?' [เต็ม]':' (ว่าง '+(ss.capacity-cnt)+' ที่)'}</option>`;
+  }).join('');
+  document.getElementById('edit-deadline-txt').textContent='Admin — แก้ไขได้ไม่จำกัดเงื่อนไข';
+  document.getElementById('modal-edit-reg').classList.add('open');
 }
 
 function goToAttendance(sessId){
@@ -983,6 +1281,70 @@ function goToAttendance(sessId){
     attFilterCat();
     setTimeout(()=>{document.getElementById('att-sess-sel').value=sessId;loadAttendance();},80);
   },80);
+}
+
+/* ══════════════════ EDIT REGISTRATION ══════════════════ */
+function openEditReg(regId){
+  const reg=getReg(regId);if(!reg)return;
+  if(!canEditReg(reg)){showToast('ไม่สามารถแก้ไขได้ — เลยกำหนดแก้ไขล่วงหน้า 1 วัน','danger');return;}
+  window._editRegId=regId;
+  const s=getSess(reg.sessionId);
+  populateSelect('edit-prefix',prefixes,'คำนำหน้า...');
+  document.getElementById('edit-prefix').value=reg.prefix||'';
+  document.getElementById('edit-fname').value=reg.fname;
+  document.getElementById('edit-lname').value=reg.lname;
+  document.getElementById('edit-pos').value=reg.position||'';
+  populateSelect('edit-dept',departments,'เลือกแผนก...');
+  document.getElementById('edit-dept').value=reg.dept;
+  const sameSess=sessions.filter(ss=>ss.catId===s.catId);
+  const today=new Date();today.setHours(0,0,0,0);
+  document.getElementById('edit-sess').innerHTML=sameSess.map(ss=>{
+    const cnt=getCount(ss.id),isCur=ss.id===reg.sessionId;
+    const isFull=!isCur&&cnt>=ss.capacity;
+    const sd=new Date(ss.date);sd.setHours(0,0,0,0);
+    const pastDeadline=!isCur&&today>=sd;
+    const disabled=isFull||pastDeadline;
+    return`<option value="${ss.id}"${isCur?' selected':''}${disabled?' disabled':''}>${ss.name} — ${fmtDateShort(ss.date)}${isCur?' (รอบปัจจุบัน)':isFull?' [เต็ม]':pastDeadline?' [เลยกำหนด]':' (ว่าง '+(ss.capacity-cnt)+' ที่)'}</option>`;
+  }).join('');
+  const deadline=new Date(s.date);deadline.setDate(deadline.getDate()-1);
+  document.getElementById('edit-deadline-txt').textContent='แก้ไขได้ถึง: '+fmtDate(deadline.toISOString().split('T')[0]);
+  document.getElementById('modal-edit-reg').classList.add('open');
+}
+async function submitEditReg(){
+  const reg=getReg(window._editRegId);if(!reg)return;
+  const isAdmin=window._editRegAdmin===true;
+  if(!isAdmin&&!canEditReg(reg)){showToast('เลยกำหนดแก้ไขแล้ว','danger');closeModal('modal-edit-reg');return;}
+  const prefix=document.getElementById('edit-prefix').value;
+  const fname=document.getElementById('edit-fname').value.trim();
+  const lname=document.getElementById('edit-lname').value.trim();
+  const pos=document.getElementById('edit-pos').value.trim();
+  const dept=document.getElementById('edit-dept').value;
+  const newSessId=parseInt(document.getElementById('edit-sess').value);
+  if(!prefix||!fname||!lname||!pos||!dept){showToast('กรุณากรอกข้อมูลให้ครบ','danger');return;}
+  if(newSessId!==reg.sessionId){
+    const ns=getSess(newSessId);if(!ns){showToast('ไม่พบรอบที่เลือก','danger');return;}
+    if(!isAdmin){
+      const today=new Date();today.setHours(0,0,0,0);
+      const nd=new Date(ns.date);nd.setHours(0,0,0,0);
+      if(today>=nd){showToast('รอบที่เลือกเลยกำหนดแก้ไขแล้ว','danger');return;}
+    }
+    if(getCount(newSessId)>=ns.capacity){showToast('รอบที่เลือกเต็มแล้ว','danger');return;}
+    const dup=findDupReg(fname,lname,ns.catId,reg.id);
+    if(dup){
+      const dupSess=getSess(dup.sessionId);
+      showToast(`${fname} ${lname} ลงทะเบียน "${dupSess?dupSess.name:'รอบอื่น'}" ในประเภทนี้ไว้แล้ว`,'danger');return;
+    }
+  }
+  const {error}=await _sb.from('registrations').update({
+    session_id:newSessId,prefix,fname,lname,position:pos,dept
+  }).eq('id',reg.id);
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  Object.assign(reg,{prefix,fname,lname,position:pos,dept,sessionId:newSessId});
+  window._editRegAdmin=false;
+  closeModal('modal-edit-reg');
+  renderCategories();
+  if(isAdmin)renderAdmin();else trackSearch();
+  showToast('แก้ไขข้อมูลสำเร็จ','success');
 }
 
 /* ══ UTILS ══ */
@@ -999,4 +1361,4 @@ document.querySelectorAll('.modal-overlay').forEach(o=>{
 });
 
 // INIT
-renderCategories();
+initApp();
