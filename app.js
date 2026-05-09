@@ -20,7 +20,7 @@ let loginVerifyData=[];
 let _lvEdits={};
 let nextId=1,nextSessId=1,nextCatId=1;
 let selectedCatId=null,selectedSessId=null,sessFilt='all';
-let scanStream=null,scanInterval=null,scanLog=[];
+let scanStream=null,scanReq=null,scanLog=[];
 let isAdminLoggedIn=false;
 let adminUsers=[];
 let currentAdminUser=null;
@@ -184,6 +184,70 @@ async function initApp(){
   const badge=document.getElementById('nav-site-badge');
   if(badge){const loc=locations.find(l=>l.code===currentSite);badge.textContent=loc?loc.name:currentSite;}
   renderCategories();
+  initRealtime();
+}
+
+/* ══════════════════ REALTIME SYNC ══════════════════ */
+let _rtChannel = null;
+let _rtDebounceTimer = null;
+
+function initRealtime() {
+  if (_rtChannel) return;
+  _rtChannel = _sb.channel('public-db-changes')
+    .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+      if (_rtDebounceTimer) clearTimeout(_rtDebounceTimer);
+      _rtDebounceTimer = setTimeout(async () => {
+        try {
+          await loadAllData();
+          refreshCurrentView();
+        } catch (e) {
+          console.error('Realtime sync error:', e);
+        }
+      }, 800); // หน่วงเวลา 800ms ป้องกันการโหลดซ้ำถี่เกินไปหากบันทึกพร้อมกันหลายรายการ
+    })
+    .subscribe();
+}
+
+function refreshCurrentView() {
+  const activePage = document.querySelector('.page.active');
+  if (!activePage) return;
+  const pid = activePage.id;
+  
+  if (pid === 'page-register') {
+    renderCategories();
+    if (selectedCatId) renderSessionList();
+    
+    // หากผู้ใช้กำลังเปิดหน้าต่างลงทะเบียนอยู่ ให้อัปเดตที่นั่งที่เหลือแบบเรียลไทม์
+    const modalReg = document.getElementById('modal-register');
+    if (modalReg && modalReg.classList.contains('open') && selectedSessId) {
+      const s = getSess(selectedSessId);
+      if (s) {
+        const cnt = getCount(selectedSessId);
+        const left = Math.max(0, s.capacity - cnt);
+        const barPct = Math.min(100, Math.round(cnt / s.capacity * 100));
+        const seatInfo = document.getElementById('reg-seat-info');
+        if (seatInfo) {
+          seatInfo.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="flex:1;height:5px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden;">
+                <div style="width:${barPct}%;height:100%;background:${left<=3?'#fca5a5':'#6ee7b7'};border-radius:3px;"></div>
+              </div>
+              <span style="font-size:12px;font-weight:600;color:${left<=3?'#fca5a5':'#6ee7b7'};">ว่าง ${left} ที่นั่ง</span>
+            </div>`;
+        }
+      }
+    }
+  } else if (pid === 'page-checkin') {
+    updateCheckinHeroStats();
+    const activeSub = document.querySelector('.checkin-sub.active');
+    if (activeSub && activeSub.id === 'csub-list') {
+      loadAttendance();
+    }
+  } else if (pid === 'page-track') {
+    trackSearch();
+  } else if (pid === 'page-admin') {
+    renderAdmin();
+  }
 }
 
 /* ══════════════════ PAGE NAV ══════════════════ */
@@ -917,10 +981,18 @@ function stopScan(){
   document.getElementById('scan-overlay').style.display='none';
   document.getElementById('btn-start-scan').style.display='flex';
   document.getElementById('btn-stop-scan').style.display='none';
+  document.getElementById('btn-switch-cam').style.display='none';
   const dot=document.getElementById('scan-status-dot');
   const txt=document.getElementById('scan-status-txt');
   if(dot){dot.className='status-dot offline';}
   if(txt){txt.textContent='กล้องปิดอยู่';}
+}
+function toggleCamera(){
+  currentFacingMode=currentFacingMode==='environment'?'user':'environment';
+  if(scanStream){
+    stopScan();
+    setTimeout(()=>startScan(), 300); // หน่วงเวลาเล็กน้อยเพื่อให้กล้องตัวเก่าปิดสนิทก่อนเปิดกล้องใหม่
+  }
 }
 let _scanCanvas=null,_scanCtx=null;
 function processFrame(video){
@@ -1447,7 +1519,6 @@ function _setBannerPreview(url,label=''){
   wrap.style.backgroundSize='cover';
   wrap.style.backgroundPosition='center';
   document.getElementById('nc-banner-placeholder').style.display='none';
-  document.getElementById('nc-banner-loading').classList.remove('active');
   document.getElementById('nc-banner-clear-btn').style.display='flex';
   if(label)document.getElementById('nc-banner-filename').textContent=label;
 }
@@ -1455,161 +1526,63 @@ function clearCatBanner(){
   const wrap=document.getElementById('nc-banner-wrap');
   wrap.style.backgroundImage='';
   document.getElementById('nc-banner-placeholder').style.display='flex';
-  document.getElementById('nc-banner-loading').classList.remove('active');
   document.getElementById('nc-banner-file').value='';
   document.getElementById('nc-banner-filename').textContent='';
   document.getElementById('nc-banner-clear-btn').style.display='none';
-  document.getElementById('nc-ai-regen-btn').style.display='none';
-  document.getElementById('nc-ai-gen-btn').style.display='';
   document.getElementById('nc-banner-url').value='';
+  croppedBlob=null;
 }
+
+let cropper = null;
+let croppedBlob = null;
+
 function previewCatBanner(event){
   const file=event.target.files[0];
   if(!file)return;
+  
+  croppedBlob = null;
   const reader=new FileReader();
   reader.onload=e=>{
-    _setBannerPreview(e.target.result,file.name);
-    document.getElementById('nc-banner-url').value='__new__';
-    document.getElementById('nc-ai-regen-btn').style.display='none';
-    document.getElementById('nc-ai-gen-btn').style.display='';
+    const imgTarget = document.getElementById('crop-image-target');
+    imgTarget.src = e.target.result;
+    document.getElementById('modal-crop').classList.add('open');
+    
+    if(cropper) {
+      cropper.destroy();
+    }
+    
+    setTimeout(() => {
+      cropper = new Cropper(imgTarget, {
+        aspectRatio: 800 / 300,
+        viewMode: 1,
+        autoCropArea: 1,
+      });
+    }, 50);
   };
   reader.readAsDataURL(file);
+  event.target.value = '';
 }
-const CAT_COLOR_PROMPT={
-  blue:'navy blue and white corporate professional',
-  teal:'teal and mint green healthcare clean',
-  amber:'warm orange amber golden energetic',
-  red:'bold red and white dynamic powerful',
-  purple:'deep purple violet creative modern',
-  green:'fresh green and white natural environment'
-};
-function _buildAiPrompt(name,desc,colorHint){
-  const thToEn={
-    // หมวดคลังสินค้า / โลจิสติกส์
-    'ระบบคลังย่อย':'sub-warehouse','ข้อมูลพื้นฐาน':'master data',
-    'รับสินค้า':'receiving goods','จัดซื้อ':'procurement','คลังสินค้า':'warehouse',
-    'จ่ายสินค้า':'dispatch','งานคลัง':'warehouse operations',
-    'คลัง':'warehouse','สินค้า':'inventory','สต๊อก':'stock',
-    'นำเข้า':'import','ส่งออก':'export','โลจิสติกส์':'logistics',
-    // หมวดไอที / ระบบ
-    'ระบบ':'IT system','ข้อมูล':'data','การใช้งาน':'software usage',
-    'โปรแกรม':'software','คอมพิวเตอร์':'computer','เครือข่าย':'network',
-    // หมวดการจัดการ / องค์กร
-    'ตรวจสอบ':'audit','บริหาร':'management','การจัดการ':'management',
-    'พื้นฐาน':'basics','อบรม':'training','หลักสูตร':'course',
-    'พัฒนา':'development','บุคลากร':'human resources','ผู้นำ':'leadership',
-    'ทำงาน':'working','บริการ':'customer service'
-  };
-  let topic=(name+' '+(desc||'')).toLowerCase();
-  // เรียงคีย์ตามความยาวจากมากไปน้อย เพื่อแปลคำประสมก่อนคำโดด (ป้องกันการแปลซ้อนทับ)
-  const sortedKeys = Object.keys(thToEn).sort((a, b) => b.length - a.length);
-  sortedKeys.forEach(th=>{topic=topic.split(th).join(` ${thToEn[th]} `);});
-  const safe=topic
-    .replace(/[^\w\s\u0E00-\u0E7F]+/g,' ') // อนุญาตให้อักษรไทย อังกฤษ และช่องว่างทำงานได้
-    .replace(/\s+/g,' ')
-    .trim()
-    .slice(0,150); // เพิ่มความยาวให้เก็บ Context ได้มากขึ้น
-  const subject=safe||'business corporate team';
-  
-  // เพิ่มคำสั่ง (Prompt) ที่บังคับสไตล์ให้ดูเป็นภาพเวกเตอร์องค์กร และย้ำไม่ให้มีตัวอักษร
-  return `Professional corporate training banner about ${subject}, ${colorHint} color theme, modern flat vector illustration, business concept art, clean background, no text, no letters, ultra wide landscape aspect ratio`;
+function cancelCrop() {
+  closeModal('modal-crop');
+  if(cropper) cropper.destroy();
+  cropper = null;
 }
-function resetGeminiKey(){/* no-op */}
-function _showBannerLoading(txt){
-  const wrap=document.getElementById('nc-banner-wrap');
-  wrap.style.backgroundImage='';
-  document.getElementById('nc-banner-placeholder').style.display='none';
-  document.getElementById('nc-banner-loading-txt').textContent=txt;
-  document.getElementById('nc-banner-loading').classList.add('active');
-  document.getElementById('nc-ai-gen-btn').disabled=true;
-  document.getElementById('nc-ai-regen-btn').disabled=true;
-}
-function _hideBannerLoading(){
-  document.getElementById('nc-banner-loading').classList.remove('active');
-  document.getElementById('nc-ai-gen-btn').disabled=false;
-  document.getElementById('nc-ai-regen-btn').disabled=false;
-}
-const _POL_MODELS=['flux','turbo','flux-realism'];
-async function _pollinationsFetch(prompt, attempt){
-  const seed=Math.floor(Math.random()*999999);
-  const model=_POL_MODELS[attempt%_POL_MODELS.length];
-  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=896&height=512&nologo=true&nofeed=true&seed=${seed}&model=${model}`;
-  const ctrl=new AbortController();
-  const tid=setTimeout(()=>ctrl.abort(),60000);
-  try{
-    const res=await fetch(url,{signal:ctrl.signal});
-    clearTimeout(tid);
-    if(!res.ok)throw new Error(`HTTP ${res.status}`);
-    const blob=await res.blob();
-    if(blob.type.includes('json') || blob.type.includes('text')) throw new Error('Invalid image format');
-    return blob;
-  }catch(e){clearTimeout(tid);throw e;}
-}
-async function generateCatBanner(){
-  const name=document.getElementById('nc-name').value.trim();
-  const desc=document.getElementById('nc-desc').value.trim();
-  if(!name){showToast('กรุณาระบุชื่อประเภทก่อน','danger');return;}
-  const colorKey=document.getElementById('nc-color').value||'blue';
-  const colorHint=CAT_COLOR_PROMPT[colorKey]||'blue corporate';
-  const aiPrompt=_buildAiPrompt(name,desc,colorHint);
-  let _sec=0;
-  const _timer=setInterval(()=>{
-    _sec++;
-    document.getElementById('nc-banner-loading-txt').textContent=`AI กำลังสร้างรูป... (${_sec}s)`;
-  },1000);
-  _showBannerLoading('AI กำลังสร้างรูป... (0s)');
-  try{
-    let blob=null;
-    const maxTry=3;
-    for(let i=0;i<maxTry;i++){
-      try{
-        if(i>0)document.getElementById('nc-banner-loading-txt').textContent=`ลองใหม่ครั้งที่ ${i+1}... (${_sec}s)`;
-        blob=await _pollinationsFetch(aiPrompt,i);
-        break;
-      }catch(err){
-        if(i===maxTry-1)throw err;
-        await new Promise(r=>setTimeout(r,2000));
-      }
-    }
-    clearInterval(_timer);
-    _showBannerLoading('กำลังบันทึกรูป...');
-    const path=`cat_ai_${Date.now()}.jpg`;
-    
-    let upErr = null, upData = null;
-    try {
-      const res = await _sb.storage.from('category-banners').upload(path,blob,{upsert:true,contentType:'image/jpeg'});
-      upData = res.data;
-      upErr = res.error;
-    } catch(err) {
-      upErr = err;
-    }
-
-    let finalUrl;
-    if(upErr){
-      finalUrl=await new Promise(r=>{const fr=new FileReader();fr.onload=e=>r(e.target.result);fr.readAsDataURL(blob);});
-    }else{
-      finalUrl=_sb.storage.from('category-banners').getPublicUrl(upData.path).data.publicUrl;
-    }
-    _hideBannerLoading();
-    _setBannerPreview(finalUrl,`AI: ${name}`);
-    document.getElementById('nc-banner-url').value=finalUrl;
-    document.getElementById('nc-ai-gen-btn').style.display='none';
-    document.getElementById('nc-ai-regen-btn').style.display='flex';
-    showToast(`สร้างรูปสำเร็จ (${_sec}s)`,'success');
-  }catch(e){
-    clearInterval(_timer);
-    _hideBannerLoading();
-    document.getElementById('nc-banner-placeholder').style.display='flex';
-    const msg=e.message||String(e);
-    if(msg.includes('abort')||msg.toLowerCase().includes('timeout')){
-      showToast('หมดเวลา — กด "สร้างใหม่" อีกครั้ง','danger');
-    }else if(msg.includes('429')){
-      showToast('เกิน rate limit — รอสักครู่แล้วลองใหม่','danger');
-    }else{
-      showToast('สร้างรูปไม่สำเร็จ (ลอง 3 ครั้งแล้ว): '+msg.slice(0,80),'danger');
-    }
-    console.error('AI banner error:',e);
-  }
+function applyCrop() {
+  if(!cropper) return;
+  const canvas = cropper.getCroppedCanvas({
+    width: 800,
+    height: 300,
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: 'high',
+  });
+  if(!canvas) { showToast('เกิดข้อผิดพลาดในการตัดรูป', 'danger'); return; }
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+  _setBannerPreview(dataUrl, 'Cropped_Image.jpg');
+  document.getElementById('nc-banner-url').value='__new__';
+  canvas.toBlob(blob => { croppedBlob = blob; }, 'image/jpeg', 0.9);
+  closeModal('modal-crop');
+  cropper.destroy();
+  cropper = null;
 }
 function openAddCat(){
   document.getElementById('nc-edit-id').value='';
@@ -1669,13 +1642,10 @@ async function submitAddCat(){
   const fileInput=document.getElementById('nc-banner-file');
   const bannerUrlField=document.getElementById('nc-banner-url').value||'';
   let bannerUrl=null;
-  if(fileInput.files[0]){
-    // user picked a new local file → upload to Storage
-    const file=fileInput.files[0];
-    const ext=file.name.split('.').pop().toLowerCase();
-    const path=`cat_${Date.now()}.${ext}`;
+  if(croppedBlob){
+    const path=`cat_${Date.now()}.jpg`;
     showToast('กำลังอัปโหลดรูป...','info');
-    const {data:upData,error:upErr}=await _sb.storage.from('category-banners').upload(path,file,{upsert:true,contentType:file.type});
+    const {data:upData,error:upErr}=await _sb.storage.from('category-banners').upload(path,croppedBlob,{upsert:true,contentType:'image/jpeg'});
     if(upErr){showToast('อัปโหลดรูปไม่สำเร็จ: '+upErr.message,'danger');return;}
     bannerUrl=_sb.storage.from('category-banners').getPublicUrl(upData.path).data.publicUrl;
   } else if(bannerUrlField&&bannerUrlField!=='__new__'){
@@ -1687,7 +1657,7 @@ async function submitAddCat(){
   if(editId){
     const {error}=await _sb.from('categories').update(payload).eq('id',parseInt(editId));
     if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
-    Object.assign(getCat(parseInt(editId)),{name,desc:payload.description,icon:payload.icon,color:payload.color});
+    Object.assign(getCat(parseInt(editId)),{name,desc:payload.description,icon:payload.icon,color:payload.color,bannerUrl:payload.banner_url});
     showToast(`แก้ไข "${name}" สำเร็จ`,'success');
   } else {
     const {data,error}=await _sb.from('categories').insert(payload).select().single();

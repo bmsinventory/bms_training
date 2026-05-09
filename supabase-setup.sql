@@ -147,3 +147,13 @@ insert into master_items (type, value, sort_order, site) values
   ('dept',    'ฝ่ายผลิต',             5, 'theme_1'),
   ('dept',    'ทรัพยากรบุคคล',       6, 'theme_1')
 on conflict do nothing;
+
+-- 5) ENABLE REALTIME
+-- เปิดการใช้งาน Realtime เพื่อให้ระบบอัปเดตหน้าจออัตโนมัติเมื่อมีคนอื่นบันทึกข้อมูลพร้อมกัน
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE locations, categories, sessions, registrations, master_items, admin_users, login_verify;
+EXCEPTION WHEN duplicate_object THEN
+  -- หากตารางถูกเพิ่มไว้แล้ว จะข้ามไปไม่แจ้ง Error
+  NULL;
+END $$;
