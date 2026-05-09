@@ -20,7 +20,7 @@ let loginVerifyData=[];
 let _lvEdits={};
 let nextId=1,nextSessId=1,nextCatId=1;
 let selectedCatId=null,selectedSessId=null,sessFilt='all';
-let scanStream=null,scanReq=null,scanLog=[];
+let scanStream=null,scanReq=null,scanLog=[],scanInterval=null,currentFacingMode='environment';
 let isAdminLoggedIn=false;
 let adminUsers=[];
 let currentAdminUser=null;
@@ -956,7 +956,7 @@ function drawRR(ctx,x,y,w,h,r,fill){
 async function startScan(){
   if(!navigator.mediaDevices){showToast('Browser ไม่รองรับกล้อง','danger');showDemoScan();return;}
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:currentFacingMode}});
     scanStream=stream;
     const v=document.getElementById('scanner-video');
     v.srcObject=stream;await v.play();
@@ -964,6 +964,7 @@ async function startScan(){
     document.getElementById('scan-overlay').style.display='flex';
     document.getElementById('btn-start-scan').style.display='none';
     document.getElementById('btn-stop-scan').style.display='flex';
+    document.getElementById('btn-switch-cam').style.display='flex';
     const dot=document.getElementById('scan-status-dot');
     const txt=document.getElementById('scan-status-txt');
     if(dot){dot.className='status-dot online';}
@@ -998,18 +999,26 @@ let _scanCanvas=null,_scanCtx=null;
 function processFrame(video){
   if(!video.videoWidth||!video.videoHeight)return;
   try{
-    if(!_scanCanvas){_scanCanvas=document.createElement('canvas');_scanCtx=_scanCanvas.getContext('2d');}
-    // Scale down to max 640px wide for faster processing (HD/4K cameras)
-    const scale=Math.min(1,640/video.videoWidth);
+    if(!_scanCanvas){_scanCanvas=document.createElement('canvas');_scanCtx=_scanCanvas.getContext('2d',{willReadFrequently:true});}
+    // 1280px gives enough detail for mobile cameras (was 640 — too small for dense QR)
+    const scale=Math.min(1,1280/video.videoWidth);
     _scanCanvas.width=Math.round(video.videoWidth*scale);
     _scanCanvas.height=Math.round(video.videoHeight*scale);
     _scanCtx.drawImage(video,0,0,_scanCanvas.width,_scanCanvas.height);
     const id=_scanCtx.getImageData(0,0,_scanCanvas.width,_scanCanvas.height);
-    // Convert to grayscale so colored QR codes (blue) are detected reliably
     const d=id.data;
-    for(let i=0;i<d.length;i+=4){const g=d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114;d[i]=d[i+1]=d[i+2]=g;}
+    // Grayscale + contrast stretch: maps blue QR (~76 luma) → 0 (black), white → 255
+    for(let i=0;i<d.length;i+=4){
+      const g=d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114;
+      const c=Math.min(255,Math.max(0,Math.round((g-90)*2.5)));
+      d[i]=d[i+1]=d[i+2]=c;
+    }
     const code=jsQR(d,id.width,id.height,{inversionAttempts:'attemptBoth'});
-    if(code&&code.data){handleQRData(code.data);stopScan();}
+    if(code&&code.data){
+      if(navigator.vibrate)navigator.vibrate(100);
+      handleQRData(code.data);
+      stopScan();
+    }
   }catch(e){console.error('QR scan error:',e);}
 }
 function handleQRData(raw){
