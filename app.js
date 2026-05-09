@@ -20,7 +20,7 @@ let loginVerifyData=[];
 let _lvEdits={};
 let nextId=1,nextSessId=1,nextCatId=1;
 let selectedCatId=null,selectedSessId=null,sessFilt='all';
-let scanStream=null,scanReq=null,scanLog=[],scanInterval=null,currentFacingMode='environment';
+let scanStream=null,scanReq=null,scanLog=[],scanInterval=null,currentFacingMode='environment',_scanLogIds=new Set();
 let isAdminLoggedIn=false;
 let adminUsers=[];
 let currentAdminUser=null;
@@ -106,8 +106,8 @@ const capBadge=p=>{
   return'<span class="badge badge-success"><i class="ti ti-circle-check"></i>มีที่ว่าง</span>';
 };
 /* ── Category card helpers ── */
-const WMS_TAGS=['PR','PO','Stock','Lot','Exp','WMS','QR','Card','Manual','Real time','LAB','ERP','HR'];
-function extractTags(text){return WMS_TAGS.filter(t=>(text||'').includes(t)).slice(0,5);}
+const BMS_TAGS=['PR','PO','Stock','Lot','Exp','BMS','QR','Card','Manual','Real time','LAB','ERP','HR'];
+function extractTags(text){return BMS_TAGS.filter(t=>(text||'').includes(t)).slice(0,5);}
 function calcDuration(ts,te){
   if(!ts||!te)return'';
   const[sh,sm]=(ts||'09:00').split(':').map(Number);
@@ -239,6 +239,7 @@ function refreshCurrentView() {
     }
   } else if (pid === 'page-checkin') {
     updateCheckinHeroStats();
+    _mergeRealtimeScanLog();
     const activeSub = document.querySelector('.checkin-sub.active');
     if (activeSub && activeSub.id === 'csub-list') {
       loadAttendance();
@@ -315,21 +316,19 @@ function adminLogout(){
 /* ══════════════════ DATA IMPORT ══════════════════ */
 const IMPORT_CFG={
   trainer:{label:'วิทยากร',   cols:['วิทยากร'],
-    sample:[['ทีม WMS Support'],['คุณสมชาย ใจดี'],['คุณวิไล รักษา']]},
+    sample:[]},
   venue:  {label:'สถานที่',   cols:['สถานที่'],
-    sample:[['ห้องอบรม A'],['ห้องอบรม B'],['ออนไลน์ (Zoom)']]},
+    sample:[]},
   dept:   {label:'แผนก',      cols:['แผนก'],
-    sample:[['คลังสินค้า'],['จัดซื้อ'],['ขนส่ง / โลจิสติกส์']]},
+    sample:[]},
   prefix: {label:'คำนำหน้า', cols:['คำนำหน้า'],
-    sample:[['นาย'],['นาง'],['นางสาว']]},
+    sample:[]},
   category:{label:'ประเภทการอบรม',
     cols:['ชื่อประเภท *','คำอธิบาย','ไอคอน','สี (blue/teal/amber/red/purple/green)'],
-    sample:[['การรับสินค้า (Receiving)','ขั้นตอนรับสินค้าเข้าคลัง','package-import','blue'],
-            ['การจัดเก็บ (Putaway)','การจัดวาง Bin Location','archive','teal']]},
+    sample:[]},
   session:{label:'รอบอบรม',
     cols:['ประเภท (ชื่อ) *','ชื่อรอบ *','วันที่ (YYYY-MM-DD) *','เวลาเริ่ม','เวลาจบ','สถานที่','วิทยากร','จำนวนที่นั่ง'],
-    sample:[['การรับสินค้า (Receiving)','รอบที่ 1','2026-06-10','09:00','16:00','ห้องอบรม A','ทีม WMS Support','20'],
-            ['การรับสินค้า (Receiving)','รอบที่ 2','2026-06-11','13:00','16:00','ห้องอบรม B','คุณสมชาย ใจดี','15']]},
+    sample:[]},
 };
 let _importRows=[];
 function openImportModal(){
@@ -874,7 +873,7 @@ function saveQRasImage(){
     drawRR(ctx, 0, 0, W, 62, {tl:18,tr:18,bl:0,br:0}, hg);
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 15px Arial,sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('WMS Training', W/2, 26);
+    ctx.fillText('BMS Training', W/2, 26);
     ctx.font = '11px Arial,sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.75)';
     ctx.fillText('บัตรยืนยันเข้าอบรม', W/2, 44);
 
@@ -1155,7 +1154,8 @@ function showDemoScan(){
 }
 function addScanLog(reg,type){
   const s=getSess(reg.sessionId);
-  scanLog.unshift({name:`${reg.prefix||''}${reg.fname} ${reg.lname}`,sess:s?s.name:'-',date:s?fmtDateShort(s.date):'',time:nowTime(),type});
+  _scanLogIds.add(reg.id);
+  scanLog.unshift({regId:reg.id,name:`${reg.prefix||''}${reg.fname} ${reg.lname}`,sess:s?s.name:'-',date:s?fmtDateShort(s.date):'',time:nowTime(),type});
   renderScanLog();
 }
 function renderScanLog(){
@@ -1173,7 +1173,18 @@ function renderScanLog(){
       <div style="font-size:12px;color:var(--text-muted);flex-shrink:0;">${l.time}</div>
     </div>`).join('');
 }
-function clearScanLog(){scanLog=[];renderScanLog();}
+function clearScanLog(){scanLog=[];_scanLogIds.clear();renderScanLog();}
+function _mergeRealtimeScanLog(){
+  const toAdd=registrations.filter(r=>r.attended&&!!getSess(r.sessionId)&&!_scanLogIds.has(r.id));
+  if(!toAdd.length)return;
+  toAdd.forEach(r=>{
+    const s=getSess(r.sessionId);
+    _scanLogIds.add(r.id);
+    scanLog.push({regId:r.id,name:`${r.prefix||''}${r.fname} ${r.lname}`,sess:s?s.name:'-',date:s?fmtDateShort(s.date):'',time:r.attendedTime||'',type:'ok'});
+  });
+  scanLog.sort((a,b)=>b.time.localeCompare(a.time));
+  renderScanLog();
+}
 function manualCheckIn(){
   document.getElementById('manual-search').value='';
   document.getElementById('manual-results').innerHTML='';
