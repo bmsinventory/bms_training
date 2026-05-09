@@ -956,10 +956,13 @@ function drawRR(ctx,x,y,w,h,r,fill){
 async function startScan(){
   if(!navigator.mediaDevices){showToast('Browser ไม่รองรับกล้อง','danger');showDemoScan();return;}
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:currentFacingMode}});
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:currentFacingMode,width:{ideal:1280},height:{ideal:720}}});
     scanStream=stream;
     const v=document.getElementById('scanner-video');
     v.srcObject=stream;await v.play();
+    if('BarcodeDetector' in window&&!_barcodeDetector){
+      try{_barcodeDetector=new BarcodeDetector({formats:['qr_code']});}catch(e){_barcodeDetector=null;}
+    }
     document.getElementById('scan-idle').style.display='none';
     document.getElementById('scan-overlay').style.display='flex';
     document.getElementById('btn-start-scan').style.display='none';
@@ -968,12 +971,13 @@ async function startScan(){
     const dot=document.getElementById('scan-status-dot');
     const txt=document.getElementById('scan-status-txt');
     if(dot){dot.className='status-dot online';}
-    if(txt){txt.textContent='กล้องทำงาน — พร้อมสแกน';}
-    scanInterval=setInterval(()=>processFrame(v),300);
+    if(txt){txt.textContent=_barcodeDetector?'กล้องทำงาน — พร้อมสแกน (Native)':'กล้องทำงาน — พร้อมสแกน';}
+    scanInterval=setInterval(()=>processFrame(v),250);
     showToast('เปิดกล้องสำเร็จ พร้อมสแกน','success');
   }catch(e){showToast('ไม่สามารถเข้าถึงกล้อง — ลองโหมดสาธิต','warn');showDemoScan();}
 }
 function stopScan(){
+  _scanBusy=false;
   if(scanStream)scanStream.getTracks().forEach(t=>t.stop());
   if(scanInterval)clearInterval(scanInterval);
   scanStream=null;scanInterval=null;
@@ -995,19 +999,36 @@ function toggleCamera(){
     setTimeout(()=>startScan(), 300); // หน่วงเวลาเล็กน้อยเพื่อให้กล้องตัวเก่าปิดสนิทก่อนเปิดกล้องใหม่
   }
 }
-let _scanCanvas=null,_scanCtx=null;
+let _scanCanvas=null,_scanCtx=null,_barcodeDetector=null,_scanBusy=false;
 function processFrame(video){
   if(!video.videoWidth||!video.videoHeight)return;
+  if(_scanBusy)return;
+
+  // ── Native BarcodeDetector (Chrome Android / Safari iOS 17+) ──
+  if(_barcodeDetector){
+    _scanBusy=true;
+    _barcodeDetector.detect(video)
+      .then(barcodes=>{
+        if(barcodes.length&&barcodes[0].rawValue){
+          if(navigator.vibrate)navigator.vibrate(100);
+          handleQRData(barcodes[0].rawValue);
+          stopScan();
+        }
+      })
+      .catch(e=>console.warn('BarcodeDetector:',e))
+      .finally(()=>{_scanBusy=false;});
+    return;
+  }
+
+  // ── Fallback: jsQR ──
   try{
     if(!_scanCanvas){_scanCanvas=document.createElement('canvas');_scanCtx=_scanCanvas.getContext('2d',{willReadFrequently:true});}
-    // 1280px gives enough detail for mobile cameras (was 640 — too small for dense QR)
     const scale=Math.min(1,1280/video.videoWidth);
     _scanCanvas.width=Math.round(video.videoWidth*scale);
     _scanCanvas.height=Math.round(video.videoHeight*scale);
     _scanCtx.drawImage(video,0,0,_scanCanvas.width,_scanCanvas.height);
     const id=_scanCtx.getImageData(0,0,_scanCanvas.width,_scanCanvas.height);
     const d=id.data;
-    // Grayscale + contrast stretch: maps blue QR (~76 luma) → 0 (black), white → 255
     for(let i=0;i<d.length;i+=4){
       const g=d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114;
       const c=Math.min(255,Math.max(0,Math.round((g-90)*2.5)));
@@ -1035,12 +1056,56 @@ async function processSmartCheckIn(data){
   const reg=getReg(data.regId);
   if(!reg){showScanResult('error','ไม่พบข้อมูล',`ไม่พบ REG-${data.regId} ในระบบ`,null,data);return;}
   if(reg.attended){showScanResult('already',`เช็คชื่อไปแล้ว เวลา ${reg.attendedTime}`,'',reg,data);return;}
+  showConfirmCheckIn(reg,data);
+}
+function showConfirmCheckIn(reg,qrData){
+  const s=getSess(reg.sessionId);
+  const cat=s?getCat(s.catId):null;
+  const dSess=qrData||{};
+  document.getElementById('scan-result-area').innerHTML=`
+    <div class="scan-result confirm">
+      <div class="scan-result-header confirm">
+        <div class="scan-result-icon confirm"><i class="ti ti-user-question"></i></div>
+        <div>
+          <div class="scan-result-title">ยืนยันการเข้าอบรม?</div>
+          <div style="font-size:12px;margin-top:2px;">กรุณาตรวจสอบข้อมูลก่อนกดยืนยัน</div>
+        </div>
+      </div>
+      <div class="scan-result-body">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="width:44px;height:44px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;"><i class="ti ti-user"></i></div>
+          <div>
+            <div style="font-weight:700;font-size:16px;">${reg.prefix||''}${reg.fname} ${reg.lname}</div>
+            <div style="font-size:12px;color:var(--text-muted);">${reg.position||''} — ${reg.dept}</div>
+          </div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:10px 12px;font-size:12px;display:flex;flex-direction:column;gap:5px;margin-bottom:14px;">
+          ${cat||dSess.catName?`<div style="display:flex;gap:8px;align-items:center;"><i class="ti ti-category" style="color:var(--primary);font-size:13px;"></i><span><strong>${cat?cat.name:dSess.catName||''}</strong></span></div>`:''}
+          ${s||dSess.sessName?`<div style="display:flex;gap:8px;align-items:center;"><i class="ti ti-calendar-event" style="color:var(--primary);font-size:13px;"></i><span>${s?s.name:dSess.sessName||''}</span></div>`:''}
+          ${s||dSess.date?`<div style="display:flex;gap:8px;align-items:center;"><i class="ti ti-calendar" style="color:var(--primary);font-size:13px;"></i><span>${fmtDate(s?s.date:dSess.date)}</span></div>`:''}
+          ${s||dSess.timeStart?`<div style="display:flex;gap:8px;align-items:center;"><i class="ti ti-clock" style="color:var(--primary);font-size:13px;"></i><span>${s?sessTxt(s):(dSess.timeStart||'')+' – '+(dSess.timeEnd||'')+' น.'}</span></div>`:''}
+          ${s||dSess.venue?`<div style="display:flex;gap:8px;align-items:center;"><i class="ti ti-map-pin" style="color:var(--primary);font-size:13px;"></i><span>${s?s.venue:dSess.venue||''}</span></div>`:''}
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('scan-result-area').innerHTML='';startScan()"><i class="ti ti-x"></i>ยกเลิก</button>
+          <button class="btn btn-success" id="confirm-checkin-btn" onclick="confirmCheckIn(${reg.id})" style="flex:1;justify-content:center;font-size:15px;padding:11px;"><i class="ti ti-circle-check"></i>ยืนยันเข้าอบรม</button>
+        </div>
+      </div>
+    </div>`;
+  setTimeout(()=>document.getElementById('scan-result-area').scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+async function confirmCheckIn(regId){
+  const btn=document.getElementById('confirm-checkin-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i>กำลังบันทึก...';}
+  const reg=getReg(regId);
+  if(!reg)return;
   const time=nowTime();
   const {error}=await _sb.from('registrations').update({attended:true,attended_time:time}).eq('id',reg.id);
-  if(error){showScanResult('error','บันทึกไม่สำเร็จ','กรุณาลองใหม่',null,data);return;}
+  if(error){showScanResult('error','บันทึกไม่สำเร็จ','กรุณาลองใหม่',null,null);return;}
   reg.attended=true;reg.attendedTime=time;
+  if(navigator.vibrate)navigator.vibrate([100,50,200]);
   addScanLog(reg,'ok');
-  showScanResult('ok','เช็คชื่อสำเร็จ! ✓','',reg,data);
+  showScanResult('ok','เช็คชื่อสำเร็จ! ✓','',reg,null);
   updateCheckinHeroStats();
   const sid=parseInt(document.getElementById('att-sess-sel').value||0);
   if(sid===reg.sessionId)loadAttendance();
@@ -1921,9 +1986,9 @@ function renderLoginVerify(){
   const tbody=document.getElementById('lv-tbody');if(!tbody)return;
   const q=(document.getElementById('lv-search')?.value||'').toLowerCase();
   const sf=document.getElementById('lv-status-filter')?.value||'';
-  // Build unique persons map from registrations
+  // Build unique persons map from registrations of current site only
   const seen=new Map();
-  registrations.forEach(r=>{
+  registrations.filter(r=>!!getSess(r.sessionId)).forEach(r=>{
     const k=_lvKey(r.fname,r.lname,r.dept);
     if(!seen.has(k))seen.set(k,{fname:r.fname,lname:r.lname,dept:r.dept,position:r.position||''});
   });
@@ -1966,9 +2031,9 @@ function renderLoginVerify(){
   tbody.querySelectorAll('select[data-lv-field="status"]').forEach(_applyLvSelColor);
 }
 async function saveLoginVerifyAll(){
-  // Build full unique-person map from registrations (all, not just filtered)
+  // Build full unique-person map from current site's registrations only
   const seen=new Map();
-  registrations.forEach(r=>{
+  registrations.filter(r=>!!getSess(r.sessionId)).forEach(r=>{
     const k=_lvKey(r.fname,r.lname,r.dept);
     if(!seen.has(k))seen.set(k,{fname:r.fname,lname:r.lname,dept:r.dept,position:r.position||''});
   });
@@ -2013,7 +2078,7 @@ async function loadLoginVerify(){
 function renderAdminRegs(){
   const q=(document.getElementById('admin-search').value||'').toLowerCase();
   const sid=document.getElementById('admin-filter-sess').value;
-  let regs=registrations;
+  let regs=registrations.filter(r=>!!getSess(r.sessionId));
   if(q)regs=regs.filter(r=>(r.fname+r.lname+(r.position||'')).toLowerCase().includes(q));
   if(sid)regs=regs.filter(r=>r.sessionId==sid);
   const tbody=document.getElementById('admin-reg-tbody');
