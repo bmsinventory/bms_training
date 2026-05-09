@@ -127,6 +127,22 @@ tr:hover td{background:#f8fafc}
 .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
 .import-dropzone{border:2px dashed var(--border);border-radius:10px;padding:28px 16px;text-align:center;cursor:pointer;color:var(--text-muted);transition:.18s;display:flex;flex-direction:column;align-items:center;gap:8px;}
 .import-dropzone:hover,.import-dropzone.dragover{border-color:var(--primary);color:var(--primary);background:var(--primary-light);}
+/* Banner upload widget */
+.banner-upload-wrap{height:120px;border:2px dashed var(--border);border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;transition:border-color .18s,background .18s;}
+.banner-upload-wrap:hover{border-color:var(--primary);background:var(--primary-light);}
+.banner-upload-placeholder{display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--text-muted);font-size:12px;pointer-events:none;}
+.banner-upload-placeholder i{font-size:26px;}
+/* AI loading state */
+.banner-ai-loading{display:none;flex-direction:column;align-items:center;gap:10px;color:#7c3aed;font-size:13px;font-weight:500;pointer-events:none;}
+.banner-ai-loading.active{display:flex;}
+.banner-ai-spinner{width:32px;height:32px;border:3px solid rgba(124,58,237,.2);border-top-color:#7c3aed;border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+/* AI button */
+.btn-ai{background:linear-gradient(135deg,#6d28d9,#7c3aed);color:#fff;border:none;}
+.btn-ai:hover{background:linear-gradient(135deg,#5b21b6,#6d28d9);box-shadow:0 4px 14px rgba(124,58,237,.35);}
+.btn-ai:disabled{opacity:.6;cursor:not-allowed;}
+/* Image overlay on banner (for real photos) */
+.cat-banner-img-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.08) 0%,rgba(0,0,0,.38) 100%);}
 .icon-pick-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 3px;border-radius:7px;cursor:pointer;border:1.5px solid transparent;transition:.12s;}
 .icon-pick-item:hover{background:var(--bg);}
 .icon-pick-item.selected{background:var(--primary);border-color:var(--primary);}
@@ -171,11 +187,21 @@ tr:hover td{background:#f8fafc}
 .cat-card{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-xl);overflow:hidden;cursor:pointer;display:flex;flex-direction:column;
   transition:transform .22s cubic-bezier(.34,1.2,.64,1),box-shadow .22s,border-color .18s;
   box-shadow:var(--shadow-sm)}
-.cat-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(37,99,235,.11),0 4px 8px rgba(0,0,0,.06);border-color:var(--primary-mid)}
-.cat-card-header{padding:20px 20px 14px;position:relative;flex-shrink:0}
-.cat-card-hrow{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:13px}
-.cat-icon-wrap{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.cat-avbadge{font-size:10px;font-weight:700;padding:4px 9px;border-radius:20px;display:flex;align-items:center;gap:3px;white-space:nowrap;margin-top:2px;letter-spacing:.2px}
+.cat-card:hover{transform:translateY(-4px);box-shadow:0 14px 36px rgba(0,0,0,.13),0 4px 8px rgba(0,0,0,.06);border-color:var(--primary-mid)}
+/* Banner */
+.cat-banner{position:relative;height:130px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.cat-banner-deco{position:absolute;right:-18px;bottom:-22px;font-size:120px;opacity:.13;color:#fff;line-height:1;pointer-events:none;transition:transform .4s ease;}
+.cat-card:hover .cat-banner-deco{transform:scale(1.08) rotate(-6deg);}
+.cat-banner-icon{position:relative;z-index:1;width:64px;height:64px;border-radius:20px;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);border:1.5px solid rgba(255,255,255,.32);display:flex;align-items:center;justify-content:center;font-size:30px;color:#fff;box-shadow:0 4px 20px rgba(0,0,0,.18);transition:transform .25s cubic-bezier(.34,1.4,.64,1);}
+.cat-card:hover .cat-banner-icon{transform:scale(1.1);}
+.cat-banner-badge{position:absolute;top:12px;right:12px;z-index:2;}
+/* Badge inside banner — always light */
+.cat-banner-badge .cat-avbadge.avail{background:rgba(255,255,255,.92);color:#065f46;}
+.cat-banner-badge .cat-avbadge.near{background:rgba(255,255,255,.92);color:#92400e;}
+.cat-banner-badge .cat-avbadge.full{background:rgba(0,0,0,.35);color:#fff;}
+/* Card body */
+.cat-card-header{padding:16px 20px 12px;position:relative;flex-shrink:0}
+.cat-avbadge{font-size:10px;font-weight:700;padding:4px 9px;border-radius:20px;display:flex;align-items:center;gap:3px;white-space:nowrap;letter-spacing:.2px}
 .cat-avbadge.avail{background:var(--success-light);color:#065f46}
 .cat-avbadge.near{background:#FFFBEB;color:#92400E}
 .cat-avbadge.full{background:var(--danger-light);color:#991B1B}

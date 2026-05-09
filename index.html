@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 <!-- qrcode-generator: renders directly to table/svg, we'll use it via canvas -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="https://js.puter.com/v2/"></script>
 <link rel="stylesheet" href="style.css">
 
 </head>
@@ -36,7 +37,7 @@
       <i class="ti ti-scan"></i><span>เช็คชื่อ</span>
     </button>
     <button class="nav-tab" onclick="showPage('track')" id="tab-track">
-      <i class="ti ti-chart-bar"></i><span>ติดตาม</span>
+      <i class="ti ti-chart-bar"></i><span>ตรวจสอบรายชื่อ</span>
     </button>
     <button class="nav-tab" onclick="showPage('admin')" id="tab-admin">
       <i class="ti ti-adjustments-horizontal"></i><span>Admin</span>
@@ -101,7 +102,12 @@
         <div class="hero-sub">สแกน QR Code หรือติ๊กชื่อจากรายการ</div>
       </div>
     </div>
-    <div id="checkin-live-stats" class="hero-stats"></div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div id="checkin-live-stats" class="hero-stats"></div>
+      <button class="btn btn-ghost btn-sm" onclick="adminLogout()" title="ออกจากระบบ" style="color:var(--danger);gap:6px;white-space:nowrap;">
+        <i class="ti ti-logout"></i>ออกจากระบบ
+      </button>
+    </div>
   </div>
 
   <!-- Sub-tabs inside checkin page -->
@@ -231,6 +237,7 @@
     <button class="admin-tab" onclick="switchAdminTab('registrations')"><i class="ti ti-users"></i> ผู้ลงทะเบียน</button>
     <button class="admin-tab" onclick="switchAdminTab('locations')"><i class="ti ti-map-pin"></i> สาขา</button>
     <button class="admin-tab" onclick="switchAdminTab('users')"><i class="ti ti-users-group"></i> ผู้ใช้งาน</button>
+    <button class="admin-tab" onclick="switchAdminTab('loginverify')"><i class="ti ti-shield-check"></i> ตรวจสอบสิทธิ์</button>
   </div>
 
   <!-- Sessions -->
@@ -305,7 +312,10 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title"><i class="ti ti-list-details"></i>รายชื่อผู้ลงทะเบียน</div>
-        <button class="btn btn-primary btn-sm" onclick="adminAddReg()"><i class="ti ti-plus"></i>เพิ่มรายการ</button>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost btn-sm" onclick="openPrintForm()" style="gap:6px;"><i class="ti ti-printer"></i>พิมพ์แบบฟอร์ม</button>
+          <button class="btn btn-primary btn-sm" onclick="adminAddReg()"><i class="ti ti-plus"></i>เพิ่มรายการ</button>
+        </div>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
         <div style="position:relative;flex:1;min-width:150px;">
@@ -370,6 +380,44 @@
           </div>
           <button class="btn btn-primary" onclick="addAdminUser()" style="height:40px;"><i class="ti ti-plus"></i>เพิ่มผู้ใช้</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login Verify -->
+  <div class="admin-section" id="asec-loginverify">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-shield-check"></i>ตรวจสอบสิทธิ์ผู้ใช้งาน (Login Verify)</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadLoginVerify()"><i class="ti ti-refresh"></i>รีโหลด</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+        <div style="position:relative;flex:1;min-width:200px;">
+          <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:15px;pointer-events:none;"></i>
+          <input class="form-control" id="lv-search" placeholder="ค้นหาชื่อ หรือ หน่วยงาน..." oninput="renderLoginVerify()" style="padding-left:32px;">
+        </div>
+        <select class="form-control" id="lv-status-filter" style="width:180px;" onchange="renderLoginVerify()">
+          <option value="">-- ทุกสถานะ --</option>
+          <option value="has_login">มี Login</option>
+          <option value="no_login">ไม่มี Login</option>
+          <option value="disabled">ปิดใช้งาน</option>
+          <option value="pending">ยังไม่ระบุสถานะ</option>
+        </select>
+        <button class="btn btn-primary" id="lv-save-btn" onclick="saveLoginVerifyAll()"><i class="ti ti-device-floppy"></i>บันทึกสถานะ</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px;">#</th>
+              <th>ชื่อ-นามสกุล</th>
+              <th>ตำแหน่ง/หน่วยงาน</th>
+              <th style="width:190px;">สถานะ Login</th>
+              <th>หมายเหตุ (Login)</th>
+            </tr>
+          </thead>
+          <tbody id="lv-tbody"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -472,7 +520,7 @@
       <div class="form-group">
         <label class="form-label"><i class="ti ti-key"></i> รหัสผ่าน</label>
         <div style="position:relative;">
-          <input class="form-control" id="login-pass" type="password" placeholder="กรอกรหัสผ่าน" autocomplete="off" onkeydown="if(event.key==='Enter')adminLogin()" style="padding-right:40px;">
+          <input class="form-control" id="login-pass" type="text" placeholder="กรอกรหัสผ่าน" autocomplete="off" onkeydown="if(event.key==='Enter')adminLogin()" style="padding-right:40px;-webkit-text-security:disc;">
           <button type="button" onclick="toggleLoginPass()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;padding:0;line-height:1;">
             <i class="ti ti-eye" id="login-eye-icon"></i>
           </button>
@@ -644,6 +692,42 @@
     <div class="form-group"><label class="form-label">ชื่อประเภท <span>*</span></label><input class="form-control" id="nc-name" placeholder="เช่น การรับสินค้า"></div>
     <div class="form-group"><label class="form-label">คำอธิบาย</label><input class="form-control" id="nc-desc" placeholder="อธิบายหัวข้อโดยย่อ"></div>
     <div class="form-group">
+      <label class="form-label">รูปแบนเนอร์ <span style="color:var(--text-muted);font-weight:400;font-size:11px;">(ไม่บังคับ — ถ้าไม่ใส่จะใช้สีธีม)</span></label>
+      <div id="nc-banner-wrap" class="banner-upload-wrap" onclick="if(!document.getElementById('nc-banner-loading').classList.contains('active'))document.getElementById('nc-banner-file').click()">
+        <div id="nc-banner-placeholder" class="banner-upload-placeholder">
+          <i class="ti ti-photo"></i>
+          <span>คลิกเพื่ออัปโหลดรูปภาพ</span>
+          <span style="font-size:10px;opacity:.6;">JPG, PNG, WEBP — แนะนำ 800×300px ขึ้นไป</span>
+        </div>
+        <div id="nc-banner-loading" class="banner-ai-loading">
+          <div class="banner-ai-spinner"></div>
+          <span id="nc-banner-loading-txt">กำลังสร้างรูป AI...</span>
+        </div>
+      </div>
+      <input type="file" id="nc-banner-file" accept="image/*" style="display:none" onchange="previewCatBanner(event)">
+      <div style="display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('nc-banner-file').click()" style="gap:5px;">
+          <i class="ti ti-upload"></i>อัปโหลดรูป
+        </button>
+        <button type="button" id="nc-ai-gen-btn" class="btn btn-ai btn-sm" onclick="generateCatBanner()" style="gap:5px;">
+          <i class="ti ti-sparkles"></i>AI สร้างรูป
+        </button>
+        <button type="button" id="nc-ai-regen-btn" class="btn btn-ghost btn-sm" onclick="generateCatBanner()" style="gap:5px;display:none;">
+          <i class="ti ti-refresh"></i>สร้างใหม่
+        </button>
+        <button type="button" id="nc-banner-clear-btn" class="btn btn-ghost btn-sm" onclick="clearCatBanner()" style="gap:5px;color:var(--danger);display:none;margin-left:auto;">
+          <i class="ti ti-trash"></i>ลบรูป
+        </button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:4px;min-height:20px;">
+        <span id="nc-banner-filename" style="font-size:11px;color:var(--text-muted);flex:1;"></span>
+        <span style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:3px;">
+          <i class="ti ti-robot" style="font-size:11px;"></i>Pollinations AI (ฟรี)
+        </span>
+      </div>
+      <input type="hidden" id="nc-banner-url">
+    </div>
+    <div class="form-group">
       <label class="form-label">ไอคอน</label>
       <div onclick="toggleIconPicker()" id="icon-picker-btn" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);user-select:none;">
         <span id="icon-picker-preview" style="font-size:22px;color:var(--primary);width:28px;text-align:center;"><i class="ti ti-box"></i></span>
@@ -750,6 +834,92 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-session')">ยกเลิก</button>
       <button class="btn btn-primary" onclick="submitSession()"><i class="ti ti-check"></i>บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Print Form Modal -->
+<div class="modal-overlay" id="modal-print-form">
+  <div class="modal" style="max-width:520px;padding:0;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#1a3a6b,#1a56a0);padding:18px 22px;color:#fff;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="background:rgba(255,255,255,.15);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;"><i class="ti ti-printer"></i></div>
+        <div>
+          <div style="font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.8px;">Admin</div>
+          <div style="font-weight:700;font-size:17px;">พิมพ์ใบเซ็นต์ชื่อผู้เข้าอบรม</div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:20px 22px;max-height:72vh;overflow-y:auto;">
+      <div class="form-group">
+        <label class="form-label">เลือกรอบอบรม <span style="color:var(--danger)">*</span></label>
+        <select class="form-control" id="pf-sess" onchange="onPrintFormSessChange()">
+          <option value="">-- เลือกรอบ --</option>
+        </select>
+      </div>
+      <div style="height:1px;background:var(--border);margin:14px 0;"></div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">ข้อมูลส่วนหัวแบบฟอร์ม</div>
+      <div class="form-group">
+        <label class="form-label">ชื่อสถานพยาบาล / หน่วยงาน <span style="color:var(--danger)">*</span></label>
+        <input class="form-control" id="pf-hospital" placeholder="เช่น โรงพยาบาลทดสอบ จ.น่าน" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ระบบงาน / ชื่อโปรแกรม</label>
+        <input class="form-control" id="pf-program" placeholder="เช่น BMS-INVENTORY" value="BMS-INVENTORY">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ระบบงาน (ประเภทอบรม)</label>
+        <input class="form-control" id="pf-system" placeholder="จะถูกเติมอัตโนมัติเมื่อเลือกรอบ">
+      </div>
+      <div class="form-group">
+        <label class="form-label">รายละเอียด <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(เติมอัตโนมัติจากคำอธิบายประเภทอบรม)</span></label>
+        <input class="form-control" id="pf-details" placeholder="รายละเอียดเนื้อหาอบรม...">
+      </div>
+      <div style="height:1px;background:var(--border);margin:14px 0;"></div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">ผู้ลงนาม</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        <!-- BMS side -->
+        <div style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:10px;display:flex;align-items:center;gap:5px;"><i class="ti ti-pencil"></i>ผู้ลงนาม (ฝั่ง BMS)</div>
+          <div class="form-group" style="margin-bottom:8px;">
+            <label class="form-label" style="font-size:11px;">ชื่อ-นามสกุล</label>
+            <input class="form-control" id="pf-bms-name" placeholder="ชื่อ-นามสกุล..." style="height:34px;font-size:13px;">
+          </div>
+          <div class="form-group" style="margin-bottom:8px;">
+            <label class="form-label" style="font-size:11px;">ตำแหน่ง</label>
+            <input class="form-control" id="pf-bms-pos" value="ผู้จัดการโครงการติดตั้งระบบคลังสินค้า" style="height:34px;font-size:13px;color:var(--amber-dark,#92400e);">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" style="font-size:11px;">หน่วยงาน</label>
+            <input class="form-control" id="pf-bms-org" value="บริษัท บางกอก เมดิคอล ซอฟต์แวร์ จำกัด" style="height:34px;font-size:12px;color:var(--success-dark,#166534);">
+          </div>
+        </div>
+        <!-- Hospital side -->
+        <div style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:10px;display:flex;align-items:center;gap:5px;"><i class="ti ti-pencil"></i>ผู้ลงนาม (ฝั่งโรงพยาบาล)</div>
+          <div class="form-group" style="margin-bottom:8px;">
+            <label class="form-label" style="font-size:11px;">ชื่อ-นามสกุล</label>
+            <input class="form-control" id="pf-signer-name" placeholder="ชื่อ-นามสกุล..." style="height:34px;font-size:13px;">
+          </div>
+          <div class="form-group" style="margin-bottom:8px;">
+            <label class="form-label" style="font-size:11px;">ตำแหน่ง</label>
+            <input class="form-control" id="pf-signer-pos" placeholder="เช่น หัวหน้าศูนย์คอมพิวเตอร์" style="height:34px;font-size:13px;color:var(--amber-dark,#92400e);">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" style="font-size:11px;">โรงพยาบาล</label>
+            <input class="form-control" id="pf-signer-org" placeholder="ชื่อโรงพยาบาล..." style="height:34px;font-size:13px;color:var(--primary);" oninput="document.getElementById('pf-hospital').value=this.value">
+          </div>
+        </div>
+      </div>
+      <div style="height:1px;background:var(--border);margin:14px 0;"></div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">จำนวนแถวรวมในตาราง (รวมแถวว่าง)</label>
+        <input class="form-control" id="pf-rows" type="number" min="10" max="60" value="25" style="max-width:140px;">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;padding:0 22px 20px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-print-form')" style="flex:1;"><i class="ti ti-x"></i>ยกเลิก</button>
+      <button class="btn btn-primary" onclick="executePrintForm()" style="flex:2;justify-content:center;gap:6px;"><i class="ti ti-printer"></i>พิมพ์แบบฟอร์ม</button>
     </div>
   </div>
 </div>

@@ -2,9 +2,12 @@
    DATA STORE
 ══════════════════════════════════════════════ */
 const CM={
-  blue:{bg:'#e8f0fb',c:'#1a56a0'},teal:{bg:'#d1fae5',c:'#065f46'},
-  amber:{bg:'#fef3c7',c:'#92400e'},red:{bg:'#fee2e2',c:'#991b1b'},
-  purple:{bg:'#ede9fe',c:'#5b21b6'},green:{bg:'#dcfce7',c:'#166534'}
+  blue:  {bg:'#e8f0fb',c:'#1a56a0',g1:'#1e3a8a',g2:'#2563eb'},
+  teal:  {bg:'#d1fae5',c:'#065f46',g1:'#0f766e',g2:'#0d9488'},
+  amber: {bg:'#fef3c7',c:'#92400e',g1:'#b45309',g2:'#d97706'},
+  red:   {bg:'#fee2e2',c:'#991b1b',g1:'#9f1239',g2:'#e11d48'},
+  purple:{bg:'#ede9fe',c:'#5b21b6',g1:'#4c1d95',g2:'#7c3aed'},
+  green: {bg:'#dcfce7',c:'#166534',g1:'#14532d',g2:'#16a34a'}
 };
 
 let categories=[];
@@ -12,12 +15,16 @@ let trainers=[],venues=[],departments=[],prefixes=[];
 let sessions=[];
 let registrations=[];
 let locations=[];
+let allSessionsFull=[];
+let loginVerifyData=[];
+let _lvEdits={};
 let nextId=1,nextSessId=1,nextCatId=1;
 let selectedCatId=null,selectedSessId=null,sessFilt='all';
 let scanStream=null,scanInterval=null,scanLog=[];
 let isAdminLoggedIn=false;
 let adminUsers=[];
 let currentAdminUser=null;
+let pendingPage='admin';
 const NOTIFY_API_KEY='54f4fa05-bfb9-4ac5-930d-93e942e36786';
 const currentSite=new URLSearchParams(location.search).get('site')||'theme_1';
 
@@ -30,7 +37,7 @@ const _sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 // parallel id arrays for master_items (index matches the string arrays)
 let masterIds={trainer:[],venue:[],dept:[],prefix:[]};
 // row mappers: DB → app format
-const _mCat=r=>({id:r.id,name:r.name,desc:r.description||'',icon:r.icon||'box',color:r.color||'blue'});
+const _mCat=r=>({id:r.id,name:r.name,desc:r.description||'',icon:r.icon||'box',color:r.color||'blue',bannerUrl:r.banner_url||null});
 const _mSess=r=>({id:r.id,catId:r.cat_id,name:r.name,date:r.date,timeStart:r.time_start,timeEnd:r.time_end,venue:r.venue||'',trainer:r.trainer||'',capacity:r.capacity});
 const _mReg=r=>({id:r.id,sessionId:r.session_id,prefix:r.prefix||'',fname:r.fname,lname:r.lname,position:r.position||'',dept:r.dept||'',regDate:r.reg_date,attended:r.attended||false,attendedTime:r.attended_time||null});
 
@@ -141,20 +148,24 @@ function canEditReg(reg){
 /* ══════════════════ DB INIT ══════════════════ */
 function setLoading(on){document.getElementById('app-loading').classList.toggle('hidden',!on);}
 async function loadAllData(){
-  const [cR,sR,rR,mR,lR,auR]=await Promise.all([
+  const [cR,sR,rR,mR,lR,auR,lvR,asR]=await Promise.all([
     _sb.from('categories').select('*').eq('site',currentSite).order('id'),
     _sb.from('sessions').select('*').eq('site',currentSite).order('id'),
     _sb.from('registrations').select('*').order('id'),
     _sb.from('master_items').select('*').eq('site',currentSite).order('type,sort_order,id'),
     _sb.from('locations').select('*').order('id'),
     _sb.from('admin_users').select('id,username,created_at').order('id'),
+    _sb.from('login_verify').select('*').eq('site',currentSite),
+    _sb.from('sessions').select('id,site,capacity').order('id'),
   ]);
   if(cR.error||sR.error||rR.error||mR.error||lR.error||auR.error)throw new Error('โหลดข้อมูลล้มเหลว');
   categories=(cR.data||[]).map(_mCat);
   sessions=(sR.data||[]).map(_mSess);
   registrations=(rR.data||[]).map(_mReg);
   locations=(lR.data||[]);
+  allSessionsFull=(asR.data||[]);
   adminUsers=(auR.data||[]);
+  loginVerifyData=(lvR.data||[]);
   const ms=mR.data||[];
   trainers=ms.filter(m=>m.type==='trainer').map(m=>m.value);
   venues=ms.filter(m=>m.type==='venue').map(m=>m.value);
@@ -177,7 +188,7 @@ async function initApp(){
 
 /* ══════════════════ PAGE NAV ══════════════════ */
 function showPage(p){
-  if(p==='admin'&&!isAdminLoggedIn){openAdminLogin();return;}
+  if((p==='admin'||p==='checkin')&&!isAdminLoggedIn){pendingPage=p;openAdminLogin();return;}
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
@@ -191,7 +202,7 @@ function showPage(p){
 function openAdminLogin(){
   document.getElementById('login-user').value='';
   document.getElementById('login-pass').value='';
-  document.getElementById('login-pass').type='password';
+  document.getElementById('login-pass').style.webkitTextSecurity='disc';
   document.getElementById('login-eye-icon').className='ti ti-eye';
   document.getElementById('login-error').style.display='none';
   document.getElementById('modal-admin-login').classList.add('open');
@@ -200,8 +211,9 @@ function openAdminLogin(){
 function toggleLoginPass(){
   const inp=document.getElementById('login-pass');
   const icon=document.getElementById('login-eye-icon');
-  if(inp.type==='password'){inp.type='text';icon.className='ti ti-eye-off';}
-  else{inp.type='password';icon.className='ti ti-eye';}
+  const hidden=inp.style.webkitTextSecurity!=='none';
+  inp.style.webkitTextSecurity=hidden?'none':'disc';
+  icon.className=hidden?'ti ti-eye-off':'ti ti-eye';
 }
 async function adminLogin(){
   const u=document.getElementById('login-user').value.trim();
@@ -216,9 +228,10 @@ async function adminLogin(){
     closeModal('modal-admin-login');
     document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
-    document.getElementById('page-admin').classList.add('active');
-    document.getElementById('tab-admin').classList.add('active');
-    renderAdmin();
+    document.getElementById('page-'+pendingPage).classList.add('active');
+    document.getElementById('tab-'+pendingPage).classList.add('active');
+    if(pendingPage==='admin')renderAdmin();
+    if(pendingPage==='checkin')initCheckinPage();
     showToast(`ยินดีต้อนรับ ${data.username}`,'success');
   } else {
     const errEl=document.getElementById('login-error');
@@ -231,8 +244,9 @@ async function adminLogin(){
 function adminLogout(){
   isAdminLoggedIn=false;
   currentAdminUser=null;
+  pendingPage='admin';
   showPage('register');
-  showToast('ออกจากระบบ Admin แล้ว','info');
+  showToast('ออกจากระบบแล้ว','info');
 }
 /* ══════════════════ DATA IMPORT ══════════════════ */
 const IMPORT_CFG={
@@ -538,12 +552,18 @@ function renderCategories(){
         ?`<span class="cat-avbadge near"><i class="ti ti-alert-circle"></i>ใกล้เต็ม</span>`
         :`<span class="cat-avbadge avail"><i class="ti ti-circle-check"></i>${avSess} รอบว่าง</span>`;
     const canReg=avSess>0;
+    const bannerInner=c.bannerUrl
+      ?`<div class="cat-banner-img-overlay"></div>`
+      :`<i class="ti ti-${c.icon} cat-banner-deco"></i><div class="cat-banner-icon"><i class="ti ti-${c.icon}"></i></div>`;
+    const bannerStyle=c.bannerUrl
+      ?`background-image:url(${c.bannerUrl});background-size:cover;background-position:center;`
+      :`background:linear-gradient(135deg,${cm.g1} 0%,${cm.g2} 100%);`;
     return`<div class="cat-card" onclick="${canReg?`selectCategory(${c.id})`:''}">
-      <div class="cat-card-header" style="background:linear-gradient(140deg,${cm.bg} 0%,#fff 75%);">
-        <div class="cat-card-hrow">
-          <div class="cat-icon-wrap" style="background:${cm.c}1A;color:${cm.c};"><i class="ti ti-${c.icon}"></i></div>
-          ${avBadge}
-        </div>
+      <div class="cat-banner" style="${bannerStyle}">
+        ${bannerInner}
+        <div class="cat-banner-badge">${avBadge}</div>
+      </div>
+      <div class="cat-card-header">
         <div class="cat-name">${c.name}</div>
         <div class="cat-desc">${c.desc||'—'}</div>
         ${tagsHtml?`<div class="cat-tags">${tagsHtml}</div>`:''}
@@ -907,12 +927,18 @@ function processFrame(video){
   if(!video.videoWidth||!video.videoHeight)return;
   try{
     if(!_scanCanvas){_scanCanvas=document.createElement('canvas');_scanCtx=_scanCanvas.getContext('2d');}
-    _scanCanvas.width=video.videoWidth;_scanCanvas.height=video.videoHeight;
-    _scanCtx.drawImage(video,0,0);
+    // Scale down to max 640px wide for faster processing (HD/4K cameras)
+    const scale=Math.min(1,640/video.videoWidth);
+    _scanCanvas.width=Math.round(video.videoWidth*scale);
+    _scanCanvas.height=Math.round(video.videoHeight*scale);
+    _scanCtx.drawImage(video,0,0,_scanCanvas.width,_scanCanvas.height);
     const id=_scanCtx.getImageData(0,0,_scanCanvas.width,_scanCanvas.height);
-    const code=jsQR(id.data,id.width,id.height,{inversionAttempts:'dontInvert'});
+    // Convert to grayscale so colored QR codes (blue) are detected reliably
+    const d=id.data;
+    for(let i=0;i<d.length;i+=4){const g=d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114;d[i]=d[i+1]=d[i+2]=g;}
+    const code=jsQR(d,id.width,id.height,{inversionAttempts:'attemptBoth'});
     if(code&&code.data){handleQRData(code.data);stopScan();}
-  }catch(e){}
+  }catch(e){console.error('QR scan error:',e);}
 }
 function handleQRData(raw){
   try{
@@ -1213,7 +1239,7 @@ function renderAdmin(){
   const catOpts='<option value="">ทุกประเภท</option>'+categories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
   ['admin-filter-cat'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=catOpts;});
   document.getElementById('admin-filter-sess').innerHTML='<option value="">ทุกรอบ</option>'+sessions.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-  renderAdminSessions();renderMasters();renderAdminRegs();renderAdminLocations();renderAdminUsers();
+  renderAdminSessions();renderMasters();renderAdminRegs();renderAdminLocations();renderAdminUsers();renderLoginVerify();
 }
 function renderAdminCats(){
   document.getElementById('admin-cat-tbody').innerHTML=categories.map(c=>{
@@ -1415,12 +1441,183 @@ async function deleteSess(id){
 }
 
 /* ══ ADD / EDIT CATEGORY ══ */
+function _setBannerPreview(url,label=''){
+  const wrap=document.getElementById('nc-banner-wrap');
+  wrap.style.backgroundImage=`url("${url}")`;
+  wrap.style.backgroundSize='cover';
+  wrap.style.backgroundPosition='center';
+  document.getElementById('nc-banner-placeholder').style.display='none';
+  document.getElementById('nc-banner-loading').classList.remove('active');
+  document.getElementById('nc-banner-clear-btn').style.display='flex';
+  if(label)document.getElementById('nc-banner-filename').textContent=label;
+}
+function clearCatBanner(){
+  const wrap=document.getElementById('nc-banner-wrap');
+  wrap.style.backgroundImage='';
+  document.getElementById('nc-banner-placeholder').style.display='flex';
+  document.getElementById('nc-banner-loading').classList.remove('active');
+  document.getElementById('nc-banner-file').value='';
+  document.getElementById('nc-banner-filename').textContent='';
+  document.getElementById('nc-banner-clear-btn').style.display='none';
+  document.getElementById('nc-ai-regen-btn').style.display='none';
+  document.getElementById('nc-ai-gen-btn').style.display='';
+  document.getElementById('nc-banner-url').value='';
+}
+function previewCatBanner(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    _setBannerPreview(e.target.result,file.name);
+    document.getElementById('nc-banner-url').value='__new__';
+    document.getElementById('nc-ai-regen-btn').style.display='none';
+    document.getElementById('nc-ai-gen-btn').style.display='';
+  };
+  reader.readAsDataURL(file);
+}
+const CAT_COLOR_PROMPT={
+  blue:'navy blue and white corporate professional',
+  teal:'teal and mint green healthcare clean',
+  amber:'warm orange amber golden energetic',
+  red:'bold red and white dynamic powerful',
+  purple:'deep purple violet creative modern',
+  green:'fresh green and white natural environment'
+};
+function _buildAiPrompt(name,desc,colorHint){
+  const thToEn={
+    // หมวดคลังสินค้า / โลจิสติกส์
+    'ระบบคลังย่อย':'sub-warehouse','ข้อมูลพื้นฐาน':'master data',
+    'รับสินค้า':'receiving goods','จัดซื้อ':'procurement','คลังสินค้า':'warehouse',
+    'จ่ายสินค้า':'dispatch','งานคลัง':'warehouse operations',
+    'คลัง':'warehouse','สินค้า':'inventory','สต๊อก':'stock',
+    'นำเข้า':'import','ส่งออก':'export','โลจิสติกส์':'logistics',
+    // หมวดไอที / ระบบ
+    'ระบบ':'IT system','ข้อมูล':'data','การใช้งาน':'software usage',
+    'โปรแกรม':'software','คอมพิวเตอร์':'computer','เครือข่าย':'network',
+    // หมวดการจัดการ / องค์กร
+    'ตรวจสอบ':'audit','บริหาร':'management','การจัดการ':'management',
+    'พื้นฐาน':'basics','อบรม':'training','หลักสูตร':'course',
+    'พัฒนา':'development','บุคลากร':'human resources','ผู้นำ':'leadership',
+    'ทำงาน':'working','บริการ':'customer service'
+  };
+  let topic=(name+' '+(desc||'')).toLowerCase();
+  // เรียงคีย์ตามความยาวจากมากไปน้อย เพื่อแปลคำประสมก่อนคำโดด (ป้องกันการแปลซ้อนทับ)
+  const sortedKeys = Object.keys(thToEn).sort((a, b) => b.length - a.length);
+  sortedKeys.forEach(th=>{topic=topic.split(th).join(` ${thToEn[th]} `);});
+  const safe=topic
+    .replace(/[^\w\s\u0E00-\u0E7F]+/g,' ') // อนุญาตให้อักษรไทย อังกฤษ และช่องว่างทำงานได้
+    .replace(/\s+/g,' ')
+    .trim()
+    .slice(0,150); // เพิ่มความยาวให้เก็บ Context ได้มากขึ้น
+  const subject=safe||'business corporate team';
+  
+  // เพิ่มคำสั่ง (Prompt) ที่บังคับสไตล์ให้ดูเป็นภาพเวกเตอร์องค์กร และย้ำไม่ให้มีตัวอักษร
+  return `Professional corporate training banner about ${subject}, ${colorHint} color theme, modern flat vector illustration, business concept art, clean background, no text, no letters, ultra wide landscape aspect ratio`;
+}
+function resetGeminiKey(){/* no-op */}
+function _showBannerLoading(txt){
+  const wrap=document.getElementById('nc-banner-wrap');
+  wrap.style.backgroundImage='';
+  document.getElementById('nc-banner-placeholder').style.display='none';
+  document.getElementById('nc-banner-loading-txt').textContent=txt;
+  document.getElementById('nc-banner-loading').classList.add('active');
+  document.getElementById('nc-ai-gen-btn').disabled=true;
+  document.getElementById('nc-ai-regen-btn').disabled=true;
+}
+function _hideBannerLoading(){
+  document.getElementById('nc-banner-loading').classList.remove('active');
+  document.getElementById('nc-ai-gen-btn').disabled=false;
+  document.getElementById('nc-ai-regen-btn').disabled=false;
+}
+const _POL_MODELS=['flux','turbo','flux-realism'];
+async function _pollinationsFetch(prompt, attempt){
+  const seed=Math.floor(Math.random()*999999);
+  const model=_POL_MODELS[attempt%_POL_MODELS.length];
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=896&height=512&nologo=true&nofeed=true&seed=${seed}&model=${model}`;
+  const ctrl=new AbortController();
+  const tid=setTimeout(()=>ctrl.abort(),60000);
+  try{
+    const res=await fetch(url,{signal:ctrl.signal});
+    clearTimeout(tid);
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const blob=await res.blob();
+    if(blob.type.includes('json') || blob.type.includes('text')) throw new Error('Invalid image format');
+    return blob;
+  }catch(e){clearTimeout(tid);throw e;}
+}
+async function generateCatBanner(){
+  const name=document.getElementById('nc-name').value.trim();
+  const desc=document.getElementById('nc-desc').value.trim();
+  if(!name){showToast('กรุณาระบุชื่อประเภทก่อน','danger');return;}
+  const colorKey=document.getElementById('nc-color').value||'blue';
+  const colorHint=CAT_COLOR_PROMPT[colorKey]||'blue corporate';
+  const aiPrompt=_buildAiPrompt(name,desc,colorHint);
+  let _sec=0;
+  const _timer=setInterval(()=>{
+    _sec++;
+    document.getElementById('nc-banner-loading-txt').textContent=`AI กำลังสร้างรูป... (${_sec}s)`;
+  },1000);
+  _showBannerLoading('AI กำลังสร้างรูป... (0s)');
+  try{
+    let blob=null;
+    const maxTry=3;
+    for(let i=0;i<maxTry;i++){
+      try{
+        if(i>0)document.getElementById('nc-banner-loading-txt').textContent=`ลองใหม่ครั้งที่ ${i+1}... (${_sec}s)`;
+        blob=await _pollinationsFetch(aiPrompt,i);
+        break;
+      }catch(err){
+        if(i===maxTry-1)throw err;
+        await new Promise(r=>setTimeout(r,2000));
+      }
+    }
+    clearInterval(_timer);
+    _showBannerLoading('กำลังบันทึกรูป...');
+    const path=`cat_ai_${Date.now()}.jpg`;
+    
+    let upErr = null, upData = null;
+    try {
+      const res = await _sb.storage.from('category-banners').upload(path,blob,{upsert:true,contentType:'image/jpeg'});
+      upData = res.data;
+      upErr = res.error;
+    } catch(err) {
+      upErr = err;
+    }
+
+    let finalUrl;
+    if(upErr){
+      finalUrl=await new Promise(r=>{const fr=new FileReader();fr.onload=e=>r(e.target.result);fr.readAsDataURL(blob);});
+    }else{
+      finalUrl=_sb.storage.from('category-banners').getPublicUrl(upData.path).data.publicUrl;
+    }
+    _hideBannerLoading();
+    _setBannerPreview(finalUrl,`AI: ${name}`);
+    document.getElementById('nc-banner-url').value=finalUrl;
+    document.getElementById('nc-ai-gen-btn').style.display='none';
+    document.getElementById('nc-ai-regen-btn').style.display='flex';
+    showToast(`สร้างรูปสำเร็จ (${_sec}s)`,'success');
+  }catch(e){
+    clearInterval(_timer);
+    _hideBannerLoading();
+    document.getElementById('nc-banner-placeholder').style.display='flex';
+    const msg=e.message||String(e);
+    if(msg.includes('abort')||msg.toLowerCase().includes('timeout')){
+      showToast('หมดเวลา — กด "สร้างใหม่" อีกครั้ง','danger');
+    }else if(msg.includes('429')){
+      showToast('เกิน rate limit — รอสักครู่แล้วลองใหม่','danger');
+    }else{
+      showToast('สร้างรูปไม่สำเร็จ (ลอง 3 ครั้งแล้ว): '+msg.slice(0,80),'danger');
+    }
+    console.error('AI banner error:',e);
+  }
+}
 function openAddCat(){
   document.getElementById('nc-edit-id').value='';
   document.getElementById('modal-add-cat-title').innerHTML='<i class="ti ti-category-plus"></i>เพิ่มประเภทการอบรม';
   ['nc-name','nc-desc'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('nc-color').value='blue';
   selectIcon('box');
+  clearCatBanner();
   document.getElementById('modal-add-cat').classList.add('open');
 }
 function openEditCat(id){
@@ -1431,6 +1628,11 @@ function openEditCat(id){
   document.getElementById('nc-desc').value=c.desc||'';
   document.getElementById('nc-color').value=c.color||'blue';
   selectIcon(c.icon||'box');
+  clearCatBanner();
+  if(c.bannerUrl){
+    _setBannerPreview(c.bannerUrl);
+    document.getElementById('nc-banner-url').value=c.bannerUrl;
+  }
   document.getElementById('modal-add-cat').classList.add('open');
 }
 function toggleIconPicker(){
@@ -1464,7 +1666,23 @@ function selectIcon(name){
 async function submitAddCat(){
   const name=document.getElementById('nc-name').value.trim();
   if(!name){showToast('กรุณาระบุชื่อประเภท','danger');return;}
-  const payload={name,description:document.getElementById('nc-desc').value.trim(),icon:document.getElementById('nc-icon').value.trim()||'box',color:document.getElementById('nc-color').value,site:currentSite};
+  const fileInput=document.getElementById('nc-banner-file');
+  const bannerUrlField=document.getElementById('nc-banner-url').value||'';
+  let bannerUrl=null;
+  if(fileInput.files[0]){
+    // user picked a new local file → upload to Storage
+    const file=fileInput.files[0];
+    const ext=file.name.split('.').pop().toLowerCase();
+    const path=`cat_${Date.now()}.${ext}`;
+    showToast('กำลังอัปโหลดรูป...','info');
+    const {data:upData,error:upErr}=await _sb.storage.from('category-banners').upload(path,file,{upsert:true,contentType:file.type});
+    if(upErr){showToast('อัปโหลดรูปไม่สำเร็จ: '+upErr.message,'danger');return;}
+    bannerUrl=_sb.storage.from('category-banners').getPublicUrl(upData.path).data.publicUrl;
+  } else if(bannerUrlField&&bannerUrlField!=='__new__'){
+    // AI-generated URL or existing URL → use as-is
+    bannerUrl=bannerUrlField;
+  }
+  const payload={name,description:document.getElementById('nc-desc').value.trim(),icon:document.getElementById('nc-icon').value.trim()||'box',color:document.getElementById('nc-color').value,site:currentSite,banner_url:bannerUrl};
   const editId=document.getElementById('nc-edit-id').value;
   if(editId){
     const {error}=await _sb.from('categories').update(payload).eq('id',parseInt(editId));
@@ -1493,30 +1711,71 @@ async function deleteCat(id){
 }
 
 /* ══ LOCATIONS ══ */
+function _locCard(code, name, id, ghost){
+  const locSess=allSessionsFull.filter(s=>s.site===code);
+  const sessIds=new Set(locSess.map(s=>s.id));
+  const locRegs=registrations.filter(r=>sessIds.has(r.sessionId));
+  const sessCnt=locSess.length;
+  const regCnt=locRegs.length;
+  const attCnt=locRegs.filter(r=>r.attended).length;
+  const baseUrl=window.location.href.replace(/\?.*$/,'');
+  const openUrl=`${baseUrl}?site=${code}`;
+  const rowId=ghost?`ghost-${code}`:`loc-row-${id}`;
+  return `
+  <div class="master-item" id="${rowId}" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px 14px;${ghost?'border-style:dashed;opacity:.85;':''}">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <code style="background:var(--bg);padding:2px 8px;border-radius:6px;font-size:12px;color:var(--primary);border:1px solid var(--border);white-space:nowrap;">${code}</code>
+      <span style="font-weight:600;font-size:14px;">${name}</span>
+      ${code===currentSite?'<span style="font-size:11px;background:var(--success-light);color:var(--success);padding:1px 7px;border-radius:20px;font-weight:600;">สาขาปัจจุบัน</span>':''}
+      ${ghost?'<span style="font-size:11px;background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:20px;font-weight:600;">ยังไม่ได้ลงทะเบียน</span>':''}
+      <div style="margin-left:auto;display:flex;gap:4px;">
+        <a href="${openUrl}" target="_blank" class="btn btn-ghost btn-sm" title="เปิดสาขา"><i class="ti ti-external-link"></i></a>
+        ${!ghost?`<button class="btn btn-ghost btn-sm" onclick="editLocInline(${id})"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="deleteLoc(${id})"${code===currentSite?' disabled title="ไม่สามารถลบสาขาที่กำลังใช้งาน"':''}><i class="ti ti-trash"></i></button>`
+        :`<button class="btn btn-primary btn-sm" onclick="quickRegisterSite('${code}')" title="เพิ่มเข้าระบบสาขา"><i class="ti ti-plus"></i>เพิ่มสาขา</button>`}
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:12px;background:var(--bg-subtle);border:1px solid var(--border);border-radius:6px;padding:3px 10px;display:flex;align-items:center;gap:5px;color:var(--text-secondary);">
+        <i class="ti ti-calendar" style="font-size:13px;color:var(--primary);"></i>${sessCnt} รอบอบรม
+      </span>
+      <span style="font-size:12px;background:var(--bg-subtle);border:1px solid var(--border);border-radius:6px;padding:3px 10px;display:flex;align-items:center;gap:5px;color:var(--text-secondary);">
+        <i class="ti ti-users" style="font-size:13px;color:var(--accent);"></i>${regCnt} ผู้ลงทะเบียน
+      </span>
+      <span style="font-size:12px;background:var(--bg-subtle);border:1px solid var(--border);border-radius:6px;padding:3px 10px;display:flex;align-items:center;gap:5px;color:var(--text-secondary);">
+        <i class="ti ti-circle-check" style="font-size:13px;color:var(--success);"></i>${attCnt} เช็คชื่อแล้ว
+      </span>
+      <span style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:3px;"><i class="ti ti-link" style="font-size:12px;"></i>?site=${code}</span>
+    </div>
+  </div>`;
+}
 function renderAdminLocations(){
   const el=document.getElementById('loc-list');
   if(!el)return;
-  if(!locations.length){
+  const registeredCodes=new Set(locations.map(l=>l.code));
+  const ghostSites=[...new Set(allSessionsFull.map(s=>s.site))].filter(c=>!registeredCodes.has(c));
+  const hasAny=locations.length||ghostSites.length;
+  if(!hasAny){
     el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);">ยังไม่มีสาขา</div>';
     return;
   }
-  el.innerHTML=locations.map(l=>`
-    <div class="master-item" id="loc-row-${l.id}">
-      <div style="display:flex;gap:8px;align-items:center;flex:1;flex-wrap:wrap;">
-        <code style="background:var(--bg);padding:2px 8px;border-radius:6px;font-size:12px;color:var(--primary);border:1px solid var(--border);white-space:nowrap;">${l.code}</code>
-        <span style="font-weight:500;">${l.name}</span>
-        <span style="font-size:11px;color:var(--text-muted);">?site=${l.code}</span>
-        ${l.code===currentSite?'<span style="font-size:11px;background:var(--success-light);color:var(--success);padding:1px 7px;border-radius:20px;font-weight:600;">สาขาปัจจุบัน</span>':''}
-      </div>
-      <div style="display:flex;gap:4px;">
-        <button class="btn btn-ghost btn-sm" onclick="editLocInline(${l.id})"><i class="ti ti-edit"></i></button>
-        <button class="btn btn-danger btn-sm" onclick="deleteLoc(${l.id})"${l.code===currentSite?' disabled title="ไม่สามารถลบสาขาที่กำลังใช้งาน"':''}><i class="ti ti-trash"></i></button>
-      </div>
-    </div>`).join('');
+  const regCards=locations.map(l=>_locCard(l.code,l.name,l.id,false)).join('');
+  const ghostCards=ghostSites.map(code=>_locCard(code,code,null,true)).join('');
+  el.innerHTML=regCards+ghostCards;
+}
+async function quickRegisterSite(code){
+  const name=prompt(`ตั้งชื่อสาขา "${code}"`,code);
+  if(!name)return;
+  const {data,error}=await _sb.from('locations').insert({code,name}).select().single();
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  locations.push(data);
+  renderAdminLocations();showToast(`เพิ่มสาขา "${name}" สำเร็จ`,'success');
 }
 function editLocInline(id){
   const loc=locations.find(l=>l.id===id);if(!loc)return;
   const el=document.getElementById(`loc-row-${id}`);if(!el)return;
+  el.style.flexDirection='row';
+  el.style.alignItems='center';
   el.innerHTML=`
     <div style="display:flex;gap:6px;flex:1;align-items:center;flex-wrap:wrap;">
       <input class="form-control" id="loc-inp-code-${id}" value="${loc.code}" placeholder="รหัสสาขา" style="width:140px;height:32px;font-size:13px;">
@@ -1646,6 +1905,129 @@ function toggleNewPass(){
   const icon=document.getElementById('new-au-eye');
   if(inp.type==='password'){inp.type='text';icon.className='ti ti-eye-off';}
   else{inp.type='password';icon.className='ti ti-eye';}
+}
+
+/* ══ LOGIN VERIFY ══ */
+const _LV_STATUS=[
+  {value:'has_login',label:'มี Login แล้ว',bg:'#dcfce7',c:'#166534',icon:'circle-check'},
+  {value:'no_login', label:'ไม่มี Login',  bg:'#fef3c7',c:'#92400e',icon:'alert-triangle'},
+  {value:'disabled', label:'ปิดการใช้งาน',bg:'#fee2e2',c:'#991b1b',icon:'ban'},
+  {value:'pending',  label:'ยังไม่ระบุสถานะ',bg:'#f1f5f9',c:'#64748b',icon:'help-circle'},
+];
+function _lvKey(fname,lname,dept){return`${fname}|${lname}|${dept}`;}
+function _lvGetVal(fname,lname,dept,field,def){
+  const k=_lvKey(fname,lname,dept);
+  if(_lvEdits[k]&&_lvEdits[k][field]!==undefined)return _lvEdits[k][field];
+  const d=loginVerifyData.find(x=>x.fname===fname&&x.lname===lname&&x.dept===dept);
+  return d?.[field]??def;
+}
+function _lvOnChange(key,field,value){
+  if(!_lvEdits[key])_lvEdits[key]={};
+  _lvEdits[key][field]=value;
+  if(field==='login_status'){
+    const sel=document.querySelector(`select[data-lv-key="${encodeURIComponent(key)}"]`);
+    if(sel)_applyLvSelColor(sel);
+    const sfVal=document.getElementById('lv-status-filter')?.value||'';
+    if(sfVal&&value!==sfVal){
+      const tr=document.querySelector(`tr[data-lv-row="${encodeURIComponent(key)}"]`);
+      if(tr)tr.style.display='none';
+    }
+  }
+}
+function _applyLvSelColor(sel){
+  const st=_LV_STATUS.find(s=>s.value===sel.value)||_LV_STATUS[3];
+  sel.style.background=st.bg;sel.style.color=st.c;sel.style.fontWeight='600';sel.style.borderColor=st.c+'44';
+}
+function renderLoginVerify(){
+  const tbody=document.getElementById('lv-tbody');if(!tbody)return;
+  const q=(document.getElementById('lv-search')?.value||'').toLowerCase();
+  const sf=document.getElementById('lv-status-filter')?.value||'';
+  // Build unique persons map from registrations
+  const seen=new Map();
+  registrations.forEach(r=>{
+    const k=_lvKey(r.fname,r.lname,r.dept);
+    if(!seen.has(k))seen.set(k,{fname:r.fname,lname:r.lname,dept:r.dept,position:r.position||''});
+  });
+  let persons=Array.from(seen.values());
+  if(q)persons=persons.filter(p=>`${p.fname}${p.lname}${p.dept}`.toLowerCase().includes(q));
+  if(sf)persons=persons.filter(p=>_lvGetVal(p.fname,p.lname,p.dept,'login_status','pending')===sf);
+  if(!persons.length){
+    tbody.innerHTML='<tr><td colspan="5"><div class="empty"><i class="ti ti-users-minus"></i><p>ไม่พบรายชื่อ</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML=persons.map((p,i)=>{
+    const k=_lvKey(p.fname,p.lname,p.dept);
+    const ek=encodeURIComponent(k);
+    const status=_lvGetVal(p.fname,p.lname,p.dept,'login_status','pending');
+    const notes=_lvGetVal(p.fname,p.lname,p.dept,'notes','');
+    const opts=_LV_STATUS.map(s=>`<option value="${s.value}"${status===s.value?' selected':''}>${s.label}</option>`).join('');
+    return`<tr data-lv-row="${ek}">
+      <td style="color:var(--text-muted);">${i+1}</td>
+      <td style="font-weight:600;">${p.fname} ${p.lname}</td>
+      <td>
+        <div style="font-size:13px;">${p.position||'-'}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${p.dept}</div>
+      </td>
+      <td>
+        <select class="form-control" data-lv-key="${ek}" data-lv-field="status"
+          onchange="_lvOnChange(decodeURIComponent(this.dataset.lvKey),'login_status',this.value);_applyLvSelColor(this)"
+          style="height:34px;font-size:13px;">
+          ${opts}
+        </select>
+      </td>
+      <td>
+        <input class="form-control" data-lv-key="${ek}" data-lv-field="notes"
+          value="${(notes+'').replace(/"/g,'&quot;')}"
+          placeholder="ระบุหมายเหตุ..."
+          oninput="_lvOnChange(decodeURIComponent(this.dataset.lvKey),'notes',this.value)"
+          style="font-size:13px;height:34px;">
+      </td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('select[data-lv-field="status"]').forEach(_applyLvSelColor);
+}
+async function saveLoginVerifyAll(){
+  // Build full unique-person map from registrations (all, not just filtered)
+  const seen=new Map();
+  registrations.forEach(r=>{
+    const k=_lvKey(r.fname,r.lname,r.dept);
+    if(!seen.has(k))seen.set(k,{fname:r.fname,lname:r.lname,dept:r.dept,position:r.position||''});
+  });
+  // Collect current DOM values (may be filtered subset)
+  const domMap={};
+  document.querySelectorAll('select[data-lv-field="status"]').forEach(sel=>{
+    const k=decodeURIComponent(sel.dataset.lvKey);
+    const notesEl=document.querySelector(`input[data-lv-key="${sel.dataset.lvKey}"][data-lv-field="notes"]`);
+    domMap[k]={login_status:sel.value,notes:notesEl?notesEl.value.trim():''};
+    _lvEdits[k]=domMap[k];
+  });
+  // Build rows for all unique persons
+  const rows=[];
+  seen.forEach((p,k)=>{
+    const status=domMap[k]?.login_status||_lvGetVal(p.fname,p.lname,p.dept,'login_status','pending');
+    const notes=domMap[k]?.notes??_lvGetVal(p.fname,p.lname,p.dept,'notes','');
+    rows.push({fname:p.fname,lname:p.lname,dept:p.dept,position:p.position,login_status:status,notes:notes||'',site:currentSite});
+  });
+  if(!rows.length){showToast('ไม่มีข้อมูลให้บันทึก','warn');return;}
+  const btn=document.getElementById('lv-save-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i>กำลังบันทึก...';}
+  try{
+    const {error}=await _sb.from('login_verify').upsert(rows,{onConflict:'fname,lname,dept,site'});
+    if(error)throw error;
+    const {data}=await _sb.from('login_verify').select('*').eq('site',currentSite);
+    loginVerifyData=data||[];
+    _lvEdits={};
+    showToast(`บันทึกสถานะ ${rows.length} รายการสำเร็จ`,'success');
+    renderLoginVerify();
+  }catch(e){showToast('บันทึกไม่สำเร็จ: '+e.message,'danger');}
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i>บันทึกสถานะ';}
+}
+async function loadLoginVerify(){
+  const {data}=await _sb.from('login_verify').select('*').eq('site',currentSite);
+  loginVerifyData=data||[];
+  _lvEdits={};
+  renderLoginVerify();
+  showToast('โหลดข้อมูลใหม่แล้ว','success');
 }
 
 /* ══ ADMIN REGS ══ */
@@ -1846,6 +2228,180 @@ function showToast(msg,type='success'){
 document.querySelectorAll('.modal-overlay').forEach(o=>{
   o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
 });
+
+/* ══ PRINT FORM ══ */
+function openPrintForm(){
+  const sel=document.getElementById('pf-sess');
+  sel.innerHTML='<option value="">-- เลือกรอบ --</option>'+sessions.map(s=>{
+    const cat=getCat(s.catId);
+    const cnt=getCount(s.id);
+    return`<option value="${s.id}">${cat?cat.name+' — ':''}${s.name} (${fmtDateShort(s.date)}) [${cnt} คน]</option>`;
+  }).join('');
+  // Pre-select current filter if any
+  const curFilt=document.getElementById('admin-filter-sess')?.value;
+  if(curFilt)sel.value=curFilt;
+  onPrintFormSessChange();
+  // Sync hospital → pf-signer-org
+  const hosp=document.getElementById('pf-hospital').value;
+  const sigOrg=document.getElementById('pf-signer-org');
+  if(sigOrg&&!sigOrg.value&&hosp)sigOrg.value=hosp;
+  document.getElementById('modal-print-form').classList.add('open');
+}
+function onPrintFormSessChange(){
+  const sid=parseInt(document.getElementById('pf-sess').value||0);
+  if(!sid){
+    document.getElementById('pf-system').value='';
+    document.getElementById('pf-details').value='';
+    return;
+  }
+  const s=getSess(sid);if(!s)return;
+  const cat=getCat(s.catId);
+  document.getElementById('pf-system').value=cat?`${cat.name} — ${s.name}`:s.name;
+  if(cat&&cat.desc)document.getElementById('pf-details').value=cat.desc;
+}
+function executePrintForm(){
+  const sid=parseInt(document.getElementById('pf-sess').value||0);
+  if(!sid){showToast('กรุณาเลือกรอบอบรม','danger');return;}
+  const s=getSess(sid);if(!s){showToast('ไม่พบรอบที่เลือก','danger');return;}
+  const cat=getCat(s.catId);
+  const hospital=(document.getElementById('pf-hospital').value||'').trim();
+  if(!hospital){
+    const el=document.getElementById('pf-hospital');
+    el.focus();el.style.borderColor='var(--danger)';
+    el.addEventListener('input',()=>el.style.borderColor='',{once:true});
+    showToast('กรุณาระบุชื่อสถานพยาบาล / หน่วยงาน','danger');return;
+  }
+  const program=(document.getElementById('pf-program').value||'BMS-INVENTORY').trim();
+  const system=(document.getElementById('pf-system').value||'').trim();
+  const details=(document.getElementById('pf-details').value||'').trim();
+  const bmsName=(document.getElementById('pf-bms-name').value||'').trim();
+  const bmsPos=(document.getElementById('pf-bms-pos').value||'เจ้าหน้าที่ฝึกอบรม').trim();
+  const bmsOrg=(document.getElementById('pf-bms-org').value||'บริษัท บางกอก เมดิคอล ซอฟต์แวร์ จำกัด').trim();
+  const signerName=(document.getElementById('pf-signer-name').value||'').trim();
+  const signerPos=(document.getElementById('pf-signer-pos').value||'').trim();
+  const signerOrg=(document.getElementById('pf-signer-org')?.value||hospital).trim();
+  const totalRows=Math.max(10,Math.min(60,parseInt(document.getElementById('pf-rows').value||25)));
+  const regs=registrations.filter(r=>r.sessionId===sid);
+  // Build table rows
+  let rowsHtml='';
+  for(let i=0;i<totalRows;i++){
+    const r=regs[i];
+    rowsHtml+=`<tr>
+      <td style="text-align:center;padding:4px 6px;">${i+1}</td>
+      <td style="padding:4px 8px;">${r?`${r.prefix||''}${r.fname} ${r.lname}`:''}</td>
+      <td style="padding:4px 8px;">${r?r.position||'':''}</td>
+      <td style="padding:4px 8px;">${r?r.dept||'':''}</td>
+      <td style="padding:4px 8px;"></td>
+    </tr>`;
+  }
+  const dateStr=fmtDate(s.date);
+  const timeStr=`${s.timeStart||''}–${s.timeEnd||''} น.`;
+  const _logoBase=window.location.href.replace(/[^/]*(\?.*)?$/, '');
+  const html=`<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>ใบเซ็นต์ชื่อ — ${s.name}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'TH SarabunPSK','Sarabun','Prompt',Arial,sans-serif;font-size:15px;color:#111;padding:14mm 14mm 14mm 14mm;background:#fff;}
+.header-img{display:block;height:72px;width:auto;margin-bottom:8px;}
+.header-fallback{display:flex;gap:14px;align-items:flex-start;margin-bottom:10px;}
+.company-info{font-size:11.5px;line-height:1.7;color:#333;}
+.company-info strong{font-size:13px;color:#111;}
+.form-title{font-size:16px;font-weight:bold;text-align:center;border:1.5px solid #111;padding:7px 10px;margin-bottom:0;}
+.info-tbl{width:100%;border-collapse:collapse;border:1.5px solid #111;margin-bottom:10px;}
+.info-tbl td{padding:5px 9px;border:1px solid #999;font-size:14px;line-height:1.5;}
+.info-tbl .lbl{font-weight:700;white-space:nowrap;}
+.main-tbl{width:100%;border-collapse:collapse;}
+.main-tbl th{border:1.5px solid #111;padding:6px 8px;text-align:center;font-size:14px;background:#f4f4f4;font-weight:bold;}
+.main-tbl td{border:1px solid #888;padding:0;height:22px;}
+.main-tbl td span{display:block;padding:2px 7px;font-size:13.5px;height:100%;line-height:22px;}
+.footer{display:flex;justify-content:space-between;margin-top:28px;page-break-inside:avoid;}
+.footer-blk{text-align:center;width:44%;}
+.footer-line{border-bottom:1px solid #333;width:260px;margin:0 auto 5px;}
+.footer-lbl{font-size:13.5px;line-height:1.8;}
+.no-print{display:block;}
+@media print{
+  body{padding:8mm 10mm;}
+  .no-print{display:none!important;}
+  @page{size:A4 portrait;margin:8mm 10mm;}
+}
+</style>
+</head>
+<body>
+<!-- Header: full image if available, fallback to SVG + text -->
+<img class="header-img" id="hdr-img"
+  src="${_logoBase}bms-logo.png"
+  alt="BMS Header"
+  onerror="this.style.display='none';document.getElementById('hdr-fallback').style.display='flex';">
+<div class="header-fallback" id="hdr-fallback" style="display:none;">
+  <svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+    <path d="M40 74 C39 73 5 53 5 29 C5 15 16 5 28 5 C34 5 39 9 40 12 C41 9 46 5 52 5 C64 5 75 15 75 29 C75 53 41 73 40 74Z" fill="#c0392b"/>
+    <path d="M10 48 C20 40 31 38 40 42 C49 46 60 49 70 44" stroke="#1a5899" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M11 57 C21 49 32 47 41 51 C50 55 61 58 71 53" stroke="#1a5899" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.6"/>
+    <text x="40" y="43" text-anchor="middle" fill="white" font-family="Arial Black,sans-serif" font-weight="900" font-size="17" letter-spacing="1">BMS</text>
+    <text x="59" y="32" fill="white" font-family="Arial,sans-serif" font-size="7">&#174;</text>
+  </svg>
+  <div class="company-info">
+    <strong>บริษัท บางกอก เมดิคอล ซอฟต์แวร์ จำกัด (สำนักงานใหญ่)</strong><br>
+    เลขที่ 2 ชั้น 2 จ.สุขสวัสดิ์ 33 แขวง/เขต ราษฎร์บูรณะ กรุงเทพมหานคร<br>
+    โทรศัพท์ 0-2427-9991 โทรสาร 0-2873-0292<br>
+    เลขที่ประจำตัวผู้เสียภาษี 0105548152334
+  </div>
+</div>
+<div class="form-title">ใบเซ็นต์ชื่อผู้เข้าร่วมอบรมการใช้งานโปรแกรม ${_esc(program)}</div>
+<table class="info-tbl">
+  <tr>
+    <td width="50%"><span class="lbl">สถานพยาบาล :</span> ${_esc(hospital)}</td>
+    <td width="50%"><span class="lbl">วันที่ :</span> ${dateStr} เวลา ${timeStr}</td>
+  </tr>
+  <tr>
+    <td><span class="lbl">ระบบงาน :</span> ${_esc(system)}</td>
+    <td><span class="lbl">วิทยากร :</span> ${_esc(s.trainer||'-')}</td>
+  </tr>
+  <tr>
+    <td colspan="2"><span class="lbl">รายละเอียด :</span> ${_esc(details)}</td>
+  </tr>
+</table>
+<table class="main-tbl">
+  <thead>
+    <tr>
+      <th style="width:50px;">ลำดับ</th>
+      <th style="min-width:180px;">ชื่อ – นามสกุล</th>
+      <th style="min-width:140px;">ตำแหน่ง</th>
+      <th style="min-width:140px;">แผนก</th>
+      <th style="width:140px;">ลายมือชื่อ</th>
+    </tr>
+  </thead>
+  <tbody>${rowsHtml}</tbody>
+</table>
+<div class="footer">
+  <div class="footer-blk">
+    <div class="footer-line"></div>
+    <div class="footer-lbl">(${_esc(bmsName)||'..........................................'})</div>
+    <div class="footer-lbl">ตำแหน่ง ${_esc(bmsPos)}</div>
+    <div class="footer-lbl">${_esc(bmsOrg)}</div>
+  </div>
+  <div class="footer-blk">
+    <div class="footer-line"></div>
+    <div class="footer-lbl">(${_esc(signerName)||'..........................................'})</div>
+    <div class="footer-lbl">ตำแหน่ง ${_esc(signerPos)||'........................................'}</div>
+    <div class="footer-lbl">${_esc(signerOrg)||'........................................'}</div>
+  </div>
+</div>
+<div class="no-print" style="margin-top:20px;text-align:center;">
+  <button onclick="window.print()" style="padding:8px 24px;font-size:14px;cursor:pointer;background:#1a56a0;color:#fff;border:none;border-radius:6px;">🖨 พิมพ์</button>
+  <button onclick="window.close()" style="margin-left:10px;padding:8px 18px;font-size:14px;cursor:pointer;background:#f1f5f9;border:1px solid #ccc;border-radius:6px;">ปิด</button>
+</div>
+<script>window.addEventListener('load',function(){window.print();});<\/script>
+</body></html>`;
+  closeModal('modal-print-form');
+  const w=window.open('','_blank','width=900,height=700,scrollbars=yes');
+  if(!w){showToast('Popup ถูกบล็อก กรุณาอนุญาต popup แล้วลองใหม่','danger');return;}
+  w.document.open();w.document.write(html);w.document.close();
+}
+function _esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 // INIT
 initApp();
