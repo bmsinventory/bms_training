@@ -1787,7 +1787,7 @@ function _locCard(code, name, id, ghost){
         <a href="${openUrl}" target="_blank" class="btn btn-ghost btn-sm" title="เปิดสาขา"><i class="ti ti-external-link"></i></a>
         ${!ghost?`<button class="btn btn-ghost btn-sm" onclick="editLocInline(${id})"><i class="ti ti-edit"></i></button>
         <button class="btn btn-danger btn-sm" onclick="deleteLoc(${id})"${code===currentSite?' disabled title="ไม่สามารถลบสาขาที่กำลังใช้งาน"':''}><i class="ti ti-trash"></i></button>`
-        :`<button class="btn btn-primary btn-sm" onclick="quickRegisterSite('${code}')" title="เพิ่มเข้าระบบสาขา"><i class="ti ti-plus"></i>เพิ่มสาขา</button>`}
+        :`<button class="btn btn-ghost btn-sm" onclick="editGhostInline('${code}')"><i class="ti ti-edit"></i></button>`}
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -1821,6 +1821,33 @@ function renderAdminLocations(){
 async function quickRegisterSite(code){
   const name=prompt(`ตั้งชื่อสาขา "${code}"`,code);
   if(!name)return;
+  const {data,error}=await _sb.from('locations').insert({code,name}).select().single();
+  if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
+  locations.push(data);
+  renderAdminLocations();showToast(`เพิ่มสาขา "${name}" สำเร็จ`,'success');
+}
+function editGhostInline(code){
+  const el=document.getElementById(`ghost-${code}`);if(!el)return;
+  el.style.flexDirection='row';
+  el.style.alignItems='center';
+  el.innerHTML=`
+    <div style="display:flex;gap:6px;flex:1;align-items:center;flex-wrap:wrap;">
+      <input class="form-control" id="ghost-inp-code-${code}" value="${code}" placeholder="รหัสสาขา" style="width:140px;height:32px;font-size:13px;">
+      <input class="form-control" id="ghost-inp-name-${code}" placeholder="ชื่อสาขา" style="flex:1;min-width:120px;height:32px;font-size:13px;"
+        onkeydown="if(event.key==='Enter')saveGhostInline('${code}');if(event.key==='Escape')renderAdminLocations();">
+    </div>
+    <div style="display:flex;gap:4px;">
+      <button class="btn btn-success btn-sm" onclick="saveGhostInline('${code}')"><i class="ti ti-check"></i></button>
+      <button class="btn btn-ghost btn-sm" onclick="renderAdminLocations()"><i class="ti ti-x"></i></button>
+    </div>`;
+  document.getElementById(`ghost-inp-name-${code}`).focus();
+}
+async function saveGhostInline(origCode){
+  const code=document.getElementById(`ghost-inp-code-${origCode}`).value.trim().toLowerCase();
+  const name=document.getElementById(`ghost-inp-name-${origCode}`).value.trim();
+  if(!code||!name){showToast('กรุณาระบุรหัสและชื่อสาขา','danger');return;}
+  if(!/^[a-z0-9_-]+$/.test(code)){showToast('รหัสสาขาใช้ได้เฉพาะ a-z 0-9 - _','danger');return;}
+  if(locations.find(l=>l.code===code)){showToast('รหัสสาขานี้มีอยู่แล้ว','danger');return;}
   const {data,error}=await _sb.from('locations').insert({code,name}).select().single();
   if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
   locations.push(data);
