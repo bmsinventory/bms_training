@@ -11,7 +11,14 @@
       "PowerShell(Select-String -Path \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\app.js\" -Pattern \"checkin|scan|QR\" -CaseSensitive:$false | Select-Object -First 20 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })",
       "PowerShell(Select-String -Path \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\app.js\" -Pattern \"scan|camera|video|getUserMedia|jsQR|html5qr\" -CaseSensitive:$false | Select-Object -First 30 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })",
       "PowerShell(Select-String -Path \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\index.html\" -Pattern \"script|jsQR|qrcode\" -CaseSensitive:$false | Select-Object -First 20 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })",
-      "Bash(dir \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\" /b)"
+      "Bash(dir \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\" /b)",
+      "Bash(Get-ChildItem -Path \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\" -Force)",
+      "Read(//d/��ǹ���/�Ѳ�������/**)",
+      "Bash(ls -la \"d:\\\\\\\\ส่วนตัว\\\\\\\\พัฒนาโปรแกรม\\\\\\\\inv - bms_training\")",
+      "Bash(find \"d:\\\\\\\\ส่วนตัว\\\\\\\\พัฒนาโปรแกรม\\\\\\\\inv - bms_training\" -type f -name \"*.js\" -o -name \"*.html\" -o -name \"*.css\")",
+      "Bash(wc -l \"d:\\\\\\\\ส่วนตัว\\\\\\\\พัฒนาโปรแกรม\\\\\\\\inv - bms_training\\\\\\\\app.js\")",
+      "Bash(Get-ChildItem -Path \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\" -Recurse)",
+      "Bash(Select-Object FullName, Length)"
     ]
   }
 }

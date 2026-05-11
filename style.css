@@ -58,16 +58,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .checkin-subtab:hover{color:var(--text);background:var(--bg)}
 .checkin-subtab.active{background:var(--success);color:#fff;box-shadow:0 2px 6px rgba(16,185,129,.3);font-weight:600}
 .checkin-sub{display:none}.checkin-sub.active{display:block}
-/* Enhanced scan idle */
+/* Scan status dot */
 .status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;transition:all .3s}
 .status-dot.online{background:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.25);animation:pulse 2s infinite}
 .status-dot.offline{background:#94a3b8}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(16,185,129,.25)}50%{box-shadow:0 0 0 6px rgba(16,185,129,.1)}}
-.scan-idle{text-align:center;padding:36px 24px;color:#94a3b8;display:flex;flex-direction:column;align-items:center;gap:12px}
-.scan-idle-icon{width:72px;height:72px;border-radius:20px;background:rgba(255,255,255,.05);border:2px dashed rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:34px;color:rgba(245,158,11,.5)}
-.scan-idle-txt{font-size:14px;color:rgba(255,255,255,.7);font-weight:500}
-.scan-idle-hint{font-size:12px;color:rgba(255,255,255,.4);max-width:260px;line-height:1.6}
-.scan-header-title{display:flex;align-items:center;gap:8px;font-family:var(--heading);font-weight:600;font-size:14px;color:var(--primary)}
+.scan-topbar-status{display:flex;align-items:center;gap:8px;font-family:var(--heading);font-weight:600;font-size:14px;color:var(--primary)}
 .page{display:none;padding:20px;min-height:calc(100vh - 63px)}
 .page.active{display:block}
 .card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:18px;margin-bottom:14px}
@@ -264,19 +260,33 @@ tr:hover td{background:#f8fafc}
 .qr-status-badge.present{background:var(--success-light);color:#065f46}
 .qr-status-badge.absent{background:#f1f5f9;color:var(--text-muted)}
 .qr-id{font-family:monospace;font-size:10px;color:var(--text-muted);margin-top:6px;background:rgba(0,0,0,.04);padding:3px 8px;border-radius:4px;display:inline-block}
-/* SCAN */
+/* SCAN — Mobile-first redesign */
 .scan-area{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;margin-bottom:16px}
-.scan-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#f8fafc,#f0f4f8)}
-.cam-wrap{position:relative;background:#0f172a;display:flex;align-items:center;justify-content:center;min-height:260px}
-#scanner-video{width:100%;max-height:340px;object-fit:cover;display:block}
-.scan-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.scan-topbar{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:#f8fafc}
+.cam-wrap{position:relative;background:#0f172a;overflow:hidden;min-height:300px}
+@media(max-width:600px){.cam-wrap{min-height:min(440px,56svh)}}
+#scanner-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.scan-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:3}
 .scan-frame{width:200px;height:200px;border-radius:16px;border:3px solid var(--accent);box-shadow:0 0 0 9999px rgba(0,0,0,0.45);animation:scanPulse 2s ease-in-out infinite}
 @keyframes scanPulse{0%,100%{border-color:var(--accent);box-shadow:0 0 0 9999px rgba(0,0,0,.45),0 0 0 0 rgba(245,158,11,.4)}50%{border-color:#fde68a;box-shadow:0 0 0 9999px rgba(0,0,0,.45),0 0 0 10px rgba(245,158,11,0)}}
 .scan-line{position:absolute;width:160px;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scanLine 1.8s ease-in-out infinite}
 @keyframes scanLine{0%{top:calc(50% - 80px)}50%{top:calc(50% + 80px)}100%{top:calc(50% - 80px)}}
-.scan-idle{text-align:center;padding:32px;color:#94a3b8}
-.scan-idle i{font-size:48px;display:block;margin-bottom:12px;opacity:.5}
-.scan-controls{padding:14px 18px;display:flex;gap:8px;flex-wrap:wrap}
+/* Idle overlay */
+.scan-idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;background:#0f172a;z-index:5}
+.scan-idle-icon-big{width:90px;height:90px;border-radius:24px;background:rgba(245,158,11,.1);border:2px dashed rgba(245,158,11,.35);display:flex;align-items:center;justify-content:center;font-size:46px;color:rgba(245,158,11,.75);animation:idlePulse 3s ease-in-out infinite}
+@keyframes idlePulse{0%,100%{border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.1)}50%{border-color:rgba(245,158,11,.6);background:rgba(245,158,11,.18)}}
+.scan-idle-txt{font-size:15px;color:rgba(255,255,255,.85);font-weight:600;font-family:var(--heading);text-align:center}
+.scan-idle-hint{font-size:12px;color:rgba(255,255,255,.4);max-width:260px;line-height:1.6;text-align:center}
+/* Big start button */
+.scan-start-btn{margin-top:8px;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--success);color:#fff;border:none;border-radius:16px;padding:16px 40px;font-size:17px;font-weight:700;font-family:var(--heading);cursor:pointer;box-shadow:0 4px 24px rgba(16,185,129,.45);transition:transform .15s,box-shadow .15s;min-width:220px;-webkit-tap-highlight-color:transparent}
+.scan-start-btn:active{transform:scale(.96);box-shadow:0 2px 12px rgba(16,185,129,.3)}
+.scan-start-btn i{font-size:22px}
+/* Floating controls (stop/switch) at bottom of cam */
+.scan-cam-controls{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:10}
+.scan-ctrl-btn{display:flex;align-items:center;gap:7px;background:rgba(15,23,42,.65);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:50px;padding:12px 24px;font-size:14px;font-weight:600;font-family:var(--heading);cursor:pointer;transition:transform .15s,background .15s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.scan-ctrl-btn:active{transform:scale(.95);background:rgba(255,255,255,.2)}
+.scan-ctrl-btn.scan-ctrl-stop{background:rgba(244,63,94,.7);border-color:rgba(244,63,94,.4)}
+.scan-ctrl-btn.scan-ctrl-stop:active{background:rgba(244,63,94,.9)}
 .scan-result{border-radius:var(--radius);padding:0;margin-bottom:16px;overflow:hidden;animation:slideUp .3s ease}
 .scan-result.ok{border:2px solid var(--success)}
 .scan-result.already{border:2px solid var(--warn)}

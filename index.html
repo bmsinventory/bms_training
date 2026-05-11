@@ -12,6 +12,8 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 </head>
 <body>
@@ -36,6 +38,9 @@
     </button>
     <button class="nav-tab" onclick="showPage('track')" id="tab-track">
       <i class="ti ti-chart-bar"></i><span>ตรวจสอบรายชื่อ</span>
+    </button>
+    <button class="nav-tab" onclick="showPage('analytics')" id="tab-analytics">
+      <i class="ti ti-chart-dots"></i><span>Analytics</span>
     </button>
     <button class="nav-tab checkin-tab" onclick="showPage('checkin')" id="tab-checkin">
       <i class="ti ti-scan"></i><span>เช็คชื่อ</span>
@@ -126,35 +131,40 @@
   <!-- ── SUB: SCAN ── -->
   <div class="checkin-sub active" id="csub-scan">
     <div class="scan-area">
-      <div class="scan-header">
-        <div class="scan-header-title">
+      <!-- compact top bar: status + manual entry -->
+      <div class="scan-topbar">
+        <div class="scan-topbar-status">
           <div id="scan-status-dot" class="status-dot offline"></div>
           <span id="scan-status-txt">กล้องปิดอยู่</span>
         </div>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-success btn-sm" id="btn-start-scan" onclick="startScan()">
-            <i class="ti ti-camera"></i>เปิดกล้อง
-          </button>
-          <button class="btn btn-ghost btn-sm" id="btn-stop-scan" onclick="stopScan()" style="display:none;">
-            <i class="ti ti-camera-off"></i>ปิดกล้อง
-          </button>
-          <button class="btn btn-ghost btn-sm" id="btn-switch-cam" onclick="toggleCamera()" style="display:none;" title="สลับกล้องหน้า/หลัง">
-            <i class="ti ti-refresh"></i>สลับกล้อง
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="manualCheckIn()">
-            <i class="ti ti-keyboard"></i>พิมพ์ชื่อ
-          </button>
-        </div>
+        <button class="btn btn-ghost btn-sm" onclick="manualCheckIn()">
+          <i class="ti ti-keyboard"></i>พิมพ์ชื่อ
+        </button>
       </div>
+      <!-- camera view -->
       <div class="cam-wrap">
-        <video id="scanner-video" playsinline muted></video>
+        <video id="scanner-video" autoplay playsinline muted></video>
+        <!-- scan frame overlay (shown when active) -->
         <div class="scan-overlay" id="scan-overlay" style="display:none;">
           <div class="scan-frame"><div class="scan-line"></div></div>
         </div>
+        <!-- idle screen (covers camera when off) -->
         <div class="scan-idle" id="scan-idle">
-          <div class="scan-idle-icon"><i class="ti ti-qrcode"></i></div>
-          <div class="scan-idle-txt">กดปุ่ม <strong>เปิดกล้อง</strong> แล้วส่อง QR ของผู้เข้าอบรม</div>
-          <div class="scan-idle-hint">QR Code มีข้อมูลครบ — สแกนแล้วบันทึกทันที ไม่ต้องเลือกรอบ</div>
+          <div class="scan-idle-icon-big"><i class="ti ti-qrcode"></i></div>
+          <div class="scan-idle-txt">ส่อง QR Code ของผู้เข้าอบรม</div>
+          <div class="scan-idle-hint">สแกนแล้วบันทึกทันที — ไม่ต้องเลือกรอบ</div>
+          <button class="scan-start-btn" id="btn-start-scan" onclick="startScan()">
+            <i class="ti ti-camera"></i>เปิดกล้องสแกน
+          </button>
+        </div>
+        <!-- floating controls at bottom (shown when camera is on) -->
+        <div class="scan-cam-controls">
+          <button class="scan-ctrl-btn" id="btn-switch-cam" onclick="toggleCamera()" style="display:none;">
+            <i class="ti ti-refresh"></i>สลับกล้อง
+          </button>
+          <button class="scan-ctrl-btn scan-ctrl-stop" id="btn-stop-scan" onclick="stopScan()" style="display:none;">
+            <i class="ti ti-camera-off"></i>ปิดกล้อง
+          </button>
         </div>
       </div>
     </div>
@@ -190,8 +200,8 @@
           <label class="form-label">รอบอบรม</label>
           <select class="form-control" id="att-sess-sel" onchange="loadAttendance()"><option value="">เลือกรอบ...</option></select>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="exportAttendance()" title="Export CSV">
-          <i class="ti ti-table-export"></i>Export
+        <button class="btn btn-ghost btn-sm" onclick="exportAttendance()" title="Export Excel (.xlsx)">
+          <i class="ti ti-file-spreadsheet"></i>Excel
         </button>
       </div>
     </div>
@@ -218,6 +228,68 @@
     </div>
   </div>
   <div id="track-results"></div>
+</div>
+
+<!-- ═══ ANALYTICS ═══ -->
+<div class="page" id="page-analytics">
+  <div class="section-header">
+    <div class="section-title"><i class="ti ti-chart-dots"></i>Analytics</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-success btn-sm" onclick="exportAllRegsExcel()" style="gap:6px;">
+        <i class="ti ti-file-spreadsheet"></i>Export Excel
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="exportAllRegsCSV()" style="gap:6px;">
+        <i class="ti ti-file-text"></i>CSV
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary row -->
+  <div id="analytics-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;"></div>
+
+  <!-- Row 1: Donut + By Category -->
+  <div style="display:grid;grid-template-columns:minmax(220px,1fr) 2fr;gap:16px;margin-bottom:16px;">
+    <div class="card" style="padding:18px;">
+      <div class="card-title" style="margin-bottom:14px;font-size:13px;"><i class="ti ti-chart-donut-3"></i>ภาพรวม</div>
+      <div style="position:relative;height:200px;">
+        <canvas id="chart-overall"></canvas>
+      </div>
+    </div>
+    <div class="card" style="padding:18px;">
+      <div class="card-title" style="margin-bottom:14px;font-size:13px;"><i class="ti ti-category"></i>แยกตามประเภทอบรม</div>
+      <div style="position:relative;height:200px;">
+        <canvas id="chart-by-cat"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: By Department -->
+  <div class="card" style="padding:18px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="card-title" style="font-size:13px;margin:0;"><i class="ti ti-building"></i>แยกตามแผนก (Top 10)</div>
+      <span id="analytics-dept-total" style="font-size:12px;color:var(--text-muted);"></span>
+    </div>
+    <div style="position:relative;height:280px;">
+      <canvas id="chart-by-dept"></canvas>
+    </div>
+  </div>
+
+  <!-- Row 3: By Session -->
+  <div class="card" style="padding:18px;margin-bottom:16px;">
+    <div class="card-title" style="margin-bottom:14px;font-size:13px;"><i class="ti ti-calendar-stats"></i>อัตราการเข้าร่วมแต่ละรอบ</div>
+    <div style="position:relative;height:260px;">
+      <canvas id="chart-by-sess"></canvas>
+    </div>
+  </div>
+
+  <!-- Row 4: Departments not registered -->
+  <div class="card" style="padding:18px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="card-title" style="font-size:13px;margin:0;"><i class="ti ti-building-off"></i>หน่วยงานที่ยังไม่มีผู้ลงทะเบียน</div>
+      <span id="analytics-noreg-count" style="font-size:12px;color:var(--text-muted);"></span>
+    </div>
+    <div id="analytics-noreg-list"></div>
+  </div>
 </div>
 
 <!-- ═══ ADMIN ═══ -->
@@ -316,7 +388,8 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title"><i class="ti ti-list-details"></i>รายชื่อผู้ลงทะเบียน</div>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="openClearRegsBySite()" style="gap:6px;color:var(--danger);border-color:rgba(239,68,68,.3);"><i class="ti ti-trash-x"></i>เคียร์ตามสาขา</button>
           <button class="btn btn-ghost btn-sm" onclick="openPrintForm()" style="gap:6px;"><i class="ti ti-printer"></i>พิมพ์แบบฟอร์ม</button>
           <button class="btn btn-primary btn-sm" onclick="adminAddReg()"><i class="ti ti-plus"></i>เพิ่มรายการ</button>
         </div>
@@ -425,6 +498,8 @@
       </div>
     </div>
   </div>
+
+
 </div>
 
 <!-- Crop Image Modal -->
@@ -509,7 +584,7 @@
 </div>
 
 <!-- Confirm Dialog -->
-<div class="modal-overlay" id="modal-confirm">
+<div class="modal-overlay" id="modal-confirm" style="z-index:300;">
   <div class="modal" style="max-width:360px;text-align:center;padding:28px 24px 24px;">
     <div id="confirm-icon" style="font-size:44px;margin-bottom:12px;"></div>
     <div id="confirm-msg" style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;"></div>
@@ -757,6 +832,33 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-add-cat')">ยกเลิก</button>
       <button class="btn btn-primary" onclick="submitAddCat()"><i class="ti ti-device-floppy"></i>บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Clear Registrations By Site -->
+<div class="modal-overlay" id="modal-clear-regs-site">
+  <div class="modal" style="max-width:420px;padding:0;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#7f1d1d,#b91c1c);padding:18px 22px;color:#fff;">
+      <div style="font-size:11px;opacity:.7;margin-bottom:2px;text-transform:uppercase;letter-spacing:.8px;">Admin — ลบข้อมูล</div>
+      <div style="font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;"><i class="ti ti-trash-x"></i>เคียร์ข้อมูลตามสาขา</div>
+    </div>
+    <div style="padding:20px;">
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;">
+        <i class="ti ti-alert-triangle" style="color:#dc2626;font-size:18px;flex-shrink:0;margin-top:1px;"></i>
+        <div style="font-size:13px;color:#7f1d1d;line-height:1.5;">การลบข้อมูลนี้ <strong>ไม่สามารถกู้คืนได้</strong><br>จะลบรายการลงทะเบียนทั้งหมดของสาขาที่เลือก</div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label">เลือกสาขาที่ต้องการเคียร์ข้อมูล</label>
+        <select class="form-control" id="clear-site-sel" onchange="updateClearSiteCount()">
+          <option value="">— เลือกสาขา —</option>
+        </select>
+      </div>
+      <div id="clear-site-preview" style="display:none;background:var(--bg-subtle);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="closeModal('modal-clear-regs-site')" style="flex:1;"><i class="ti ti-x"></i>ยกเลิก</button>
+        <button class="btn btn-danger" id="clear-site-ok-btn" onclick="confirmClearRegsBySite()" style="flex:2;justify-content:center;" disabled><i class="ti ti-trash"></i>ยืนยันลบข้อมูล</button>
+      </div>
     </div>
   </div>
 </div>

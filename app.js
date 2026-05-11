@@ -21,6 +21,7 @@ let _lvEdits={};
 let nextId=1,nextSessId=1,nextCatId=1;
 let selectedCatId=null,selectedSessId=null,sessFilt='all';
 let scanStream=null,scanReq=null,scanLog=[],scanInterval=null,currentFacingMode='environment',_scanLogIds=new Set();
+let _charts={};
 let isAdminLoggedIn=false;
 let adminUsers=[];
 let currentAdminUser=null;
@@ -195,6 +196,19 @@ function initRealtime() {
   if (_rtChannel) return;
   _rtChannel = _sb.channel('public-db-changes')
     .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+      // อัพเดทสถานะ attendance ทันทีจาก payload โดยไม่รอ loadAllData
+      if (payload.table === 'registrations' && payload.eventType === 'UPDATE' && payload.new) {
+        const reg = getReg(payload.new.id);
+        if (reg) {
+          reg.attended = payload.new.attended || false;
+          reg.attendedTime = payload.new.attended_time || null;
+        }
+        updateCheckinHeroStats();
+        _mergeRealtimeScanLog();
+        const activeSub = document.querySelector('.checkin-sub.active');
+        if (activeSub && activeSub.id === 'csub-list') loadAttendance();
+      }
+      // Full reload หลัง debounce เพื่อ sync ข้อมูลอื่นๆ
       if (_rtDebounceTimer) clearTimeout(_rtDebounceTimer);
       _rtDebounceTimer = setTimeout(async () => {
         try {
@@ -203,9 +217,15 @@ function initRealtime() {
         } catch (e) {
           console.error('Realtime sync error:', e);
         }
-      }, 800); // หน่วงเวลา 800ms ป้องกันการโหลดซ้ำถี่เกินไปหากบันทึกพร้อมกันหลายรายการ
+      }, 400);
     })
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('Realtime disconnected:', status);
+        _rtChannel = null;
+        setTimeout(initRealtime, 5000);
+      }
+    });
 }
 
 function refreshCurrentView() {
@@ -246,6 +266,8 @@ function refreshCurrentView() {
     }
   } else if (pid === 'page-track') {
     trackSearch();
+  } else if (pid === 'page-analytics') {
+    renderAnalytics();
   } else if (pid === 'page-admin') {
     renderAdmin();
   }
@@ -259,9 +281,10 @@ function showPage(p){
   document.getElementById('page-'+p).classList.add('active');
   document.getElementById('tab-'+p).classList.add('active');
   if(p==='register')goBackToCategories();
-  if(p==='checkin'){initCheckinPage();}
+  if(p==='checkin')initCheckinPage();
   if(p==='track'){populateTrackFilters();trackSearch();}
   if(p==='admin')renderAdmin();
+  if(p==='analytics')renderAnalytics();
 }
 /* ══════════════════ ADMIN LOGIN ══════════════════ */
 function openAdminLogin(){
@@ -953,12 +976,23 @@ function drawRR(ctx,x,y,w,h,r,fill){
 
 /* ══════════════════ SCAN QR ══════════════════ */
 async function startScan(){
-  if(!navigator.mediaDevices){showToast('Browser ไม่รองรับกล้อง','danger');showDemoScan();return;}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    const needHttps=location.protocol!=='https:'&&location.hostname!=='localhost';
+    showToast(needHttps?'iPhone/iOS ต้องเปิดผ่าน HTTPS เท่านั้น':'Browser ไม่รองรับกล้อง','danger');
+    showDemoScan();return;
+  }
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:currentFacingMode,width:{ideal:1280},height:{ideal:720}}});
+    let stream;
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:currentFacingMode},width:{ideal:1280},height:{ideal:720}}});
+    }catch(e){
+      // fallback สำหรับ iOS ที่ resolution constraint ทำให้ fail
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:currentFacingMode}}});
+    }
     scanStream=stream;
     const v=document.getElementById('scanner-video');
-    v.srcObject=stream;await v.play();
+    v.srcObject=stream;
+    try{await v.play();}catch(pe){console.warn('video.play:',pe);}
     if('BarcodeDetector' in window&&!_barcodeDetector){
       try{_barcodeDetector=new BarcodeDetector({formats:['qr_code']});}catch(e){_barcodeDetector=null;}
     }
@@ -973,7 +1007,12 @@ async function startScan(){
     if(txt){txt.textContent=_barcodeDetector?'กล้องทำงาน — พร้อมสแกน (Native)':'กล้องทำงาน — พร้อมสแกน';}
     scanInterval=setInterval(()=>processFrame(v),250);
     showToast('เปิดกล้องสำเร็จ พร้อมสแกน','success');
-  }catch(e){showToast('ไม่สามารถเข้าถึงกล้อง — ลองโหมดสาธิต','warn');showDemoScan();}
+  }catch(e){
+    const msg=e.name==='NotAllowedError'?'กรุณาอนุญาตการใช้กล้องในการตั้งค่า Browser':
+               e.name==='NotFoundError'?'ไม่พบกล้องในอุปกรณ์นี้':
+               'ไม่สามารถเข้าถึงกล้อง — ลองโหมดสาธิต';
+    showToast(msg,'warn');showDemoScan();
+  }
 }
 function stopScan(){
   _scanBusy=false;
@@ -1317,14 +1356,126 @@ async function clearAllAtt(sid){
 function exportAttendance(){
   const sid=parseInt(document.getElementById('att-sess-sel').value);
   if(!sid){showToast('กรุณาเลือกรอบอบรมก่อน','danger');return;}
-  const s=getSess(sid),cat=getCat(s.catId);
+  if(!window.XLSX){showToast('กำลังโหลด library...','warn');return;}
+  const s=getSess(sid),cat=s?getCat(s.catId):null;
   const regs=registrations.filter(r=>r.sessionId===sid);
-  let csv=`ประเภทอบรม,${cat.name}\nรอบอบรม,${s.name}\nวันที่,${fmtDate(s.date)}\nสถานที่,${s.venue}\nวิทยากร,${s.trainer}\n\n`;
-  csv+=`ลำดับ,คำนำหน้า,ชื่อ,นามสกุล,ตำแหน่ง,แผนก,สถานะ,เวลาเข้า\n`;
-  regs.forEach((r,i)=>{csv+=`${i+1},${r.prefix||''},${r.fname},${r.lname},${r.position||''},${r.dept},${r.attended?'เข้าอบรม':'ขาด'},${r.attendedTime||'-'}\n`;});
+  const wb=XLSX.utils.book_new();
+
+  // Info sheet
+  const info=[
+    ['ประเภทอบรม',cat?cat.name:'-'],
+    ['รอบอบรม',s.name],
+    ['วันที่',fmtDate(s.date)],
+    ['สถานที่',s.venue||'-'],
+    ['วิทยากร',s.trainer||'-'],
+    ['ลงทะเบียน',regs.length],
+    ['เข้าอบรม',regs.filter(r=>r.attended).length],
+    ['ขาด',regs.filter(r=>!r.attended).length],
+  ];
+  const wsInfo=XLSX.utils.aoa_to_sheet(info);
+  wsInfo['!cols']=[{wch:18},{wch:35}];
+  XLSX.utils.book_append_sheet(wb,wsInfo,'ข้อมูลรอบอบรม');
+
+  // Attendance sheet
+  const rows=regs.map((r,i)=>({
+    'ลำดับ':i+1,
+    'คำนำหน้า':r.prefix||'',
+    'ชื่อ':r.fname,
+    'นามสกุล':r.lname,
+    'ตำแหน่ง':r.position||'',
+    'แผนก':r.dept,
+    'สถานะ':r.attended?'เข้าอบรม':'ขาด',
+    'เวลาเข้า':r.attendedTime||'-',
+  }));
+  const wsAtt=XLSX.utils.json_to_sheet(rows);
+  wsAtt['!cols']=[{wch:6},{wch:10},{wch:16},{wch:16},{wch:18},{wch:22},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,wsAtt,'รายชื่อเช็คชื่อ');
+
+  XLSX.writeFile(wb,`เช็คชื่อ_${s.name}_${s.date}.xlsx`);
+  showToast('Export Excel สำเร็จ','success');
+}
+function exportAllRegsExcel(){
+  if(!window.XLSX){showToast('กำลังโหลด library...','warn');return;}
+  const wb=XLSX.utils.book_new();
+  const siteRegs=registrations.filter(r=>!!getSess(r.sessionId));
+
+  // Sheet 1: All registrations
+  const allRows=siteRegs.map((r,i)=>{
+    const s=getSess(r.sessionId),cat=s?getCat(s.catId):null;
+    return{
+      'ลำดับ':i+1,
+      'คำนำหน้า':r.prefix||'',
+      'ชื่อ':r.fname,
+      'นามสกุล':r.lname,
+      'ตำแหน่ง':r.position||'',
+      'แผนก':r.dept,
+      'ประเภทอบรม':cat?cat.name:'-',
+      'รอบอบรม':s?s.name:'-',
+      'วันที่อบรม':s?s.date:'-',
+      'สถานที่':s?s.venue:'-',
+      'วิทยากร':s?s.trainer:'-',
+      'วันที่ลงทะเบียน':r.regDate||'-',
+      'สถานะ':r.attended?'เข้าอบรม':'ขาด',
+      'เวลาเข้า':r.attendedTime||'-',
+    };
+  });
+  const ws1=XLSX.utils.json_to_sheet(allRows);
+  ws1['!cols']=[{wch:5},{wch:10},{wch:16},{wch:16},{wch:18},{wch:22},{wch:20},{wch:22},{wch:12},{wch:18},{wch:16},{wch:14},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws1,'ผู้ลงทะเบียนทั้งหมด');
+
+  // Sheet 2: Summary by department
+  const deptMap={};
+  siteRegs.forEach(r=>{
+    if(!deptMap[r.dept])deptMap[r.dept]={cnt:0,att:0};
+    deptMap[r.dept].cnt++;
+    if(r.attended)deptMap[r.dept].att++;
+  });
+  const deptRows=Object.entries(deptMap).map(([dept,v])=>({
+    'แผนก':dept,
+    'ลงทะเบียน':v.cnt,
+    'เข้าอบรม':v.att,
+    'ขาด':v.cnt-v.att,
+    'อัตราเข้าร่วม (%)':v.cnt?Math.round(v.att/v.cnt*100):0,
+  })).sort((a,b)=>b['ลงทะเบียน']-a['ลงทะเบียน']);
+  const ws2=XLSX.utils.json_to_sheet(deptRows);
+  ws2['!cols']=[{wch:28},{wch:12},{wch:12},{wch:8},{wch:18}];
+  XLSX.utils.book_append_sheet(wb,ws2,'สรุปตามแผนก');
+
+  // Sheet 3: Summary by session
+  const sessRows=sessions.map(s=>{
+    const regs=registrations.filter(r=>r.sessionId===s.id);
+    const att=regs.filter(r=>r.attended).length;
+    const cat=getCat(s.catId);
+    return{
+      'ประเภทอบรม':cat?cat.name:'-',
+      'รอบอบรม':s.name,
+      'วันที่':s.date,
+      'สถานที่':s.venue||'-',
+      'วิทยากร':s.trainer||'-',
+      'ลงทะเบียน':regs.length,
+      'เข้าอบรม':att,
+      'ขาด':regs.length-att,
+      'อัตราเข้าร่วม (%)':regs.length?Math.round(att/regs.length*100):0,
+    };
+  }).filter(r=>r['ลงทะเบียน']>0);
+  const ws3=XLSX.utils.json_to_sheet(sessRows);
+  ws3['!cols']=[{wch:20},{wch:24},{wch:12},{wch:18},{wch:16},{wch:10},{wch:10},{wch:8},{wch:18}];
+  XLSX.utils.book_append_sheet(wb,ws3,'สรุปตามรอบ');
+
+  const today=new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb,`BMS_Training_${today}.xlsx`);
+  showToast(`Export Excel สำเร็จ — ${siteRegs.length} รายการ`,'success');
+}
+function exportAllRegsCSV(){
+  const siteRegs=registrations.filter(r=>!!getSess(r.sessionId));
+  let csv='ลำดับ,คำนำหน้า,ชื่อ,นามสกุล,ตำแหน่ง,แผนก,ประเภทอบรม,รอบอบรม,วันที่อบรม,สถานะ,เวลาเข้า\n';
+  siteRegs.forEach((r,i)=>{
+    const s=getSess(r.sessionId),cat=s?getCat(s.catId):null;
+    csv+=`${i+1},${r.prefix||''},${r.fname},${r.lname},${r.position||''},${r.dept},${cat?cat.name:'-'},${s?s.name:'-'},${s?s.date:'-'},${r.attended?'เข้าอบรม':'ขาด'},${r.attendedTime||'-'}\n`;
+  });
   const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download=`เช็คชื่อ_${s.name}_${s.date}.csv`;a.click();
+  a.download=`BMS_Training_${new Date().toISOString().split('T')[0]}.csv`;a.click();
   showToast('Export CSV สำเร็จ','success');
 }
 
@@ -1398,6 +1549,241 @@ function renderAdmin(){
   document.getElementById('admin-filter-sess').innerHTML='<option value="">ทุกรอบ</option>'+sessions.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   renderAdminSessions();renderMasters();renderAdminRegs();renderAdminLocations();renderAdminUsers();renderLoginVerify();
 }
+
+/* ══════════════════ ANALYTICS ══════════════════ */
+function renderAnalytics(){
+  // กรองเฉพาะ registrations ของสาขาปัจจุบัน (sessions filter by currentSite แล้ว)
+  const siteRegs=registrations.filter(r=>!!getSess(r.sessionId));
+  const loc=locations.find(l=>l.code===currentSite);
+  const siteName=loc?loc.name:currentSite;
+
+  const total=siteRegs.length;
+  const attended=siteRegs.filter(r=>r.attended).length;
+  const absent=total-attended;
+  const pct=total?Math.round(attended/total*100):0;
+  const fullSess=sessions.filter(s=>{
+    const r=siteRegs.filter(x=>x.sessionId===s.id);
+    return r.length>0&&r.every(x=>x.attended);
+  }).length;
+
+  document.getElementById('analytics-summary').innerHTML=`
+    <div class="stat-card blue"><div class="stat-label">ผู้ลงทะเบียน (${siteName})</div><div class="stat-value">${total}</div></div>
+    <div class="stat-card green"><div class="stat-label">เข้าอบรมแล้ว</div><div class="stat-value">${attended}</div></div>
+    <div class="stat-card red"><div class="stat-label">ขาดอบรม</div><div class="stat-value">${absent}</div></div>
+    <div class="stat-card amber"><div class="stat-label">อัตราเข้าร่วม</div><div class="stat-value">${pct}%</div></div>
+    <div class="stat-card teal"><div class="stat-label">รอบที่เช็คครบ</div><div class="stat-value">${fullSess}</div></div>`;
+
+  Object.values(_charts).forEach(c=>{try{c.destroy();}catch(e){}});
+  _charts={};
+
+  // ── Design tokens ──
+  const P={
+    ok:'rgba(16,185,129,0.88)',   okS:'#10b981',
+    fail:'rgba(244,63,94,0.80)',  failS:'#f43f5e',
+    grid:'rgba(226,232,240,0.55)',
+    txt:'#64748b', dark:'#0f172a',
+  };
+  const fnt=(sz=11,w='normal')=>({family:'Sarabun,sans-serif',size:sz,weight:w});
+  const leg={position:'bottom',labels:{font:fnt(11),boxWidth:10,boxHeight:10,padding:14,usePointStyle:true,pointStyleWidth:10}};
+  const tip={
+    backgroundColor:'#0f172a',padding:12,cornerRadius:10,
+    titleFont:fnt(12,'600'),bodyFont:fnt(12),
+    titleColor:'#f1f5f9',bodyColor:'#cbd5e1',
+    displayColors:true,boxWidth:8,boxHeight:8,boxPadding:4,
+  };
+  const scX={grid:{display:false},ticks:{font:fnt(11),color:P.txt},border:{display:false}};
+  const scY={grid:{color:P.grid},ticks:{font:fnt(11),color:P.txt},border:{display:false}};
+
+  // ── Plugin: % ตรงกลาง donut ──
+  const centerText={
+    id:'ctr',
+    beforeDatasetsDraw(chart){
+      if(chart.config.type!=='doughnut')return;
+      const{ctx,chartArea:a}=chart;
+      const cx=a.left+(a.right-a.left)/2, cy=a.top+(a.bottom-a.top)/2;
+      ctx.save();
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.font=`700 30px Sarabun,sans-serif`;
+      ctx.fillStyle=P.dark;
+      ctx.fillText(`${pct}%`,cx,cy-10);
+      ctx.font=`11px Sarabun,sans-serif`;
+      ctx.fillStyle=P.txt;
+      ctx.fillText('อัตราเข้าร่วม',cx,cy+13);
+      ctx.restore();
+    }
+  };
+
+  // ── Chart 1: Donut ──
+  const ctxO=document.getElementById('chart-overall');
+  if(ctxO) _charts.overall=new Chart(ctxO,{
+    type:'doughnut',
+    plugins:[centerText],
+    data:{
+      labels:[`เข้าอบรม (${attended} คน)`,`ขาด (${absent} คน)`],
+      datasets:[{
+        data:[attended||0,absent||0],
+        backgroundColor:[P.ok,P.fail],
+        borderWidth:0,hoverOffset:8,
+        hoverBorderWidth:2,hoverBorderColor:'#fff',
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      cutout:'74%',
+      animation:{animateRotate:true,duration:700,easing:'easeOutQuart'},
+      plugins:{
+        legend:leg,
+        tooltip:{...tip,callbacks:{label:ctx=>` ${ctx.label}: ${total?Math.round(ctx.raw/total*100):0}%`}}
+      }
+    }
+  });
+
+  // ── Chart 2: By Category ──
+  const catData=categories.map(c=>{
+    const sids=sessions.filter(s=>s.catId===c.id).map(s=>s.id);
+    const cnt=siteRegs.filter(r=>sids.includes(r.sessionId)).length;
+    const att=siteRegs.filter(r=>sids.includes(r.sessionId)&&r.attended).length;
+    return{name:c.name,cnt,att,absent:cnt-att,pct:cnt?Math.round(att/cnt*100):0};
+  }).filter(d=>d.cnt>0);
+
+  const ctxC=document.getElementById('chart-by-cat');
+  if(ctxC) _charts.byCat=new Chart(ctxC,{
+    type:'bar',
+    data:{
+      labels:catData.map(d=>d.name),
+      datasets:[
+        {label:'เข้าอบรม',data:catData.map(d=>d.att),backgroundColor:P.ok,borderRadius:5,borderSkipped:false,stack:'s'},
+        {label:'ขาด',data:catData.map(d=>d.absent),backgroundColor:P.fail,borderRadius:5,borderSkipped:false,stack:'s'},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      animation:{duration:600,easing:'easeOutQuart'},
+      plugins:{
+        legend:leg,
+        tooltip:{...tip,callbacks:{
+          title:([ctx])=>catData[ctx.dataIndex]?.name||'',
+          label:ctx=>{
+            const d=catData[ctx.dataIndex];
+            return ctx.datasetIndex===0?` เข้าอบรม ${d.att} คน — ${d.pct}%`:` ขาด ${d.absent} คน`;
+          }
+        }}
+      },
+      scales:{
+        x:{...scX,stacked:true},
+        y:{...scY,stacked:true,beginAtZero:true,ticks:{...scY.ticks,stepSize:1}}
+      }
+    }
+  });
+
+  // ── Chart 3: By Department — เรียงตาม % สูง→ต่ำ, สีไล่ตาม rate ──
+  const deptMap={};
+  siteRegs.forEach(r=>{
+    if(!deptMap[r.dept])deptMap[r.dept]={cnt:0,att:0};
+    deptMap[r.dept].cnt++;
+    if(r.attended)deptMap[r.dept].att++;
+  });
+  const deptData=Object.entries(deptMap)
+    .map(([dept,v])=>({dept,cnt:v.cnt,att:v.att,absent:v.cnt-v.att,pct:Math.round(v.att/v.cnt*100)}))
+    .sort((a,b)=>b.pct-a.pct||b.cnt-a.cnt).slice(0,10);
+
+  const totalDepts=Object.keys(deptMap).length;
+  const elD=document.getElementById('analytics-dept-total');
+  if(elD)elD.textContent=`แสดง ${deptData.length} จาก ${totalDepts} แผนก`;
+
+  // สีแต่ละ bar ไล่จากเขียว (100%) → แดง (0%)
+  const deptColors=deptData.map(d=>{
+    const t=d.pct/100;
+    return`rgba(${Math.round(244-(244-16)*t)},${Math.round(63+(185-63)*t)},${Math.round(94+(129-94)*t)},0.85)`;
+  });
+
+  const ctxD=document.getElementById('chart-by-dept');
+  if(ctxD) _charts.byDept=new Chart(ctxD,{
+    type:'bar',
+    data:{
+      labels:deptData.map(d=>d.dept),
+      datasets:[
+        {label:'เข้าอบรม',data:deptData.map(d=>d.att),backgroundColor:deptColors,borderRadius:5,borderSkipped:false,stack:'s'},
+        {label:'ขาด',data:deptData.map(d=>d.absent),backgroundColor:'rgba(226,232,240,0.55)',borderRadius:5,borderSkipped:false,stack:'s'},
+      ]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true,maintainAspectRatio:false,
+      animation:{duration:600,easing:'easeOutQuart'},
+      plugins:{
+        legend:{display:false},
+        tooltip:{...tip,callbacks:{
+          title:([ctx])=>deptData[ctx.dataIndex]?.dept||'',
+          label:ctx=>{
+            const d=deptData[ctx.dataIndex];
+            return ctx.datasetIndex===0?` เข้าอบรม ${d.att}/${d.cnt} คน (${d.pct}%)`:` ขาด ${d.absent} คน`;
+          }
+        }}
+      },
+      scales:{
+        x:{...scY,stacked:true,beginAtZero:true,ticks:{...scY.ticks,stepSize:1}},
+        y:{...scX,stacked:true,ticks:{font:fnt(11),color:P.txt}}
+      }
+    }
+  });
+
+  // ── Chart 4: By Session ──
+  const sessData=sessions.map(s=>{
+    const cnt=siteRegs.filter(r=>r.sessionId===s.id).length;
+    const att=siteRegs.filter(r=>r.sessionId===s.id&&r.attended).length;
+    return{name:s.name,date:fmtDateShort(s.date),cnt,att,absent:cnt-att,pct:cnt?Math.round(att/cnt*100):0};
+  }).filter(d=>d.cnt>0);
+
+  const ctxS=document.getElementById('chart-by-sess');
+  if(ctxS) _charts.bySess=new Chart(ctxS,{
+    type:'bar',
+    data:{
+      labels:sessData.map(d=>d.name),
+      datasets:[
+        {label:'เข้าอบรม',data:sessData.map(d=>d.att),backgroundColor:P.ok,borderRadius:5,borderSkipped:false,stack:'s'},
+        {label:'ขาด',data:sessData.map(d=>d.absent),backgroundColor:P.fail,borderRadius:5,borderSkipped:false,stack:'s'},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      animation:{duration:600,easing:'easeOutQuart'},
+      plugins:{
+        legend:leg,
+        tooltip:{...tip,callbacks:{
+          title:([ctx])=>`${sessData[ctx.dataIndex]?.name||''} · ${sessData[ctx.dataIndex]?.date||''}`,
+          label:ctx=>{
+            const d=sessData[ctx.dataIndex];
+            return ctx.datasetIndex===0?` เข้าอบรม ${d.att}/${d.cnt} คน (${d.pct}%)`:` ขาด ${d.absent} คน`;
+          }
+        }}
+      },
+      scales:{
+        x:{...scX,stacked:true,ticks:{font:fnt(10),color:P.txt,maxRotation:30,minRotation:10}},
+        y:{...scY,stacked:true,beginAtZero:true,ticks:{...scY.ticks,stepSize:1}}
+      }
+    }
+  });
+
+  // Section: Departments not registered
+  const registeredDepts=new Set(siteRegs.map(r=>r.dept));
+  const noRegDepts=departments.filter(d=>!registeredDepts.has(d)).sort();
+  const noRegEl=document.getElementById('analytics-noreg-list');
+  const noRegCount=document.getElementById('analytics-noreg-count');
+  if(noRegCount) noRegCount.textContent=`${noRegDepts.length} จาก ${departments.length} หน่วยงาน`;
+  if(noRegEl){
+    if(!departments.length){
+      noRegEl.innerHTML='<div style="color:var(--text-muted);font-size:13px;padding:8px 0;">ยังไม่มีข้อมูลหน่วยงานใน ข้อมูลพื้นฐาน</div>';
+    } else if(!noRegDepts.length){
+      noRegEl.innerHTML='<div style="display:flex;align-items:center;gap:8px;color:var(--success);font-size:13px;padding:8px 0;"><i class="ti ti-circle-check" style="font-size:18px;"></i>ทุกหน่วยงานมีผู้ลงทะเบียนแล้ว</div>';
+    } else {
+      noRegEl.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:8px;">`+
+        noRegDepts.map(d=>`<span style="display:inline-flex;align-items:center;gap:5px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:500;"><i class="ti ti-building" style="font-size:12px;"></i>${d}</span>`).join('')+
+        `</div>`;
+    }
+  }
+}
+
 function renderAdminCats(){
   document.getElementById('admin-cat-tbody').innerHTML=categories.map(c=>{
     const cm=CM[c.color]||CM.blue;
@@ -2144,6 +2530,54 @@ async function deleteReg(id){
   const {error}=await _sb.from('registrations').delete().eq('id',id);
   if(error){showToast('ลบไม่สำเร็จ','danger');return;}
   registrations=registrations.filter(r=>r.id!==id);renderAdminRegs();showToast('ลบสำเร็จ','success');
+}
+function openClearRegsBySite(){
+  const sel=document.getElementById('clear-site-sel');
+  sel.innerHTML='<option value="">— เลือกสาขา —</option>'+
+    locations.map(l=>`<option value="${l.code}">${l.name} (${l.code})</option>`).join('');
+  document.getElementById('clear-site-preview').style.display='none';
+  document.getElementById('clear-site-ok-btn').disabled=true;
+  document.getElementById('modal-clear-regs-site').classList.add('open');
+}
+function updateClearSiteCount(){
+  const code=document.getElementById('clear-site-sel').value;
+  const preview=document.getElementById('clear-site-preview');
+  const btn=document.getElementById('clear-site-ok-btn');
+  if(!code){preview.style.display='none';btn.disabled=true;return;}
+  const siteSessIds=new Set(allSessionsFull.filter(s=>s.site===code).map(s=>s.id));
+  const cnt=registrations.filter(r=>siteSessIds.has(r.sessionId)).length;
+  const loc=locations.find(l=>l.code===code);
+  const attended=registrations.filter(r=>siteSessIds.has(r.sessionId)&&r.attended).length;
+  preview.style.display='block';
+  preview.innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:${cnt?'8px':'0'};">
+      <i class="ti ti-building" style="color:var(--primary);font-size:15px;"></i>
+      <span>สาขา <strong>${loc?loc.name:code}</strong> — <strong style="color:${cnt?'var(--danger)':'var(--text-muted)'};">${cnt} รายการ</strong></span>
+    </div>
+    ${cnt?`<div style="display:flex;gap:12px;font-size:12px;color:var(--text-muted);padding-left:23px;">
+      <span><i class="ti ti-users"></i> ทั้งหมด ${cnt} คน</span>
+      <span><i class="ti ti-circle-check" style="color:var(--success);"></i> เช็คชื่อแล้ว ${attended} คน</span>
+      <span><i class="ti ti-clock" style="color:var(--warn);"></i> ยังไม่เช็ค ${cnt-attended} คน</span>
+    </div>`:'<div style="font-size:12px;color:var(--text-muted);padding-left:23px;">ไม่มีข้อมูลลงทะเบียนในสาขานี้</div>'}`;
+  btn.disabled=cnt===0;
+}
+async function confirmClearRegsBySite(){
+  const code=document.getElementById('clear-site-sel').value;
+  if(!code)return;
+  const loc=locations.find(l=>l.code===code);
+  const siteSessIds=new Set(allSessionsFull.filter(s=>s.site===code).map(s=>s.id));
+  const cnt=registrations.filter(r=>siteSessIds.has(r.sessionId)).length;
+  if(!await showConfirm(`ลบข้อมูลลงทะเบียน ${cnt} รายการ?`,`สาขา: ${loc?loc.name:code}`,{okLabel:`ลบ ${cnt} รายการ`,danger:true}))return;
+  const btn=document.getElementById('clear-site-ok-btn');
+  btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i>กำลังลบ...';
+  const sessIds=[...siteSessIds];
+  const {error}=await _sb.from('registrations').delete().in('session_id',sessIds);
+  btn.disabled=false;btn.innerHTML='<i class="ti ti-trash"></i>ยืนยันลบข้อมูล';
+  if(error){showToast('ลบไม่สำเร็จ: '+error.message,'danger');return;}
+  registrations=registrations.filter(r=>!siteSessIds.has(r.sessionId));
+  closeModal('modal-clear-regs-site');
+  renderAdmin();
+  showToast(`ลบข้อมูลสาขา "${loc?loc.name:code}" สำเร็จ ${cnt} รายการ`,'success');
 }
 function adminAddReg(){
   populateSelect('ar-prefix',prefixes,'คำนำหน้า...');
