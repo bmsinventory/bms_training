@@ -45,10 +45,12 @@ const _mReg=r=>({id:r.id,sessionId:r.session_id,prefix:r.prefix||'',fname:r.fnam
 async function pushNotify(reg){
   if(!NOTIFY_API_KEY)return;
   const s=getSess(reg.sessionId);
+  const loc=locations.find(l=>l.code===currentSite);
   const dateStr=s?fmtDate(s.date):'-';
   const timeStr=s?`${s.timeStart} - ${s.timeEnd} น.`:'-';
   const lines=[
     '📢 มีผู้ลงทะเบียนใหม่',
+    `🏢 สาขา: ${currentSite}${loc?' : '+loc.name:''}`,
     `👤 ชื่อ-สกุล: ${reg.prefix}${reg.fname} ${reg.lname}`,
     `💼 ตำแหน่ง: ${reg.position||'-'}`,
     `🏢 หน่วยงาน: ${reg.dept||'-'}`,
@@ -96,10 +98,12 @@ const getAttCount=sid=>registrations.filter(r=>r.sessionId===sid&&r.attended).le
 const getCat=id=>categories.find(c=>c.id===id);
 const getSess=id=>sessions.find(s=>s.id===id);
 const getReg=id=>registrations.find(r=>r.id===id);
-const fmtDate=d=>{if(!d)return'-';return new Date(d).toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})};
-const fmtDateShort=d=>{if(!d)return'-';return new Date(d).toLocaleDateString('th-TH',{year:'2-digit',month:'short',day:'numeric'})};
-const getDay=d=>new Date(d).getDate();
-const getMon=d=>new Date(d).toLocaleDateString('th-TH',{month:'short'});
+// ถ้าปีใน date string เป็น พ.ศ. (>2500) ให้ลบ 543 ก่อน เพื่อให้ toLocaleDateString('th-TH') แสดง พ.ศ. ถูกต้อง
+const _parseDate=d=>{if(!d)return new Date(NaN);const[y,...rest]=String(d).split('-');const yr=parseInt(y);return new Date([yr>2500?yr-543:yr,...rest].join('-'));};
+const fmtDate=d=>{if(!d)return'-';return _parseDate(d).toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})};
+const fmtDateShort=d=>{if(!d)return'-';return _parseDate(d).toLocaleDateString('th-TH',{year:'2-digit',month:'short',day:'numeric'})};
+const getDay=d=>_parseDate(d).getDate();
+const getMon=d=>_parseDate(d).toLocaleDateString('th-TH',{month:'short'});
 const capCls=p=>p>=100?'cap-full':p>=75?'cap-high':p>=50?'cap-mid':'cap-low';
 const capBadge=p=>{
   if(p>=100)return'<span class="badge badge-danger"><i class="ti ti-lock"></i>เต็มแล้ว</span>';
@@ -1583,7 +1587,8 @@ function renderAnalytics(){
     grid:'rgba(226,232,240,0.55)',
     txt:'#64748b', dark:'#0f172a',
   };
-  const fnt=(sz=11,w='normal')=>({family:'Sarabun,sans-serif',size:sz,weight:w});
+  if(typeof Chart!=='undefined'){Chart.defaults.font.family='Sarabun, sans-serif';}
+  const fnt=(sz=12,w='normal')=>({family:'Sarabun,sans-serif',size:sz,weight:w});
   const leg={position:'bottom',labels:{font:fnt(11),boxWidth:10,boxHeight:10,padding:14,usePointStyle:true,pointStyleWidth:10}};
   const tip={
     backgroundColor:'#0f172a',padding:12,cornerRadius:10,
@@ -1631,6 +1636,8 @@ function renderAnalytics(){
       responsive:true,maintainAspectRatio:false,
       cutout:'74%',
       animation:{animateRotate:true,duration:700,easing:'easeOutQuart'},
+      onClick:(e,els)=>{if(!els.length)return;const idx=els[0].index;showAnalyticsDetail(idx===0?'เข้าอบรม':'ขาดอบรม',siteRegs.filter(r=>idx===0?r.attended:!r.attended));},
+      onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default';},
       plugins:{
         legend:leg,
         tooltip:{...tip,callbacks:{label:ctx=>` ${ctx.label}: ${total?Math.round(ctx.raw/total*100):0}%`}}
@@ -1643,7 +1650,7 @@ function renderAnalytics(){
     const sids=sessions.filter(s=>s.catId===c.id).map(s=>s.id);
     const cnt=siteRegs.filter(r=>sids.includes(r.sessionId)).length;
     const att=siteRegs.filter(r=>sids.includes(r.sessionId)&&r.attended).length;
-    return{name:c.name,cnt,att,absent:cnt-att,pct:cnt?Math.round(att/cnt*100):0};
+    return{name:c.name,sids,cnt,att,absent:cnt-att,pct:cnt?Math.round(att/cnt*100):0};
   }).filter(d=>d.cnt>0);
 
   const ctxC=document.getElementById('chart-by-cat');
@@ -1659,6 +1666,8 @@ function renderAnalytics(){
     options:{
       responsive:true,maintainAspectRatio:false,
       animation:{duration:600,easing:'easeOutQuart'},
+      onClick:(e,els)=>{if(!els.length)return;const d=catData[els[0].index];if(!d)return;showAnalyticsDetail(d.name,siteRegs.filter(r=>d.sids.includes(r.sessionId)),`เข้าอบรม ${d.att}/${d.cnt} คน (${d.pct}%)`);},
+      onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default';},
       plugins:{
         legend:leg,
         tooltip:{...tip,callbacks:{
@@ -1711,6 +1720,8 @@ function renderAnalytics(){
       indexAxis:'y',
       responsive:true,maintainAspectRatio:false,
       animation:{duration:600,easing:'easeOutQuart'},
+      onClick:(e,els)=>{if(!els.length)return;const d=deptData[els[0].index];if(!d)return;showAnalyticsDetail(d.dept,siteRegs.filter(r=>r.dept===d.dept),`เข้าอบรม ${d.att}/${d.cnt} คน (${d.pct}%)`);},
+      onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default';},
       plugins:{
         legend:{display:false},
         tooltip:{...tip,callbacks:{
@@ -1732,7 +1743,7 @@ function renderAnalytics(){
   const sessData=sessions.map(s=>{
     const cnt=siteRegs.filter(r=>r.sessionId===s.id).length;
     const att=siteRegs.filter(r=>r.sessionId===s.id&&r.attended).length;
-    return{name:s.name,date:fmtDateShort(s.date),cnt,att,absent:cnt-att,pct:cnt?Math.round(att/cnt*100):0};
+    return{id:s.id,name:s.name,date:fmtDateShort(s.date),cnt,att,absent:cnt-att,pct:cnt?Math.round(att/cnt*100):0};
   }).filter(d=>d.cnt>0);
 
   const ctxS=document.getElementById('chart-by-sess');
@@ -1748,6 +1759,8 @@ function renderAnalytics(){
     options:{
       responsive:true,maintainAspectRatio:false,
       animation:{duration:600,easing:'easeOutQuart'},
+      onClick:(e,els)=>{if(!els.length)return;const d=sessData[els[0].index];if(!d)return;showAnalyticsDetail(d.name,siteRegs.filter(r=>r.sessionId===d.id),`${d.date} · เข้าอบรม ${d.att}/${d.cnt} คน`);},
+      onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default';},
       plugins:{
         legend:leg,
         tooltip:{...tip,callbacks:{
@@ -1783,6 +1796,46 @@ function renderAnalytics(){
     }
   }
 }
+
+/* ── Analytics Detail Modal ── */
+let _aDetailRegs=[];
+function showAnalyticsDetail(title,regs,sub=''){
+  _aDetailRegs=regs;
+  document.getElementById('adetail-title').textContent=title;
+  document.getElementById('adetail-sub').textContent=sub||(regs.length+' คน');
+  document.querySelectorAll('.adetail-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector('#adetail-tabs .adetail-tab').classList.add('active');
+  _renderADetailTable(regs);
+  document.getElementById('modal-analytics-detail').classList.add('open');
+}
+function filterAnalyticsDetail(f,el){
+  document.querySelectorAll('.adetail-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const rows=f==='all'?_aDetailRegs:f==='ok'?_aDetailRegs.filter(r=>r.attended):_aDetailRegs.filter(r=>!r.attended);
+  document.getElementById('adetail-sub').textContent=rows.length+' คน';
+  _renderADetailTable(rows);
+}
+function _renderADetailTable(regs){
+  const el=document.getElementById('adetail-body');
+  if(!regs.length){el.innerHTML='<div class="empty" style="padding:40px;"><i class="ti ti-mood-empty" style="font-size:36px;display:block;margin-bottom:8px;opacity:.3;"></i><p>ไม่มีข้อมูล</p></div>';return;}
+  el.innerHTML=`<table class="adetail-table"><thead><tr><th>#</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง / หน่วยงาน</th><th>รอบอบรม</th><th>วันที่</th><th>เวลาเช็คชื่อ</th><th>สถานะ</th></tr></thead><tbody>`+
+    regs.map((r,i)=>{
+      const s=getSess(r.sessionId);
+      const badge=r.attended
+        ?`<span class="badge badge-success" style="gap:3px;"><i class="ti ti-check" style="font-size:11px;"></i>เข้าอบรม</span>`
+        :`<span class="badge badge-danger" style="gap:3px;"><i class="ti ti-x" style="font-size:11px;"></i>ขาด</span>`;
+      return`<tr>
+        <td style="color:var(--text-muted);font-size:12px;">${i+1}</td>
+        <td><div style="font-weight:600;font-size:13px;">${r.prefix||''}${r.fname} ${r.lname}</div></td>
+        <td><div style="font-size:12px;">${r.position||'-'}</div><div style="font-size:11px;color:var(--text-muted);">${r.dept||'-'}</div></td>
+        <td style="font-size:12px;max-width:160px;">${s?s.name:'-'}</td>
+        <td style="font-size:12px;white-space:nowrap;">${s?fmtDateShort(s.date):'-'}</td>
+        <td style="font-size:12px;color:${r.attended?'var(--success)':'var(--text-muted)'};">${r.attendedTime||'—'}</td>
+        <td>${badge}</td>
+      </tr>`;
+    }).join('')+`</tbody></table>`;
+}
+function closeAnalyticsDetail(){closeModal('modal-analytics-detail');}
 
 function renderAdminCats(){
   document.getElementById('admin-cat-tbody').innerHTML=categories.map(c=>{

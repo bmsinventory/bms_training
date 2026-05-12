@@ -11,7 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=5">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -1035,6 +1035,28 @@
 
 <div class="toast" id="toast"><i class="ti ti-circle-check"></i><span id="toast-msg"></span></div>
 
-<script src="app.js"></script>
+<!-- ═══ Analytics Detail Modal ═══ -->
+<div class="modal-overlay" id="modal-analytics-detail" onclick="if(event.target===this)closeAnalyticsDetail()">
+  <div class="modal" style="max-width:800px;width:96vw;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;"><i class="ti ti-users"></i></div>
+        <div>
+          <div style="font-family:var(--heading);font-size:15px;font-weight:700;color:var(--primary);" id="adetail-title">รายชื่อ</div>
+          <div id="adetail-sub" style="font-size:12px;color:var(--text-muted);margin-top:1px;"></div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAnalyticsDetail()"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--border);background:#f8fafc;flex-wrap:wrap;flex-shrink:0;" id="adetail-tabs">
+      <button class="adetail-tab active" onclick="filterAnalyticsDetail('all',this)">ทั้งหมด</button>
+      <button class="adetail-tab" onclick="filterAnalyticsDetail('ok',this)"><span class="adetail-dot ok"></span>เข้าอบรม</button>
+      <button class="adetail-tab" onclick="filterAnalyticsDetail('absent',this)"><span class="adetail-dot absent"></span>ขาดอบรม</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;" id="adetail-body"></div>
+  </div>
+</div>
+
+<script src="app.js?v=5"></script>
 </body>
 </html>
