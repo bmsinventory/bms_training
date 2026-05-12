@@ -26,8 +26,10 @@ let isAdminLoggedIn=false;
 let adminUsers=[];
 let currentAdminUser=null;
 let pendingPage='admin';
+const APP_VERSION='v1.0.0';
 const NOTIFY_API_KEY='54f4fa05-bfb9-4ac5-930d-93e942e36786';
 const currentSite=new URLSearchParams(location.search).get('site')||'theme_1';
+document.getElementById('nav-version').textContent=APP_VERSION;
 
 /* ══════════════════════════════════════════════
    SUPABASE
@@ -193,41 +195,65 @@ async function initApp(){
 }
 
 /* ══════════════════ REALTIME SYNC ══════════════════ */
-let _rtChannel = null;
-let _rtDebounceTimer = null;
+let _rtChannel=null;
+let _rtDebounceTimer=null;
+let _rtReconnectTimer=null;
 
-function initRealtime() {
-  if (_rtChannel) return;
-  _rtChannel = _sb.channel('public-db-changes')
-    .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-      // อัพเดทสถานะ attendance ทันทีจาก payload โดยไม่รอ loadAllData
-      if (payload.table === 'registrations' && payload.eventType === 'UPDATE' && payload.new) {
-        const reg = getReg(payload.new.id);
-        if (reg) {
-          reg.attended = payload.new.attended || false;
-          reg.attendedTime = payload.new.attended_time || null;
-        }
-        updateCheckinHeroStats();
-        _mergeRealtimeScanLog();
-        const activeSub = document.querySelector('.checkin-sub.active');
-        if (activeSub && activeSub.id === 'csub-list') loadAttendance();
-      }
-      // Full reload หลัง debounce เพื่อ sync ข้อมูลอื่นๆ
-      if (_rtDebounceTimer) clearTimeout(_rtDebounceTimer);
-      _rtDebounceTimer = setTimeout(async () => {
-        try {
-          await loadAllData();
-          refreshCurrentView();
-        } catch (e) {
-          console.error('Realtime sync error:', e);
-        }
-      }, 400);
+function _setRtStatus(s){
+  const dot=document.getElementById('rt-dot');
+  if(!dot)return;
+  dot.className='rt-dot '+s;
+  dot.title={live:'Realtime: เชื่อมต่อแล้ว — ข้อมูลอัพเดทอัตโนมัติ',error:'Realtime: ขาดการเชื่อมต่อ กำลังลองใหม่...',connecting:'Realtime: กำลังเชื่อมต่อ...'}[s]||'';
+}
+
+function _scheduleRtRefresh(){
+  if(_rtDebounceTimer)clearTimeout(_rtDebounceTimer);
+  _rtDebounceTimer=setTimeout(async()=>{
+    try{await loadAllData();refreshCurrentView();}
+    catch(e){console.error('RT refresh:',e);}
+  },400);
+}
+
+function initRealtime(){
+  if(_rtChannel)return;
+  if(_rtReconnectTimer){clearTimeout(_rtReconnectTimer);_rtReconnectTimer=null;}
+  _setRtStatus('connecting');
+  _rtChannel=_sb.channel('bms-rt-v3')
+    // registrations: อัพเดทข้อมูลใน local array ทันที ไม่รอ debounce
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'registrations'},(p)=>{
+      if(p.new&&!getReg(p.new.id))registrations.push(_mReg(p.new));
+      _scheduleRtRefresh();
     })
-    .subscribe((status) => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.warn('Realtime disconnected:', status);
-        _rtChannel = null;
-        setTimeout(initRealtime, 5000);
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'registrations'},(p)=>{
+      if(!p.new)return;
+      const reg=getReg(p.new.id);
+      if(reg)Object.assign(reg,_mReg(p.new));
+      else registrations.push(_mReg(p.new));
+      updateCheckinHeroStats();
+      _mergeRealtimeScanLog();
+      const sub=document.querySelector('.checkin-sub.active');
+      if(sub&&sub.id==='csub-list')loadAttendance();
+      _scheduleRtRefresh();
+    })
+    .on('postgres_changes',{event:'DELETE',schema:'public',table:'registrations'},(p)=>{
+      if(!p.old)return;
+      const idx=registrations.findIndex(r=>r.id===p.old.id);
+      if(idx!==-1)registrations.splice(idx,1);
+      _scheduleRtRefresh();
+    })
+    // ตาราง sessions / categories / master_items / locations: debounce full reload
+    .on('postgres_changes',{event:'*',schema:'public',table:'sessions'},()=>_scheduleRtRefresh())
+    .on('postgres_changes',{event:'*',schema:'public',table:'categories'},()=>_scheduleRtRefresh())
+    .on('postgres_changes',{event:'*',schema:'public',table:'master_items'},()=>_scheduleRtRefresh())
+    .on('postgres_changes',{event:'*',schema:'public',table:'locations'},()=>_scheduleRtRefresh())
+    .subscribe((status)=>{
+      if(status==='SUBSCRIBED'){
+        _setRtStatus('live');
+        if(_rtReconnectTimer){clearTimeout(_rtReconnectTimer);_rtReconnectTimer=null;}
+      } else if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)){
+        _setRtStatus('error');
+        _rtChannel=null;
+        _rtReconnectTimer=setTimeout(initRealtime,5000);
       }
     });
 }
@@ -1783,16 +1809,42 @@ function renderAnalytics(){
   const noRegDepts=departments.filter(d=>!registeredDepts.has(d)).sort();
   const noRegEl=document.getElementById('analytics-noreg-list');
   const noRegCount=document.getElementById('analytics-noreg-count');
-  if(noRegCount) noRegCount.textContent=`${noRegDepts.length} จาก ${departments.length} หน่วยงาน`;
+  const regCount=departments.length-noRegDepts.length;
+  const regPct=departments.length?Math.round(regCount/departments.length*100):0;
+  if(noRegCount)noRegCount.textContent='';
   if(noRegEl){
     if(!departments.length){
-      noRegEl.innerHTML='<div style="color:var(--text-muted);font-size:13px;padding:8px 0;">ยังไม่มีข้อมูลหน่วยงานใน ข้อมูลพื้นฐาน</div>';
-    } else if(!noRegDepts.length){
-      noRegEl.innerHTML='<div style="display:flex;align-items:center;gap:8px;color:var(--success);font-size:13px;padding:8px 0;"><i class="ti ti-circle-check" style="font-size:18px;"></i>ทุกหน่วยงานมีผู้ลงทะเบียนแล้ว</div>';
+      noRegEl.innerHTML=`<div style="color:var(--text-muted);font-size:13px;padding:12px 0;text-align:center;">ยังไม่มีข้อมูลหน่วยงาน — กรุณาเพิ่มใน <b>ข้อมูลพื้นฐาน</b></div>`;
     } else {
-      noRegEl.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:8px;">`+
-        noRegDepts.map(d=>`<span style="display:inline-flex;align-items:center;gap:5px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:500;"><i class="ti ti-building" style="font-size:12px;"></i>${d}</span>`).join('')+
-        `</div>`;
+      // Progress bar
+      const barColor=regPct===100?'#34d399':regPct>=60?'#60a5fa':'#fb923c';
+      let html=`
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+            <span style="font-size:12px;color:var(--text-muted);">มีผู้ลงทะเบียนแล้ว</span>
+            <span style="font-size:13px;font-weight:700;color:var(--text);">${regCount}<span style="font-weight:400;color:var(--text-muted);"> / ${departments.length} หน่วยงาน</span></span>
+          </div>
+          <div style="height:8px;background:#e2e8f0;border-radius:99px;overflow:hidden;">
+            <div style="width:${regPct}%;height:100%;background:${barColor};border-radius:99px;transition:width .5s ease;"></div>
+          </div>
+        </div>`;
+      if(!noRegDepts.length){
+        html+=`<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;">
+          <i class="ti ti-circle-check-filled" style="font-size:22px;color:#16a34a;flex-shrink:0;"></i>
+          <div><div style="font-weight:700;font-size:13px;color:#15803d;">ครบทุกหน่วยงาน</div><div style="font-size:11px;color:#4ade80;margin-top:1px;">ทุกหน่วยงานมีผู้ลงทะเบียนเข้าอบรมแล้ว</div></div>
+        </div>`;
+      } else {
+        html+=`<div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px;">${noRegDepts.length} หน่วยงานที่ยังไม่มีผู้ลงทะเบียน</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;">
+          ${noRegDepts.map((d,i)=>`
+            <div style="display:flex;align-items:center;gap:8px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:7px 12px;">
+              <span style="font-size:11px;font-weight:700;color:#d97706;min-width:20px;text-align:right;">${i+1}</span>
+              <span style="width:1px;height:14px;background:#fde68a;flex-shrink:0;"></span>
+              <span style="font-size:12px;color:#92400e;line-height:1.3;">${d}</span>
+            </div>`).join('')}
+          </div>`;
+      }
+      noRegEl.innerHTML=html;
     }
   }
 }
@@ -2214,6 +2266,7 @@ function _locCard(code, name, id, ghost){
   const attCnt=locRegs.filter(r=>r.attended).length;
   const baseUrl=window.location.href.replace(/\?.*$/,'');
   const openUrl=`${baseUrl}?site=${code}`;
+  const surveyUrl=`${location.origin}${location.pathname.replace(/[^\/]*$/,'survey.html')}?site=${code}`;
   const rowId=ghost?`ghost-${code}`:`loc-row-${id}`;
   return `
   <div class="master-item" id="${rowId}" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px 14px;${ghost?'border-style:dashed;opacity:.85;':''}">
@@ -2222,7 +2275,8 @@ function _locCard(code, name, id, ghost){
       <span style="font-weight:600;font-size:14px;">${name}</span>
       ${code===currentSite?'<span style="font-size:11px;background:var(--success-light);color:var(--success);padding:1px 7px;border-radius:20px;font-weight:600;">สาขาปัจจุบัน</span>':''}
       ${ghost?'<span style="font-size:11px;background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:20px;font-weight:600;">ยังไม่ได้ลงทะเบียน</span>':''}
-      <div style="margin-left:auto;display:flex;gap:4px;">
+      <div style="margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;">
+        <a href="${surveyUrl}" target="_blank" class="btn btn-sm" title="เปิดแบบประเมินสาขานี้" style="background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;gap:5px;white-space:nowrap;"><i class="ti ti-clipboard-check"></i>แบบประเมิน</a>
         <a href="${openUrl}" target="_blank" class="btn btn-ghost btn-sm" title="เปิดสาขา"><i class="ti ti-external-link"></i></a>
         ${!ghost?`<button class="btn btn-ghost btn-sm" onclick="editLocInline(${id})"><i class="ti ti-edit"></i></button>
         <button class="btn btn-danger btn-sm" onclick="deleteLoc(${id})"${code===currentSite?' disabled title="ไม่สามารถลบสาขาที่กำลังใช้งาน"':''}><i class="ti ti-trash"></i></button>`

@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>แบบประเมินความพึงพอใจการอบรม — BMS Training</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#2563eb;--primary-light:#eff6ff;
+  --success:#059669;--success-light:#ecfdf5;
+  --danger:#dc2626;--danger-light:#fef2f2;
+  --warn:#d97706;
+  --bg:#f1f5f9;--card:#ffffff;
+  --text:#0f172a;--text-secondary:#334155;--text-muted:#64748b;
+  --border:#e2e8f0;
+  --font:'Anuphan','Sarabun',sans-serif;
+  --radius:12px;--radius-sm:8px;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 6px rgba(0,0,0,.06),0 2px 4px rgba(0,0,0,.05);
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15px;-webkit-font-smoothing:antialiased;min-height:100vh}
+
+/* ── Header ── */
+.sv-header{background:#0f172a;padding:0 20px;height:56px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:50;box-shadow:0 1px 0 rgba(255,255,255,.06),var(--shadow-md)}
+.sv-header-logo{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:#f8fafc}
+.sv-header-logo i{font-size:20px;color:#38bdf8}
+.sv-site-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(56,189,248,.15);color:#38bdf8;border:1px solid rgba(56,189,248,.25)}
+.sv-date-badge{margin-left:auto;font-size:11px;color:rgba(255,255,255,.45);white-space:nowrap}
+
+/* ── Layout ── */
+.sv-wrap{max-width:680px;margin:0 auto;padding:20px 16px 100px}
+.sv-screen{display:none}
+.sv-screen.active{display:block}
+
+/* ── Loading ── */
+.sv-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:14px;color:var(--text-muted)}
+.sv-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes popIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* ── Card ── */
+.sv-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:20px;margin-bottom:14px;box-shadow:var(--shadow-sm)}
+.sv-card-title{font-size:15px;font-weight:700;color:var(--primary);display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+
+/* ── Form controls ── */
+.sv-label{display:block;font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px}
+.sv-select{width:100%;padding:10px 32px 10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;color:var(--text);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;appearance:none;transition:border-color .15s,box-shadow .15s;margin-bottom:14px}
+.sv-select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.sv-select:disabled{background:var(--bg);color:var(--text-muted);cursor:not-allowed}
+
+/* ── Session info ── */
+.sv-sess-info{background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-sm);padding:12px 14px;margin-top:-6px;margin-bottom:16px;display:none}
+.sv-sess-info.show{display:block}
+.sv-sess-info-row{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#1e40af;margin-bottom:5px;line-height:1.4}
+.sv-sess-info-row:last-child{margin-bottom:0}
+.sv-sess-info-row i{font-size:15px;flex-shrink:0;margin-top:1px}
+
+/* ── Buttons ── */
+.sv-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;border-radius:var(--radius-sm);border:none;font-family:var(--font);font-size:15px;font-weight:600;cursor:pointer;transition:all .15s}
+.sv-btn:active:not(:disabled){transform:scale(.98)}
+.sv-btn-primary{background:var(--primary);color:#fff}
+.sv-btn-primary:hover:not(:disabled){background:#1d4ed8}
+.sv-btn-primary:disabled{background:#94a3b8;cursor:not-allowed}
+.sv-btn-success{background:var(--success);color:#fff}
+.sv-btn-success:hover:not(:disabled){background:#047857}
+.sv-btn-success:disabled{background:#94a3b8;cursor:not-allowed}
+
+/* ── Section header ── */
+.sv-section-hd{display:flex;align-items:center;gap:12px;padding:13px 18px;border-radius:var(--radius) var(--radius) 0 0;color:#fff}
+.sv-section-hd-num{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+.sv-section-hd-title{font-size:15px;font-weight:700}
+.sv-section-hd-count{font-size:11px;opacity:.8;margin-top:2px}
+.sv-section-card{border-radius:0 0 var(--radius) var(--radius);border-top:none;margin-bottom:14px}
+
+/* ── Scale legend ── */
+.sv-scale-legend{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;background:linear-gradient(135deg,#1e3a8a,#1d4ed8);border-radius:var(--radius);margin-bottom:16px;color:#fff;align-items:center}
+.sv-scale-legend-label{font-size:12px;font-weight:600;margin-right:4px;opacity:.85}
+.sv-scale-item{display:flex;align-items:center;gap:5px;font-size:12px}
+.sv-scale-dot{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex-shrink:0}
+
+/* ── Question row ── */
+.sv-q-row{padding:13px 0;border-bottom:1px solid #f1f5f9}
+.sv-q-row:last-child{border-bottom:none;padding-bottom:4px}
+.sv-q-row.error .sv-q-text{color:var(--danger)}
+.sv-q-row.error .sv-rating-group{animation:shake .35s}
+.sv-q-top{display:flex;gap:8px;align-items:flex-start;margin-bottom:10px}
+.sv-q-num{font-size:11px;font-weight:700;color:var(--text-muted);min-width:28px;flex-shrink:0;padding-top:2px}
+.sv-q-text{font-size:14px;line-height:1.5;color:var(--text)}
+
+/* ── Rating group (order 5→1) ── */
+.sv-rating-group{display:flex;gap:5px}
+.sv-rate-btn{flex:1;min-width:0;padding:10px 4px 9px;border-radius:10px;border:2px solid;background:transparent;font-family:var(--font);cursor:pointer;transition:all .2s cubic-bezier(.34,1.56,.64,1);display:flex;flex-direction:column;align-items:center;gap:3px}
+.sv-rate-btn:hover:not(.selected){transform:translateY(-2px)}
+.sv-rate-btn:active{transform:scale(.93)}
+.sv-rate-num{font-size:18px;font-weight:800;line-height:1;display:block}
+.sv-rate-label{font-size:9px;font-weight:500;line-height:1;white-space:nowrap;opacity:.75;display:block}
+
+.sv-rate-5{border-color:#16a34a;color:#15803d}
+.sv-rate-5.selected{background:linear-gradient(160deg,#22c55e,#15803d);color:#fff;border-color:transparent;box-shadow:0 5px 16px rgba(34,197,94,.45);transform:translateY(-3px) scale(1.04)}
+.sv-rate-4{border-color:#65a30d;color:#3f6212}
+.sv-rate-4.selected{background:linear-gradient(160deg,#84cc16,#4d7c0f);color:#fff;border-color:transparent;box-shadow:0 5px 16px rgba(132,204,22,.4);transform:translateY(-3px) scale(1.04)}
+.sv-rate-3{border-color:#ca8a04;color:#854d0e}
+.sv-rate-3.selected{background:linear-gradient(160deg,#eab308,#a16207);color:#fff;border-color:transparent;box-shadow:0 5px 16px rgba(234,179,8,.4);transform:translateY(-3px) scale(1.04)}
+.sv-rate-2{border-color:#ea580c;color:#9a3412}
+.sv-rate-2.selected{background:linear-gradient(160deg,#f97316,#c2410c);color:#fff;border-color:transparent;box-shadow:0 5px 16px rgba(249,115,22,.4);transform:translateY(-3px) scale(1.04)}
+.sv-rate-1{border-color:#dc2626;color:#991b1b}
+.sv-rate-1.selected{background:linear-gradient(160deg,#ef4444,#b91c1c);color:#fff;border-color:transparent;box-shadow:0 5px 16px rgba(239,68,68,.4);transform:translateY(-3px) scale(1.04)}
+
+/* ── Yes/No ── */
+.sv-yn-wrap{display:flex;gap:10px;margin-top:8px}
+.sv-yn-btn{flex:1;padding:12px;border-radius:var(--radius-sm);border:2px solid var(--border);background:transparent;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;color:var(--text-muted)}
+.sv-yn-btn:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-light)}
+.sv-yn-btn.yes-sel{background:#ecfdf5;border-color:#22c55e;color:#15803d}
+.sv-yn-btn.no-sel{background:#fef2f2;border-color:#ef4444;color:#991b1b}
+.sv-yn-btn i{font-size:18px}
+
+/* ── Textarea ── */
+.sv-textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;color:var(--text);resize:vertical;min-height:100px;transition:border-color .15s}
+.sv-textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+
+/* ── Toast ── */
+.sv-toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(40px);background:#0f172a;color:#fff;padding:12px 20px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;z-index:1000;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;display:flex;align-items:center;gap:8px;max-width:340px;text-align:center;box-shadow:var(--shadow-md);white-space:nowrap}
+.sv-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.sv-toast.danger{background:#7f1d1d}
+
+/* ── Progress ── */
+.sv-progress-wrap{height:4px;background:var(--border);border-radius:2px;margin-bottom:18px;overflow:hidden}
+.sv-progress-bar{height:100%;background:linear-gradient(90deg,var(--primary),#7c3aed);border-radius:2px;transition:width .4s ease;width:0%}
+.sv-progress-label{font-size:12px;color:var(--text-muted);text-align:right;margin-top:4px;margin-bottom:14px}
+
+/* ── Success ── */
+.sv-success{text-align:center;padding:32px 16px}
+.sv-success-icon{width:76px;height:76px;border-radius:50%;background:var(--success-light);border:3px solid var(--success);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:38px;color:var(--success);animation:popIn .5s cubic-bezier(.34,1.56,.64,1)}
+.sv-success-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px}
+.sv-success-sub{font-size:14px;color:var(--text-muted);line-height:1.7;margin-bottom:24px}
+.sv-score-overall{background:linear-gradient(135deg,#1e3a8a,#1d4ed8);border-radius:var(--radius);padding:20px;margin-bottom:12px;color:#fff;text-align:center}
+.sv-score-overall-num{font-size:48px;font-weight:700;line-height:1}
+.sv-score-overall-label{font-size:13px;opacity:.8;margin-top:4px}
+.sv-score-stars{font-size:22px;margin-top:8px;letter-spacing:2px}
+.sv-score-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}
+.sv-score-item{background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);padding:10px 8px;text-align:center}
+.sv-score-num{font-size:20px;font-weight:700;line-height:1}
+.sv-score-lbl{font-size:10px;color:var(--text-muted);margin-top:4px;line-height:1.3}
+
+/* ── No session ── */
+.sv-no-sess{text-align:center;padding:36px 20px;color:var(--text-muted)}
+.sv-no-sess i{font-size:48px;display:block;margin-bottom:12px;opacity:.3}
+.sv-no-sess p{font-size:14px;line-height:1.7}
+
+/* ── Sticky bar ── */
+.sv-sticky-bar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);padding:12px 16px;z-index:40;box-shadow:0 -4px 16px rgba(0,0,0,.07);display:none}
+.sv-sticky-bar.show{display:block}
+.sv-sticky-inner{max-width:680px;margin:0 auto}
+
+/* ── Session header in form ── */
+.sv-form-sess-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow-sm)}
+.sv-form-sess-bar i{font-size:20px;color:var(--primary);flex-shrink:0}
+
+/* ── Responsive ── */
+@media(max-width:460px){
+  .sv-rate-label{display:none}
+  .sv-rate-num{font-size:16px}
+  .sv-score-grid{grid-template-columns:repeat(2,1fr)}
+  .sv-date-badge{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="sv-header">
+  <div class="sv-header-logo">
+    <i class="ti ti-building-hospital"></i>BMS Training
+  </div>
+  <span class="sv-site-badge" id="site-badge">—</span>
+  <span class="sv-date-badge" id="date-badge"></span>
+</header>
+
+<!-- Toast -->
+<div class="sv-toast" id="sv-toast"></div>
+
+<div class="sv-wrap">
+
+  <!-- ══ SCREEN: LOADING ══ -->
+  <div class="sv-screen active" id="sc-loading">
+    <div class="sv-loading">
+      <div class="sv-spinner"></div>
+      <div>กำลังโหลดข้อมูลรอบอบรม...</div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: SELECT SESSION ══ -->
+  <div class="sv-screen" id="sc-select">
+
+    <!-- Page title -->
+    <div style="text-align:center;padding:20px 0 16px;">
+      <div style="width:56px;height:56px;border-radius:var(--radius);background:var(--primary-light);border:2px solid #bfdbfe;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:28px;color:var(--primary);">
+        <i class="ti ti-clipboard-check"></i>
+      </div>
+      <h1 style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:6px;">แบบประเมินความพึงพอใจ</h1>
+      <p style="font-size:13px;color:var(--text-muted);">การอบรมระบบ BMS — กรุณาเลือกรอบอบรมที่ท่านเข้าร่วม</p>
+    </div>
+
+    <div class="sv-card">
+      <div class="sv-card-title">
+        <i class="ti ti-calendar-event"></i>เลือกรอบอบรมที่ต้องการประเมิน
+      </div>
+
+      <!-- No sessions today -->
+      <div id="no-sess-msg" class="sv-no-sess" style="display:none;">
+        <i class="ti ti-calendar-off"></i>
+        <p><strong>ไม่พบรอบอบรมในวันนี้</strong><br>สำหรับสาขานี้ กรุณาติดต่อเจ้าหน้าที่</p>
+      </div>
+
+      <!-- Session selection form -->
+      <div id="sess-form">
+        <label class="sv-label"><i class="ti ti-category" style="margin-right:4px;"></i>ประเภทการอบรม</label>
+        <select class="sv-select" id="sel-cat" onchange="onCatChange()">
+          <option value="">— กรุณาเลือกประเภทอบรม —</option>
+        </select>
+
+        <label class="sv-label"><i class="ti ti-clock" style="margin-right:4px;"></i>รอบอบรม / วิทยากร</label>
+        <select class="sv-select" id="sel-sess" onchange="onSessChange()" disabled>
+          <option value="">— เลือกประเภทก่อน —</option>
+        </select>
+
+        <!-- Selected session detail -->
+        <div class="sv-sess-info" id="sess-info">
+          <div class="sv-sess-info-row"><i class="ti ti-user-check"></i><span><strong>วิทยากร:</strong> <span id="info-trainer">—</span></span></div>
+          <div class="sv-sess-info-row"><i class="ti ti-calendar"></i><span id="info-date">—</span></div>
+          <div class="sv-sess-info-row"><i class="ti ti-clock"></i><span id="info-time">—</span></div>
+          <div class="sv-sess-info-row"><i class="ti ti-map-pin"></i><span id="info-venue">—</span></div>
+        </div>
+
+        <button class="sv-btn sv-btn-primary" id="btn-start" onclick="startSurvey()" disabled>
+          <i class="ti ti-clipboard-check"></i>เริ่มทำแบบประเมิน
+        </button>
+      </div>
+    </div>
+
+    <p style="text-align:center;font-size:12px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:5px;">
+      <i class="ti ti-shield-lock"></i>ข้อมูลของท่านถูกเก็บเป็นความลับ และใช้เพื่อพัฒนาคุณภาพการอบรมเท่านั้น
+    </p>
+  </div>
+
+  <!-- ══ SCREEN: QUESTIONNAIRE ══ -->
+  <div class="sv-screen" id="sc-form">
+
+    <!-- Progress -->
+    <div class="sv-progress-wrap"><div class="sv-progress-bar" id="prog-bar"></div></div>
+    <div class="sv-progress-label" id="prog-label">ตอบแล้ว 0 / 41 ข้อ</div>
+
+    <!-- Selected session bar -->
+    <div class="sv-form-sess-bar">
+      <i class="ti ti-calendar-check"></i>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="form-sess-name">—</div>
+        <div style="font-size:12px;color:var(--text-muted);" id="form-sess-sub">—</div>
+      </div>
+      <button onclick="showScreen('sc-select')" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:12px;white-space:nowrap;display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:6px;" title="เปลี่ยนรอบ">
+        <i class="ti ti-refresh" style="font-size:14px;"></i>เปลี่ยน
+      </button>
+    </div>
+
+    <!-- Scale legend -->
+    <div class="sv-scale-legend">
+      <span class="sv-scale-legend-label">ระดับ:</span>
+      <span class="sv-scale-item"><span class="sv-scale-dot" style="background:#16a34a;">5</span>มากที่สุด</span>
+      <span class="sv-scale-item"><span class="sv-scale-dot" style="background:#65a30d;">4</span>มาก</span>
+      <span class="sv-scale-item"><span class="sv-scale-dot" style="background:#ca8a04;">3</span>ปานกลาง</span>
+      <span class="sv-scale-item"><span class="sv-scale-dot" style="background:#ea580c;">2</span>น้อย</span>
+      <span class="sv-scale-item"><span class="sv-scale-dot" style="background:#dc2626;">1</span>น้อยที่สุด</span>
+    </div>
+
+    <!-- Questions injected here -->
+    <div id="questions-wrap"></div>
+
+    <!-- 6.6 Yes/No -->
+    <div class="sv-card">
+      <div style="font-size:14px;line-height:1.5;color:var(--text);margin-bottom:10px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text-muted);margin-right:6px;">6.6</span>
+        ท่านต้องการเข้าร่วมการอบรมเพิ่มเติมในหัวข้ออื่นอีกหรือไม่
+      </div>
+      <div class="sv-yn-wrap" id="yn-row">
+        <button class="sv-yn-btn" id="yn-yes" onclick="setYN(true)">
+          <i class="ti ti-thumb-up"></i>ต้องการ
+        </button>
+        <button class="sv-yn-btn" id="yn-no" onclick="setYN(false)">
+          <i class="ti ti-thumb-down"></i>ไม่ต้องการ
+        </button>
+      </div>
+    </div>
+
+    <!-- Comments -->
+    <div class="sv-card">
+      <div class="sv-card-title" style="margin-bottom:10px;padding-bottom:0;border-bottom:none;">
+        <i class="ti ti-message-2"></i>ข้อเสนอแนะเพิ่มเติม <span style="font-size:12px;font-weight:400;color:var(--text-muted);">(ไม่บังคับ)</span>
+      </div>
+      <textarea class="sv-textarea" id="sv-comments" placeholder="กรุณาระบุข้อเสนอแนะหรือความคิดเห็นเพิ่มเติม..."></textarea>
+    </div>
+
+  </div>
+
+  <!-- ══ SCREEN: SUCCESS ══ -->
+  <div class="sv-screen" id="sc-success">
+    <div class="sv-success">
+      <div class="sv-success-icon"><i class="ti ti-circle-check"></i></div>
+      <h2 class="sv-success-title">ขอบคุณสำหรับการประเมิน</h2>
+      <p class="sv-success-sub">ข้อมูลของท่านได้รับการบันทึกเรียบร้อยแล้ว<br>ความคิดเห็นของท่านมีค่ายิ่งต่อการพัฒนาการอบรม</p>
+
+      <!-- Overall score -->
+      <div class="sv-score-overall" id="score-overall"></div>
+
+      <!-- Section scores -->
+      <div class="sv-score-grid" id="score-grid"></div>
+
+      <button class="sv-btn sv-btn-primary" onclick="resetSurvey()" style="max-width:280px;margin:0 auto;">
+        <i class="ti ti-arrow-back-up"></i>ประเมินรอบอื่น
+      </button>
+    </div>
+  </div>
+
+</div><!-- /sv-wrap -->
+
+<!-- Sticky submit -->
+<div class="sv-sticky-bar" id="sticky-bar">
+  <div class="sv-sticky-inner">
+    <button class="sv-btn sv-btn-success" id="btn-submit" onclick="submitSurvey()">
+      <i class="ti ti-send"></i>ส่งแบบประเมิน
+    </button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════ */
+const SUPABASE_URL = 'https://aukxjxtuknucflaafwlo.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1a3hqeHR1a251Y2ZsYWFmd2xvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODM3ODksImV4cCI6MjA5MzU1OTc4OX0.WJbGeWu6mjU9BvES8cX9972RvYteUAZyMve8DcKy2mk';
+const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const currentSite = new URLSearchParams(location.search).get('site') || 'theme_1';
+
+/* ═══════════════════════════════════════════════
+   QUESTION DEFINITIONS
+═══════════════════════════════════════════════ */
+const SECTIONS = [
+  {
+    num: 1, title: 'พฤติกรรมบริการ', icon: 'ti-heart-handshake', color: '#2563eb',
+    qs: [
+      'วิทยากรและทีมงานมีความพร้อมในการให้บริการ',
+      'วิทยากรและทีมงานให้บริการด้วยความสุภาพและเป็นกันเอง',
+      'วิทยากรและทีมงานมีมนุษยสัมพันธ์ที่ดี',
+      'การประสานงานและการอำนวยความสะดวกเป็นไปอย่างเหมาะสม',
+      'วิทยากรและทีมงานตอบสนองต่อปัญหาและข้อซักถามได้รวดเร็ว',
+      'ทีมงานมีความเอาใจใส่ต่อผู้เข้าอบรมอย่างเหมาะสม',
+    ]
+  },
+  {
+    num: 2, title: 'การเตรียมความพร้อมในการอบรม', icon: 'ti-clipboard-check', color: '#0891b2',
+    qs: [
+      'มีการจัดเตรียมเอกสารประกอบการอบรมอย่างครบถ้วน',
+      'คู่มือและเอกสารประกอบการสอนเข้าใจง่าย',
+      'การจัดลำดับเนื้อหาและ Flow การสอนมีความชัดเจน',
+      'สื่อประกอบการสอน เช่น PowerPoint มีความเหมาะสมและเข้าใจง่าย',
+      'ระบบ/อุปกรณ์/โปรแกรมที่ใช้ในการอบรมมีความพร้อมใช้งาน',
+      'ตัวอย่างและ Workshop สอดคล้องกับการใช้งานจริง',
+      'ระยะเวลาในการอบรมมีความเหมาะสมกับเนื้อหา',
+    ]
+  },
+  {
+    num: 3, title: 'ทักษะและเทคนิคการสอน', icon: 'ti-presentation', color: '#7c3aed',
+    qs: [
+      'วิทยากรมีความรู้และความเข้าใจในระบบเป็นอย่างดี',
+      'การอธิบายเนื้อหามีความชัดเจน เข้าใจง่าย',
+      'การลำดับเนื้อหาการบรรยายมีความต่อเนื่องเหมาะสม',
+      'วิทยากรสามารถยกตัวอย่างประกอบได้เหมาะสม',
+      'เปิดโอกาสให้ผู้เรียนซักถามและมีส่วนร่วม',
+      'วิทยากรตอบคำถามได้ตรงประเด็นและเข้าใจง่าย',
+      'วิทยากรสามารถวิเคราะห์และเสนอแนวทางแก้ไขปัญหาได้ชัดเจน',
+      'มีการสรุปประเด็นสำคัญก่อนจบการอบรม',
+      'มีแบบฝึกหัดหรือ Workshop ให้ทดลองปฏิบัติจริง',
+      'มีทีมงานช่วยสนับสนุนระหว่างการอบรมอย่างเพียงพอ',
+    ]
+  },
+  {
+    num: 4, title: 'การมีส่วนร่วมของผู้เรียน', icon: 'ti-users', color: '#059669',
+    qs: [
+      'ผู้เรียนมีความพร้อมในการเข้ารับการอบรม',
+      'ผู้เรียนให้ความร่วมมือในการอบรมเป็นอย่างดี',
+      'ผู้เรียนมีส่วนร่วมในการซักถามและแลกเปลี่ยนความคิดเห็น',
+      'ผู้เรียนมีความตั้งใจและสนใจในเนื้อหาการอบรม',
+      'บรรยากาศในการอบรมเอื้อต่อการเรียนรู้',
+    ]
+  },
+  {
+    num: 5, title: 'ผลลัพธ์หลังการอบรม', icon: 'ti-award', color: '#d97706',
+    qs: [
+      'ผู้เรียนมีความเข้าใจในการใช้งานระบบมากขึ้น',
+      'ผู้เรียนสามารถใช้งานระบบได้ถูกต้องมากขึ้น',
+      'เนื้อหาการอบรมสามารถนำไปประยุกต์ใช้ในการปฏิบัติงานจริงได้',
+      'การอบรมช่วยลดปัญหาในการใช้งานระบบ',
+      'ผู้เรียนมีความมั่นใจในการใช้งานระบบหลังการอบรม',
+      'การอบรมตอบโจทย์การปฏิบัติงานของหน่วยงาน',
+      'ผู้เรียนมีความพร้อมในการใช้งานระบบจริง (Go-Live)',
+    ]
+  },
+  {
+    num: 6, title: 'ความพึงพอใจโดยรวม', icon: 'ti-star', color: '#e11d48',
+    qs: [
+      'ความพึงพอใจโดยรวมต่อการอบรม',
+      'ความเหมาะสมของเนื้อหาในการอบรม',
+      'ความเหมาะสมของระยะเวลาในการอบรม',
+      'ความพึงพอใจต่อวิทยากรและทีมงาน',
+      'ความพึงพอใจต่อระบบและ Workshop ที่ใช้ในการอบรม',
+    ]
+  },
+];
+const TOTAL_RATING_QS = SECTIONS.reduce((s, sec) => s + sec.qs.length, 0); // 40
+const TOTAL_QS = TOTAL_RATING_QS + 1; // +1 for 6.6 yes/no = 41
+
+/* ═══════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════ */
+let todaySessions = [];
+let categories    = [];
+let locations     = [];
+let selectedSessId = null;
+let ynValue        = null;
+let answers        = {};
+
+/* ═══════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════ */
+const _parseDate = d => {
+  if (!d) return new Date(NaN);
+  const [y, ...rest] = String(d).split('-');
+  const yr = parseInt(y);
+  return new Date([yr > 2500 ? yr - 543 : yr, ...rest].join('-'));
+};
+
+function isToday(dateStr) {
+  const d = _parseDate(dateStr);
+  const t = new Date();
+  return d.getFullYear() === t.getFullYear()
+      && d.getMonth()    === t.getMonth()
+      && d.getDate()     === t.getDate();
+}
+
+const fmtDate = d => {
+  if (!d) return '—';
+  return _parseDate(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+};
+
+let _toastTimer = null;
+function showToast(msg, type = 'info') {
+  const el = document.getElementById('sv-toast');
+  const icon = type === 'danger' ? 'alert-circle' : 'info-circle';
+  el.innerHTML = `<i class="ti ti-${icon}"></i>${msg}`;
+  el.className = `sv-toast ${type} show`;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3800);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.sv-screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('sticky-bar').classList.toggle('show', id === 'sc-form');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ═══════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════ */
+async function init() {
+  document.getElementById('date-badge').textContent = new Date().toLocaleDateString('th-TH', {
+    year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+  });
+
+  try {
+    const [cR, sR, lR] = await Promise.all([
+      _sb.from('categories').select('id,name').eq('site', currentSite).order('id'),
+      _sb.from('sessions').select('id,cat_id,name,date,time_start,time_end,venue,trainer').eq('site', currentSite).order('date,time_start'),
+      _sb.from('locations').select('*').order('id'),
+    ]);
+    if (cR.error || sR.error) throw new Error('db-error');
+
+    categories    = (cR.data || []);
+    locations     = (lR.data || []);
+    const allSess = (sR.data || []).map(r => ({
+      id: r.id, catId: r.cat_id, name: r.name, date: r.date,
+      timeStart: r.time_start, timeEnd: r.time_end,
+      venue: r.venue || '', trainer: r.trainer || ''
+    }));
+    todaySessions = allSess.filter(s => isToday(s.date));
+
+    const loc = locations.find(l => l.code === currentSite);
+    document.getElementById('site-badge').textContent = loc ? loc.name : currentSite;
+
+    populateCatSelect();
+    showScreen('sc-select');
+  } catch (e) {
+    document.getElementById('site-badge').textContent = currentSite;
+    populateCatSelect();
+    showScreen('sc-select');
+    showToast('โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ', 'danger');
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   SESSION SELECTION
+═══════════════════════════════════════════════ */
+function populateCatSelect() {
+  const catSel = document.getElementById('sel-cat');
+
+  if (todaySessions.length === 0) {
+    document.getElementById('no-sess-msg').style.display = 'block';
+    document.getElementById('sess-form').style.display   = 'none';
+    return;
+  }
+
+  const catIds   = [...new Set(todaySessions.map(s => s.catId))];
+  const todayCats = categories.filter(c => catIds.includes(c.id));
+
+  catSel.innerHTML = '<option value="">— กรุณาเลือกประเภทอบรม —</option>';
+  todayCats.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.name;
+    catSel.appendChild(o);
+  });
+
+  if (todayCats.length === 1) {
+    catSel.value = todayCats[0].id;
+    onCatChange();
+  }
+}
+
+function onCatChange() {
+  const catId   = parseInt(document.getElementById('sel-cat').value);
+  const sessSel = document.getElementById('sel-sess');
+  const btnStart = document.getElementById('btn-start');
+  document.getElementById('sess-info').classList.remove('show');
+  selectedSessId = null;
+  btnStart.disabled = true;
+
+  if (!catId) {
+    sessSel.innerHTML = '<option value="">— เลือกประเภทก่อน —</option>';
+    sessSel.disabled = true;
+    return;
+  }
+
+  const catSess = todaySessions.filter(s => s.catId === catId);
+  sessSel.innerHTML = '<option value="">— กรุณาเลือกรอบ —</option>';
+  catSess.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.id;
+    const trPart = s.trainer ? ` | ${s.trainer}` : '';
+    o.textContent = `${s.timeStart}–${s.timeEnd} น.${trPart} : ${s.name}`;
+    sessSel.appendChild(o);
+  });
+  sessSel.disabled = false;
+
+  if (catSess.length === 1) {
+    sessSel.value = catSess[0].id;
+    onSessChange();
+  }
+}
+
+function onSessChange() {
+  const sessId  = parseInt(document.getElementById('sel-sess').value);
+  const info    = document.getElementById('sess-info');
+  const btnStart = document.getElementById('btn-start');
+
+  if (!sessId) {
+    info.classList.remove('show');
+    selectedSessId = null;
+    btnStart.disabled = true;
+    return;
+  }
+
+  selectedSessId = sessId;
+  const s = todaySessions.find(x => x.id === sessId);
+  if (s) {
+    document.getElementById('info-trainer').textContent = s.trainer || '—';
+    document.getElementById('info-date').textContent    = fmtDate(s.date);
+    document.getElementById('info-time').textContent    = `${s.timeStart} – ${s.timeEnd} น.`;
+    document.getElementById('info-venue').textContent   = s.venue || '—';
+    info.classList.add('show');
+  }
+  btnStart.disabled = false;
+}
+
+/* ═══════════════════════════════════════════════
+   BUILD QUESTIONNAIRE
+═══════════════════════════════════════════════ */
+const RATE_LABELS = {5:'มากที่สุด', 4:'มาก', 3:'ปานกลาง', 2:'น้อย', 1:'น้อยที่สุด'};
+
+function buildForm() {
+  answers = {}; ynValue = null;
+  document.getElementById('yn-yes').className = 'sv-yn-btn';
+  document.getElementById('yn-no').className  = 'sv-yn-btn';
+  document.getElementById('sv-comments').value = '';
+
+  const wrap = document.getElementById('questions-wrap');
+  wrap.innerHTML = '';
+
+  SECTIONS.forEach(sec => {
+    // Section header strip
+    const hd = document.createElement('div');
+    hd.className = 'sv-section-hd';
+    hd.style.background = sec.color;
+    hd.innerHTML = `
+      <div class="sv-section-hd-num">${sec.num}</div>
+      <div style="flex:1;">
+        <div class="sv-section-hd-title"><i class="ti ${sec.icon}"></i>&ensp;${sec.title}</div>
+        <div class="sv-section-hd-count">${sec.qs.length} หัวข้อ</div>
+      </div>`;
+
+    // Card for questions (joins header strip — no top border-radius)
+    const card = document.createElement('div');
+    card.className = 'sv-card sv-section-card';
+    card.style.borderRadius = '0 0 var(--radius) var(--radius)';
+    card.style.borderTopColor = 'transparent';
+
+    sec.qs.forEach((qText, idx) => {
+      const qKey = `q${sec.num}_${idx + 1}`;
+      answers[qKey] = 5; // pre-select 5 for every question
+
+      const row = document.createElement('div');
+      row.className = 'sv-q-row';
+      row.id = `row-${qKey}`;
+      row.innerHTML = `
+        <div class="sv-q-top">
+          <div class="sv-q-num">${sec.num}.${idx + 1}</div>
+          <div class="sv-q-text">${qText}</div>
+        </div>
+        <div class="sv-rating-group" id="rating-${qKey}">
+          ${[5,4,3,2,1].map(v =>
+            `<button class="sv-rate-btn sv-rate-${v}${v === 5 ? ' selected' : ''}"
+              onclick="setRating('${qKey}',${v},this)">
+              <span class="sv-rate-num">${v}</span>
+              <span class="sv-rate-label">${RATE_LABELS[v]}</span>
+            </button>`
+          ).join('')}
+        </div>`;
+      card.appendChild(row);
+    });
+
+    wrap.appendChild(hd);
+    wrap.appendChild(card);
+  });
+
+  // Initialize progress — all 40 rating questions pre-selected at 5
+  updateProgress();
+}
+
+function setRating(key, value, btn) {
+  answers[key] = value;
+  document.querySelectorAll(`#rating-${key} .sv-rate-btn`).forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById(`row-${key}`).classList.remove('error');
+  updateProgress();
+}
+
+function setYN(val) {
+  ynValue = val;
+  document.getElementById('yn-yes').className = `sv-yn-btn${val === true  ? ' yes-sel' : ''}`;
+  document.getElementById('yn-no').className  = `sv-yn-btn${val === false ? ' no-sel'  : ''}`;
+  updateProgress();
+}
+
+function updateProgress() {
+  const answered = Object.keys(answers).length + (ynValue !== null ? 1 : 0);
+  const pct = Math.round((answered / TOTAL_QS) * 100);
+  document.getElementById('prog-bar').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = `ตอบแล้ว ${answered} / ${TOTAL_QS} ข้อ`;
+}
+
+/* ═══════════════════════════════════════════════
+   START SURVEY
+═══════════════════════════════════════════════ */
+function startSurvey() {
+  if (!selectedSessId) return;
+  const sess = todaySessions.find(s => s.id === selectedSessId);
+  const cat  = categories.find(c => c.id === sess?.catId);
+
+  document.getElementById('form-sess-name').textContent =
+    (cat ? `${cat.name} — ` : '') + (sess?.name || '—');
+  document.getElementById('form-sess-sub').textContent =
+    [sess?.trainer ? `วิทยากร: ${sess.trainer}` : '', `${sess?.timeStart}–${sess?.timeEnd} น.`, sess?.venue].filter(Boolean).join('  |  ');
+
+  buildForm();
+  showScreen('sc-form');
+}
+
+/* ═══════════════════════════════════════════════
+   SUBMIT
+═══════════════════════════════════════════════ */
+async function submitSurvey() {
+  // Validate all rating questions
+  const missing = [];
+  SECTIONS.forEach(sec => {
+    sec.qs.forEach((_, idx) => {
+      const key = `q${sec.num}_${idx + 1}`;
+      if (!answers[key]) missing.push(key);
+    });
+  });
+
+  if (missing.length > 0) {
+    missing.forEach(key => {
+      const row = document.getElementById(`row-${key}`);
+      if (row) { row.classList.add('error'); setTimeout(() => row.classList.remove('error'), 1500); }
+    });
+    document.getElementById(`row-${missing[0]}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showToast(`กรุณาตอบให้ครบทุกข้อ (ยังขาดอีก ${missing.length} ข้อ)`, 'danger');
+    return;
+  }
+
+  if (ynValue === null) {
+    document.getElementById('yn-row').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showToast('กรุณาตอบข้อ 6.6 ด้วย', 'danger');
+    return;
+  }
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite;"></i>กำลังบันทึก...';
+
+  const payload = {
+    site: currentSite,
+    session_id: selectedSessId,
+    ...answers,
+    q6_6: ynValue,
+    comments: document.getElementById('sv-comments').value.trim() || null,
+  };
+
+  try {
+    const { error } = await _sb.from('survey_responses').insert(payload);
+    if (error) throw error;
+    showSuccessScreen();
+  } catch (e) {
+    console.error(e);
+    showToast('บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 'danger');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-send"></i>ส่งแบบประเมิน';
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   SUCCESS SCREEN
+═══════════════════════════════════════════════ */
+function showSuccessScreen() {
+  const vals = Object.values(answers);
+  const overall = vals.reduce((a, b) => a + b, 0) / vals.length;
+
+  const starCount = Math.round(overall);
+  const stars = '★'.repeat(starCount) + '☆'.repeat(5 - starCount);
+
+  const overallColor = overall >= 4.5 ? '#22c55e' : overall >= 3.5 ? '#84cc16' : overall >= 2.5 ? '#eab308' : '#ef4444';
+
+  document.getElementById('score-overall').innerHTML = `
+    <div style="font-size:13px;opacity:.8;margin-bottom:8px;">คะแนนเฉลี่ยรวมทุกด้าน</div>
+    <div class="sv-score-overall-num" style="color:${overallColor};">${overall.toFixed(2)}</div>
+    <div class="sv-score-stars" style="color:${overallColor};">${stars}</div>
+    <div class="sv-score-overall-label">เต็ม 5.00</div>`;
+
+  const secScores = SECTIONS.map(sec => {
+    const secVals = sec.qs.map((_, i) => answers[`q${sec.num}_${i + 1}`] || 0);
+    const avg = secVals.reduce((a, b) => a + b, 0) / secVals.length;
+    return { title: sec.title, avg, color: sec.color };
+  });
+
+  document.getElementById('score-grid').innerHTML = secScores.map(s => `
+    <div class="sv-score-item">
+      <div class="sv-score-num" style="color:${s.color};">${s.avg.toFixed(2)}</div>
+      <div class="sv-score-lbl">${s.title.length > 14 ? s.title.slice(0, 13) + '…' : s.title}</div>
+    </div>`).join('');
+
+  showScreen('sc-success');
+}
+
+/* ═══════════════════════════════════════════════
+   RESET
+═══════════════════════════════════════════════ */
+function resetSurvey() {
+  selectedSessId = null; ynValue = null; answers = {};
+  document.getElementById('sel-cat').value  = '';
+  document.getElementById('sel-sess').value = '';
+  document.getElementById('sel-sess').disabled = true;
+  document.getElementById('sess-info').classList.remove('show');
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-submit').disabled = false;
+  document.getElementById('btn-submit').innerHTML = '<i class="ti ti-send"></i>ส่งแบบประเมิน';
+  showScreen('sc-select');
+}
+
+/* ═══════════════════════════════════════════════
+   BOOT
+═══════════════════════════════════════════════ */
+init();
+</script>
+</body>
+</html>

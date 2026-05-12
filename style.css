@@ -35,6 +35,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes spin{to{transform:rotate(360deg)}}
 .nav-site-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(56,189,248,.15);color:#38BDF8;border:1px solid rgba(56,189,248,.25);letter-spacing:.3px;margin-left:2px}
+.rt-dot{width:8px;height:8px;border-radius:50%;background:#6b7280;display:inline-block;flex-shrink:0;transition:background .4s,box-shadow .4s;cursor:help}
+.rt-dot.live{background:#34d399;box-shadow:0 0 0 0 rgba(52,211,153,.5);animation:rtPing 2.5s ease-out infinite}
+.rt-dot.error{background:#f87171;animation:none}
+.rt-dot.connecting{background:#fbbf24;animation:rtBlink 1s ease-in-out infinite}
+@keyframes rtPing{0%{box-shadow:0 0 0 0 rgba(52,211,153,.5)}70%{box-shadow:0 0 0 6px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+@keyframes rtBlink{0%,100%{opacity:1}50%{opacity:.35}}
+.nav-version{font-size:10px;font-weight:500;color:rgba(255,255,255,.28);letter-spacing:.5px;font-family:var(--font);white-space:nowrap;margin-right:14px}
 .nav-tabs{display:flex;gap:2px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:4px}
 .nav-tab{padding:6px 14px;border:none;background:transparent;color:rgba(255,255,255,.55);font-family:var(--font);font-size:13px;font-weight:500;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .18s;white-space:nowrap}
 .nav-tab i{font-size:15px}
@@ -370,6 +377,7 @@ tr:hover td{background:#f8fafc}
 /* ── Mobile (≤ 640px) ─────────────────────────── */
 @media(max-width:640px){
   .nav{padding:0 14px;height:56px}
+  .nav-version{display:none}
   .nav-tab{padding:5px 10px;font-size:12px}
   .nav-tab span{display:none}
   .step-bar{padding:12px 16px;margin-bottom:16px}
