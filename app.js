@@ -1243,31 +1243,51 @@ async function saveSurveyImage(){
       <!-- Attendance card -->
       <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);">
         <div style="${F}background:linear-gradient(90deg,#0369a1,#0ea5e9);color:#fff;padding:11px 15px;font-size:13px;font-weight:700;">สถิติการเข้าร่วมอบรม</div>
-        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:9px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;">
-            <span style="${F}font-size:12px;color:#64748b;">ลงทะเบียนล่วงหน้า</span>
-            <span style="${F}font-size:19px;font-weight:800;color:#0369a1;">${preRegRegs.length}<span style="font-size:11px;font-weight:500;color:#94a3b8;"> คน</span></span>
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
+
+          <!-- ลงทะเบียนทั้งหมด -->
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+              <span style="${F}font-size:12px;font-weight:700;color:#0f172a;">ลงทะเบียนทั้งหมด</span>
+              <span style="${F}font-size:20px;font-weight:800;color:#0369a1;">${totalReg}<span style="font-size:11px;font-weight:500;color:#94a3b8;"> คน</span></span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;padding-left:10px;border-left:3px solid #e0f2fe;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="${F}font-size:11px;color:#475569;">📋 ลงทะเบียนล่วงหน้า</span>
+                <span style="${F}font-size:13px;font-weight:700;color:#0369a1;">${preRegRegs.length} คน</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="${F}font-size:11px;color:#6d28d9;">🚶 Walk-in</span>
+                <span style="${F}font-size:13px;font-weight:700;color:#6d28d9;">${walkinCount} คน</span>
+              </div>
+            </div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;background:#dcfce7;border-radius:8px;padding:7px 10px;">
-            <span style="${F}font-size:12px;color:#15803d;font-weight:600;">✅ เข้าอบรม</span>
-            <span style="${F}font-size:19px;font-weight:800;color:#15803d;">${attendedReg}<span style="font-size:11px;font-weight:500;"> คน</span></span>
+
+          <div style="height:1px;background:#e2e8f0;"></div>
+
+          <!-- เข้าอบรมทั้งหมด -->
+          <div style="background:#dcfce7;border-radius:9px;padding:9px 12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+              <span style="${F}font-size:12px;font-weight:700;color:#15803d;">✅ เข้าอบรมทั้งหมด</span>
+              <span style="${F}font-size:20px;font-weight:800;color:#15803d;">${attendedReg}<span style="font-size:11px;font-weight:500;"> คน</span></span>
+            </div>
+            <div style="${F}font-size:10px;color:#16a34a;opacity:.8;">(Walk-in + ลงทะเบียนล่วงหน้าที่เช็คชื่อแล้ว)</div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;background:#fee2e2;border-radius:8px;padding:7px 10px;">
-            <span style="${F}font-size:12px;color:#b91c1c;font-weight:600;">❌ ไม่เข้าอบรม</span>
-            <span style="${F}font-size:19px;font-weight:800;color:#b91c1c;">${absentReg}<span style="font-size:11px;font-weight:500;"> คน</span></span>
+
+          <!-- ไม่เข้าอบรม -->
+          <div style="background:#fee2e2;border-radius:9px;padding:9px 12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span style="${F}font-size:12px;font-weight:700;color:#b91c1c;">❌ ไม่เข้าอบรม</span>
+              <span style="${F}font-size:20px;font-weight:800;color:#b91c1c;">${absentReg}<span style="font-size:11px;font-weight:500;"> คน</span></span>
+            </div>
           </div>
-          ${walkinCount?`<div style="display:flex;align-items:center;justify-content:space-between;background:#ede9fe;border-radius:8px;padding:7px 10px;">
-            <span style="font-family:'Sarabun','Anuphan',Arial,sans-serif;font-size:12px;color:#6d28d9;font-weight:600;">🚶 Walk-in</span>
-            <span style="font-family:'Sarabun','Anuphan',Arial,sans-serif;font-size:19px;font-weight:800;color:#6d28d9;">${walkinCount}<span style="font-size:11px;font-weight:500;"> คน</span></span>
-          </div>`:''}
-          <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #e2e8f0;padding-top:8px;margin-top:2px;">
-            <span style="${F}font-size:12px;color:#64748b;">รวมเข้าอบรมทั้งหมด</span>
-            <span style="${F}font-size:19px;font-weight:800;color:#0369a1;">${totalReg}<span style="font-size:11px;font-weight:500;color:#94a3b8;"> คน</span></span>
-          </div>
+
+          <!-- Progress bar -->
           ${totalReg>0?`<div>
             <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:4px;font-family:'Sarabun','Anuphan',Arial,sans-serif;"><span>อัตราเข้าร่วม</span><span style="font-weight:700;color:#0369a1;">${attPct}%</span></div>
             <div style="height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden;"><div style="height:100%;width:${attPct}%;background:linear-gradient(90deg,#0369a1,#0ea5e9);border-radius:4px;"></div></div>
           </div>`:''}
+
         </div>
       </div>
 
