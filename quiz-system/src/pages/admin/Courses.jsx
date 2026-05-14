@@ -107,7 +107,7 @@ export default function Courses() {
       }
       await setCourseCategories(courseId, categoryIds.map(Number));
       closeModal(); load();
-    } catch { toast.error('บันทึกไม่สำเร็จ'); }
+    } catch (e) { toast.error('บันทึกไม่สำเร็จ: ' + (e?.message || e)); }
     finally   { setSaving(false); }
   }
 

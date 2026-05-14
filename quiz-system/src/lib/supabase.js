@@ -297,11 +297,14 @@ export async function getCourseCategoryIds(courseId) {
 
 // ─── Replace all category links for a course ──────────────
 export async function setCourseCategories(courseId, categoryIds) {
-  await supabase.from('course_categories').delete().eq('course_id', courseId);
+  const { error: delErr } = await supabase
+    .from('course_categories').delete().eq('course_id', courseId);
+  if (delErr) throw delErr;
   if (categoryIds.length) {
-    await supabase.from('course_categories').insert(
-      categoryIds.map(catId => ({ course_id: courseId, category_id: Number(catId) }))
-    );
+    const { error: insErr } = await supabase
+      .from('course_categories')
+      .insert(categoryIds.map(catId => ({ course_id: courseId, category_id: Number(catId) })));
+    if (insErr) throw insErr;
   }
 }
 
