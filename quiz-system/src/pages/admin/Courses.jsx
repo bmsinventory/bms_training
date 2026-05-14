@@ -96,6 +96,7 @@ export default function Courses() {
   const [modal, setModal]               = useState(null);
   const [form, setForm]                 = useState(EMPTY);
   const [saving, setSaving]             = useState(false);
+  const [blockInfo, setBlockInfo]       = useState(null); // { course, count }
 
   async function load() {
     setLoading(true);
@@ -180,21 +181,19 @@ export default function Courses() {
   }
 
   async function handleDelete(c) {
-    // check if any attempts reference this course
-    const { count } = await supabase
-      .from('quiz_attempts')
-      .select('id', { count: 'exact', head: true })
-      .eq('course_id', c.id);
-    if (count > 0) {
-      toast.error(`ไม่สามารถลบได้ มีประวัติการสอบ ${count} รายการ กรุณาปิดใช้งานแทน`);
-      return;
-    }
     if (!confirm(`ลบหลักสูตร "${c.name}" จะลบข้อสอบทั้งหมดด้วย ยืนยัน?`)) return;
     try {
-      // remove category links first
       await supabase.from('course_categories').delete().eq('course_id', c.id);
       const { error } = await supabase.from('courses').delete().eq('id', c.id);
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23503') {
+          // FK violation — has quiz_attempts referencing this course
+          const { data } = await supabase.from('quiz_attempts').select('id').eq('course_id', c.id).limit(200);
+          setBlockInfo({ course: c, count: data?.length ?? '?' });
+          return;
+        }
+        throw error;
+      }
       toast.success('ลบสำเร็จ'); load();
     } catch (e) {
       toast.error('ลบไม่สำเร็จ: ' + (e?.message || e));
@@ -309,6 +308,41 @@ export default function Courses() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Block-delete popup */}
+      {blockInfo && (
+        <div style={s.overlay}>
+          <div style={{ background:'#fff', borderRadius:16, boxShadow:'0 20px 60px rgba(0,0,0,.2)',
+                        width:'100%', maxWidth:400, overflow:'hidden' }}>
+            <div style={{ background:'linear-gradient(135deg,#7f1d1d,#dc2626)', padding:'16px 22px', color:'#fff' }}>
+              <div style={{ fontWeight:700, fontSize:15 }}>⚠️ ไม่สามารถลบหลักสูตรได้</div>
+            </div>
+            <div style={{ padding:'20px 22px' }}>
+              <p style={{ fontWeight:600, color:'#0f172a', marginBottom:8 }}>{blockInfo.course.name}</p>
+              <p style={{ fontSize:13, color:'#475569', lineHeight:1.7, marginBottom:16 }}>
+                มีประวัติการสอบ <strong style={{ color:'#dc2626' }}>{blockInfo.count} รายการ</strong> ที่อ้างอิงหลักสูตรนี้อยู่<br/>
+                ไม่สามารถลบได้ กรุณา <strong>ปิดใช้งาน</strong> แทน
+              </p>
+              <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
+                <button onClick={() => setBlockInfo(null)}
+                  style={{ background:'transparent', color:'#64748b', border:'1px solid #e2e8f0',
+                           borderRadius:8, padding:'7px 18px', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+                  ปิด
+                </button>
+                <button
+                  onClick={async () => {
+                    await supabase.from('courses').update({ is_active: false }).eq('id', blockInfo.course.id);
+                    setBlockInfo(null); load(); toast.success('ปิดใช้งานแล้ว');
+                  }}
+                  style={{ background:'#dc2626', color:'#fff', border:'none',
+                           borderRadius:8, padding:'7px 18px', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+                  🔴 ปิดใช้งานแทน
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
