@@ -92,9 +92,6 @@ function AttemptCard({ attempt }) {
         {isPassed && (
           <Link to={`/certificate/${attempt.id}`} style={s.btnGreen}>🏆 ดูใบรับรอง</Link>
         )}
-        {certId && (
-          <Link to={`/verify/${certId}`} style={s.btnBlue}>🛡️ ตรวจสอบ</Link>
-        )}
         <Link to="/resend" style={s.btnGhost}>📧 ส่งใหม่</Link>
       </div>
     </div>

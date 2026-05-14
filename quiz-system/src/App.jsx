@@ -8,7 +8,6 @@ import Register    from './pages/Register';
 import Quiz        from './pages/Quiz';
 import Result      from './pages/Result';
 import Certificate from './pages/Certificate';
-import Verify      from './pages/Verify';
 import ResendCert  from './pages/ResendCert';
 import History     from './pages/History';
 
@@ -32,8 +31,6 @@ export default function App() {
             <Route path="/quiz/:attemptId"  element={<Quiz />} />
             <Route path="/result/:attemptId" element={<Result />} />
             <Route path="/certificate/:attemptId" element={<Certificate />} />
-            <Route path="/verify"           element={<Verify />} />
-            <Route path="/verify/:certId"   element={<Verify />} />
             <Route path="/resend"           element={<ResendCert />} />
             <Route path="/history"          element={<History />} />
 

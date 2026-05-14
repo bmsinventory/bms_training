@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { InlineLoader } from '../components/Loading';
 import {
@@ -71,6 +71,17 @@ const s = {
   footer:   { borderTop:'1px solid #e2e8f0', background:'#fff', marginTop:8 },
   ftrInner: { maxWidth:1024, margin:'0 auto', padding:'28px 16px',
               display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))', gap:12 },
+  filterBar:{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:20 },
+  filterBtn:(active) => ({
+    padding:'7px 18px', borderRadius:20, cursor:'pointer',
+    fontFamily:"'Anuphan','Sarabun',sans-serif", fontSize:13, fontWeight:600,
+    background: active ? '#2563eb' : '#fff',
+    color:      active ? '#fff'    : '#475569',
+    boxShadow:  active ? 'none'    : '0 1px 3px rgba(0,0,0,.08)',
+    border:     active ? 'none'    : '1px solid #e2e8f0',
+    transition: 'all .15s',
+  }),
+
   ftrBtn:   { display:'flex', flexDirection:'column', alignItems:'center', gap:4,
               padding:'16px', borderRadius:12, cursor:'pointer', border:'none',
               background:'transparent', fontFamily:"'Anuphan','Sarabun',sans-serif' ",
@@ -176,7 +187,11 @@ export default function Home() {
   const [courseMap, setCourseMap]   = useState({});
   const [standaloneQuiz, setStandalone] = useState([]);
   const [loading, setLoading]       = useState(true);
-  const navigate = useNavigate();
+  const [locGroups, setLocGroups]   = useState({});
+  const [locOrder, setLocOrder]     = useState([]);
+  const navigate       = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeSite = searchParams.get('site') || '';
 
   useEffect(() => {
     async function load() {
@@ -194,9 +209,19 @@ export default function Home() {
             standalone.push(c);
           }
         }
+        // Build location groups once
+        const groups = {};
+        const order  = [];
+        cats.forEach(cat => {
+          const key = cat.location?.code || '__none__';
+          if (!groups[key]) { groups[key] = { loc: cat.location, cats: [] }; order.push(key); }
+          groups[key].cats.push(cat);
+        });
         setCategories(cats);
         setCourseMap(map);
         setStandalone(standalone);
+        setLocGroups(groups);
+        setLocOrder(order);
       } catch (err) {
         console.error(err);
       } finally {
@@ -225,21 +250,35 @@ export default function Home() {
             <InlineLoader text="กำลังโหลดหลักสูตร..." />
           ) : (
             <>
+              {/* Location filter tabs — show only when multiple locations */}
+              {locOrder.length > 1 && (
+                <div style={s.filterBar}>
+                  <button style={s.filterBtn(!activeSite)} onClick={() => setSearchParams({})}>
+                    🌐 ทั้งหมด
+                  </button>
+                  {locOrder.map(key => {
+                    const { loc } = locGroups[key];
+                    if (!loc) return null;
+                    return (
+                      <button
+                        key={key}
+                        style={s.filterBtn(activeSite === loc.code)}
+                        onClick={() => setSearchParams({ site: loc.code })}
+                      >
+                        🏫 {loc.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* Training categories — grouped by location (สาขา) */}
               {categories.length > 0 && (() => {
-                // build location groups
-                const locGroups = {};
-                const locOrder  = [];
-                categories.forEach(cat => {
-                  const key = cat.location?.code || '__none__';
-                  if (!locGroups[key]) {
-                    locGroups[key] = { loc: cat.location, cats: [] };
-                    locOrder.push(key);
-                  }
-                  locGroups[key].cats.push(cat);
-                });
                 const multiLoc = locOrder.length > 1;
-                return locOrder.map(key => {
+                const visibleKeys = activeSite
+                  ? locOrder.filter(k => locGroups[k]?.loc?.code === activeSite)
+                  : locOrder;
+                return visibleKeys.map((key, idx) => {
                   const { loc, cats } = locGroups[key];
                   return (
                     <div key={key} style={s.section}>
@@ -251,7 +290,7 @@ export default function Home() {
                             : 'หลักสูตรอบรม'
                           }
                         </div>
-                        {trainingUrl !== '#' && key === locOrder[0] && (
+                        {trainingUrl !== '#' && idx === 0 && (
                           <a href={trainingUrl} style={s.secLink}>← กลับระบบลงทะเบียน</a>
                         )}
                       </div>
@@ -304,7 +343,6 @@ export default function Home() {
           {[
             { icon:'🔍', label:'ค้นหาผลสอบ',       desc:'ค้นหาจากชื่อหรืออีเมล', to:'/history' },
             { icon:'📄', label:'ขอส่งใบรับรองใหม่', desc:'แก้ไขอีเมลและส่งซ้ำ',   to:'/resend'  },
-            { icon:'🛡️', label:'ตรวจสอบใบรับรอง',  desc:'ตรวจสอบ Cert ID / QR',   to:'/verify'  },
           ].map(item => (
             <button
               key={item.to}
