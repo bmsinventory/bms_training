@@ -79,6 +79,61 @@ create table if not exists login_verify (
   unique(fname, lname, dept, site)
 );
 
+create table if not exists survey_responses (
+  id           bigserial primary key,
+  site         text    not null,
+  session_id   bigint  references sessions(id) on delete set null,
+  submitted_at timestamptz default now(),
+  -- ด้านที่ 1: พฤติกรรมบริการ (6 ข้อ)
+  q1_1 smallint check (q1_1 between 1 and 5),
+  q1_2 smallint check (q1_2 between 1 and 5),
+  q1_3 smallint check (q1_3 between 1 and 5),
+  q1_4 smallint check (q1_4 between 1 and 5),
+  q1_5 smallint check (q1_5 between 1 and 5),
+  q1_6 smallint check (q1_6 between 1 and 5),
+  -- ด้านที่ 2: การเตรียมความพร้อม (7 ข้อ)
+  q2_1 smallint check (q2_1 between 1 and 5),
+  q2_2 smallint check (q2_2 between 1 and 5),
+  q2_3 smallint check (q2_3 between 1 and 5),
+  q2_4 smallint check (q2_4 between 1 and 5),
+  q2_5 smallint check (q2_5 between 1 and 5),
+  q2_6 smallint check (q2_6 between 1 and 5),
+  q2_7 smallint check (q2_7 between 1 and 5),
+  -- ด้านที่ 3: ทักษะการสอน (10 ข้อ)
+  q3_1  smallint check (q3_1  between 1 and 5),
+  q3_2  smallint check (q3_2  between 1 and 5),
+  q3_3  smallint check (q3_3  between 1 and 5),
+  q3_4  smallint check (q3_4  between 1 and 5),
+  q3_5  smallint check (q3_5  between 1 and 5),
+  q3_6  smallint check (q3_6  between 1 and 5),
+  q3_7  smallint check (q3_7  between 1 and 5),
+  q3_8  smallint check (q3_8  between 1 and 5),
+  q3_9  smallint check (q3_9  between 1 and 5),
+  q3_10 smallint check (q3_10 between 1 and 5),
+  -- ด้านที่ 4: การมีส่วนร่วม (5 ข้อ)
+  q4_1 smallint check (q4_1 between 1 and 5),
+  q4_2 smallint check (q4_2 between 1 and 5),
+  q4_3 smallint check (q4_3 between 1 and 5),
+  q4_4 smallint check (q4_4 between 1 and 5),
+  q4_5 smallint check (q4_5 between 1 and 5),
+  -- ด้านที่ 5: ผลลัพธ์หลังอบรม (7 ข้อ)
+  q5_1 smallint check (q5_1 between 1 and 5),
+  q5_2 smallint check (q5_2 between 1 and 5),
+  q5_3 smallint check (q5_3 between 1 and 5),
+  q5_4 smallint check (q5_4 between 1 and 5),
+  q5_5 smallint check (q5_5 between 1 and 5),
+  q5_6 smallint check (q5_6 between 1 and 5),
+  q5_7 smallint check (q5_7 between 1 and 5),
+  -- ด้านที่ 6: ความพึงพอใจโดยรวม (5 ข้อ + 1 yes/no)
+  q6_1 smallint check (q6_1 between 1 and 5),
+  q6_2 smallint check (q6_2 between 1 and 5),
+  q6_3 smallint check (q6_3 between 1 and 5),
+  q6_4 smallint check (q6_4 between 1 and 5),
+  q6_5 smallint check (q6_5 between 1 and 5),
+  q6_6 boolean,   -- ต้องการอบรมเพิ่มเติม?
+  comments text
+);
+
 -- 2) ADD MISSING COLUMNS (safe to run on existing DB)
 alter table categories   add column if not exists site       text not null default 'theme_1';
 alter table categories   add column if not exists banner_url text;
@@ -101,13 +156,14 @@ create policy "banner anon update"  on storage.objects for update using (bucket_
 create policy "banner anon delete"  on storage.objects for delete using (bucket_id='category-banners');
 
 -- 3) ROW LEVEL SECURITY (allow anon key full access – app handles auth)
-alter table locations     enable row level security;
-alter table categories    enable row level security;
-alter table sessions      enable row level security;
-alter table registrations enable row level security;
-alter table master_items  enable row level security;
-alter table admin_users   enable row level security;
-alter table login_verify  enable row level security;
+alter table locations         enable row level security;
+alter table categories        enable row level security;
+alter table sessions          enable row level security;
+alter table registrations     enable row level security;
+alter table master_items      enable row level security;
+alter table admin_users       enable row level security;
+alter table login_verify      enable row level security;
+alter table survey_responses  enable row level security;
 
 drop policy if exists "public_all" on locations;
 drop policy if exists "public_all" on categories;
@@ -116,14 +172,18 @@ drop policy if exists "public_all" on registrations;
 drop policy if exists "public_all" on master_items;
 drop policy if exists "public_all" on admin_users;
 drop policy if exists "public_all" on login_verify;
+drop policy if exists "public_all" on survey_responses;
+drop policy if exists "allow_insert" on survey_responses;
+drop policy if exists "allow_select" on survey_responses;
 
-create policy "public_all" on locations     for all using (true) with check (true);
-create policy "public_all" on categories    for all using (true) with check (true);
-create policy "public_all" on sessions      for all using (true) with check (true);
-create policy "public_all" on registrations for all using (true) with check (true);
-create policy "public_all" on master_items  for all using (true) with check (true);
-create policy "public_all" on admin_users   for all using (true) with check (true);
-create policy "public_all" on login_verify  for all using (true) with check (true);
+create policy "public_all" on locations         for all using (true) with check (true);
+create policy "public_all" on categories        for all using (true) with check (true);
+create policy "public_all" on sessions          for all using (true) with check (true);
+create policy "public_all" on registrations     for all using (true) with check (true);
+create policy "public_all" on master_items      for all using (true) with check (true);
+create policy "public_all" on admin_users       for all using (true) with check (true);
+create policy "public_all" on login_verify      for all using (true) with check (true);
+create policy "public_all" on survey_responses  for all using (true) with check (true);
 
 -- 4) SEED DATA (ข้อมูลตั้งต้น)
 insert into master_items (type, value, sort_order, site) values
@@ -152,7 +212,7 @@ on conflict do nothing;
 -- เปิดการใช้งาน Realtime เพื่อให้ระบบอัปเดตหน้าจออัตโนมัติเมื่อมีคนอื่นบันทึกข้อมูลพร้อมกัน
 DO $$
 BEGIN
-  ALTER PUBLICATION supabase_realtime ADD TABLE locations, categories, sessions, registrations, master_items, admin_users, login_verify;
+  ALTER PUBLICATION supabase_realtime ADD TABLE locations, categories, sessions, registrations, master_items, admin_users, login_verify, survey_responses;
 EXCEPTION WHEN duplicate_object THEN
   -- หากตารางถูกเพิ่มไว้แล้ว จะข้ามไปไม่แจ้ง Error
   NULL;

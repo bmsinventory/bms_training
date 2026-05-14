@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="style.css?v=7">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 </head>
 <body>
@@ -313,6 +314,8 @@
     <button class="admin-tab" onclick="switchAdminTab('locations')"><i class="ti ti-map-pin"></i> สาขา</button>
     <button class="admin-tab" onclick="switchAdminTab('users')"><i class="ti ti-users-group"></i> ผู้ใช้งาน</button>
     <button class="admin-tab" onclick="switchAdminTab('loginverify')"><i class="ti ti-shield-check"></i> ตรวจสอบสิทธิ์</button>
+    <button class="admin-tab" onclick="switchAdminTab('survey')"><i class="ti ti-chart-radar"></i> ผลประเมิน</button>
+    <button class="admin-tab" onclick="switchAdminTab('quiz')"><i class="ti ti-pencil-check"></i> แบบทดสอบ</button>
   </div>
 
   <!-- Sessions -->
@@ -336,7 +339,7 @@
         <div class="card-title"><i class="ti ti-category"></i>จัดการประเภทอบรม</div>
         <button class="btn btn-primary btn-sm" onclick="openAddCat()"><i class="ti ti-plus"></i>เพิ่มประเภท</button>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>ประเภท</th><th>คำอธิบาย</th><th>รอบ</th><th>ผู้ลงทะเบียน</th><th>จัดการ</th></tr></thead><tbody id="admin-cat-tbody"></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>ประเภท</th><th>คำอธิบาย</th><th>รอบ</th><th>ผู้ลงทะเบียน</th><th>แบบทดสอบ</th><th>จัดการ</th></tr></thead><tbody id="admin-cat-tbody"></tbody></table></div>
     </div>
   </div>
 
@@ -460,6 +463,151 @@
     </div>
   </div>
 
+  <!-- ═══ Survey Dashboard ═══ -->
+  <div class="admin-section" id="asec-survey">
+
+    <!-- Filter bar -->
+    <div class="card" style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div class="card-title" style="margin-bottom:0;"><i class="ti ti-chart-radar" style="color:#7c3aed;"></i>Dashboard ผลการประเมินความพึงพอใจ</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost btn-sm" onclick="loadSurveyDashboard()" style="gap:5px;"><i class="ti ti-refresh"></i>รีเฟรช</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportSurveyExcel()" style="gap:5px;"><i class="ti ti-file-spreadsheet"></i>Export Excel</button>
+          <button class="btn btn-sm" onclick="saveSurveyImage()" style="background:#7c3aed;color:#fff;gap:5px;border:none;"><i class="ti ti-photo-down"></i>บันทึกเป็นภาพ</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+        <div class="form-group" style="margin:0;min-width:150px;flex:1;">
+          <label class="form-label"><i class="ti ti-map-pin" style="margin-right:3px;"></i>สาขา</label>
+          <select class="form-control" id="svd-site" onchange="onSvdSiteChange()"></select>
+        </div>
+        <div class="form-group" style="margin:0;min-width:200px;flex:2;">
+          <label class="form-label"><i class="ti ti-calendar" style="margin-right:3px;"></i>รอบอบรม</label>
+          <select class="form-control" id="svd-sess" onchange="renderSurveyCharts()"><option value="">ทุกรอบ</option></select>
+        </div>
+        <div class="form-group" style="margin:0;min-width:130px;">
+          <label class="form-label"><i class="ti ti-clock" style="margin-right:3px;"></i>ช่วงเวลา</label>
+          <select class="form-control" id="svd-period" onchange="renderSurveyCharts()">
+            <option value="all">ทั้งหมด</option>
+            <option value="90">90 วันล่าสุด</option>
+            <option value="30">30 วันล่าสุด</option>
+            <option value="7">7 วันล่าสุด</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="svd-loading" style="display:none;text-align:center;padding:48px;color:var(--text-muted);">
+      <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:#7c3aed;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px;"></div>
+      กำลังโหลดข้อมูลการประเมิน...
+    </div>
+
+    <!-- Empty -->
+    <div id="svd-empty" style="display:none;" class="card">
+      <div class="empty" style="padding:48px;">
+        <i class="ti ti-clipboard-off" style="font-size:48px;display:block;margin-bottom:12px;opacity:.3;color:#7c3aed;"></i>
+        <p>ยังไม่มีข้อมูลการประเมิน<br><span style="font-size:12px;">สำหรับสาขาและตัวกรองที่เลือก</span></p>
+      </div>
+    </div>
+
+    <!-- Dashboard content -->
+    <div id="svd-content" style="display:none;">
+
+      <!-- KPI Row -->
+      <div id="svd-kpi" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;"></div>
+
+      <!-- Gauge + Section bars -->
+      <div style="display:grid;grid-template-columns:minmax(220px,1fr) 2fr;gap:14px;margin-bottom:14px;">
+        <div class="card" style="padding:16px;">
+          <div class="card-title" style="margin-bottom:12px;font-size:13px;"><i class="ti ti-chart-radar" style="color:#7c3aed;"></i>ภาพรวม 6 ด้าน</div>
+          <div style="position:relative;height:230px;"><canvas id="svd-chart-radar"></canvas></div>
+        </div>
+        <div class="card" style="padding:16px;">
+          <div class="card-title" style="margin-bottom:14px;font-size:13px;"><i class="ti ti-list-check"></i>คะแนนเฉลี่ยแต่ละด้าน (เต็ม 5.00)</div>
+          <div id="svd-section-bars"></div>
+        </div>
+      </div>
+
+      <!-- Distribution + Q6.6 -->
+      <div style="display:grid;grid-template-columns:2fr minmax(200px,1fr);gap:14px;margin-bottom:14px;">
+        <div class="card" style="padding:16px;">
+          <div class="card-title" style="margin-bottom:14px;font-size:13px;"><i class="ti ti-chart-bar-popular"></i>การกระจายระดับคะแนนแต่ละด้าน (%)</div>
+          <div style="position:relative;height:260px;"><canvas id="svd-chart-dist"></canvas></div>
+        </div>
+        <div class="card" style="padding:16px;display:flex;flex-direction:column;">
+          <div class="card-title" style="margin-bottom:12px;font-size:13px;"><i class="ti ti-repeat" style="color:#7c3aed;"></i>ต้องการอบรมเพิ่มเติม?</div>
+          <div style="position:relative;height:170px;"><canvas id="svd-chart-yn"></canvas></div>
+          <div id="svd-yn-stats" style="margin-top:auto;padding-top:10px;text-align:center;font-size:13px;color:var(--text-muted);"></div>
+        </div>
+      </div>
+
+      <!-- Best / Worst questions -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+        <div class="card" style="padding:16px;">
+          <div class="card-title" style="margin-bottom:12px;font-size:13px;color:#16a34a;"><i class="ti ti-award" style="color:#16a34a;"></i>5 หัวข้อคะแนนสูงสุด</div>
+          <div id="svd-best-qs"></div>
+        </div>
+        <div class="card" style="padding:16px;">
+          <div class="card-title" style="margin-bottom:12px;font-size:13px;color:#dc2626;"><i class="ti ti-alert-triangle" style="color:#dc2626;"></i>5 หัวข้อที่ควรพัฒนา</div>
+          <div id="svd-worst-qs"></div>
+        </div>
+      </div>
+
+      <!-- All questions heatmap -->
+      <div class="card" style="padding:16px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <div class="card-title" style="margin:0;font-size:13px;"><i class="ti ti-table-heat-map"></i>ตารางคะแนนรายข้อทุกด้าน</div>
+          <div style="display:flex;gap:6px;align-items:center;font-size:11px;flex-wrap:wrap;">
+            <span style="display:flex;align-items:center;gap:3px;"><span style="width:10px;height:10px;border-radius:2px;background:#22c55e;display:inline-block;"></span>≥4.5</span>
+            <span style="display:flex;align-items:center;gap:3px;"><span style="width:10px;height:10px;border-radius:2px;background:#84cc16;display:inline-block;"></span>4.0–4.4</span>
+            <span style="display:flex;align-items:center;gap:3px;"><span style="width:10px;height:10px;border-radius:2px;background:#eab308;display:inline-block;"></span>3.0–3.9</span>
+            <span style="display:flex;align-items:center;gap:3px;"><span style="width:10px;height:10px;border-radius:2px;background:#f97316;display:inline-block;"></span>&lt;3.0</span>
+          </div>
+        </div>
+        <div id="svd-heatmap"></div>
+      </div>
+
+      <!-- Session comparison -->
+      <div class="card" style="padding:16px;margin-bottom:14px;">
+        <div class="card-title" style="margin-bottom:14px;font-size:13px;"><i class="ti ti-calendar-stats"></i>เปรียบเทียบคะแนนเฉลี่ยแต่ละรอบ</div>
+        <div style="position:relative;height:230px;"><canvas id="svd-chart-sess"></canvas></div>
+      </div>
+
+      <!-- Trend over sessions (per section) -->
+      <div class="card" style="padding:16px;margin-bottom:14px;">
+        <div class="card-title" style="margin-bottom:14px;font-size:13px;"><i class="ti ti-trending-up"></i>แนวโน้มคะแนนแต่ละด้านตามรอบอบรม</div>
+        <div style="position:relative;height:240px;"><canvas id="svd-chart-trend"></canvas></div>
+      </div>
+
+      <!-- Comments -->
+      <div class="card" style="padding:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div class="card-title" style="margin:0;font-size:13px;"><i class="ti ti-message-2"></i>ข้อเสนอแนะจากผู้ประเมิน <span id="svd-comment-count" style="font-size:11px;font-weight:400;color:var(--text-muted);"></span></div>
+        </div>
+        <div id="svd-comments-list"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Quiz Admin Embed -->
+  <div class="admin-section" id="asec-quiz">
+    <div class="card" style="margin-bottom:10px;padding:10px 14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;gap:6px;">
+          <button id="quiz-subtab-courses" onclick="switchQuizTab('courses')" class="btn btn-primary btn-sm" style="gap:6px;"><i class="ti ti-books"></i>จัดการหลักสูตร</button>
+          <button id="quiz-subtab-results" onclick="switchQuizTab('results')" class="btn btn-ghost btn-sm" style="gap:6px;"><i class="ti ti-clipboard-list"></i>ผลการทดสอบ</button>
+          <button id="quiz-subtab-settings" onclick="switchQuizTab('settings')" class="btn btn-ghost btn-sm" style="gap:6px;"><i class="ti ti-settings"></i>ตั้งค่า</button>
+        </div>
+        <a id="quiz-open-link" href="quiz/#/admin/courses" target="_blank" class="btn btn-ghost btn-sm" style="gap:6px;">
+          <i class="ti ti-external-link"></i>เปิดเต็มหน้า
+        </a>
+      </div>
+    </div>
+    <iframe id="quiz-admin-frame" src="" style="width:100%;height:750px;border:none;border-radius:var(--radius);background:#f9fafb;display:block;box-shadow:var(--shadow);"></iframe>
+  </div>
+
   <!-- Login Verify -->
   <div class="admin-section" id="asec-loginverify">
     <div class="card">
@@ -538,12 +686,18 @@
         <div class="form-group" style="flex:1;margin-bottom:0;">
           <label class="form-label">ประเภทข้อมูลที่ต้องการนำเข้า</label>
           <select class="form-control" id="import-type" onchange="onImportTypeChange()">
-            <option value="trainer">วิทยากร</option>
-            <option value="venue">สถานที่</option>
-            <option value="dept">แผนก</option>
-            <option value="prefix">คำนำหน้า</option>
-            <option value="category">ประเภทการอบรม</option>
-            <option value="session">รอบอบรม</option>
+            <optgroup label="ระบบลงทะเบียนอบรม">
+              <option value="trainer">วิทยากร</option>
+              <option value="venue">สถานที่</option>
+              <option value="dept">แผนก</option>
+              <option value="prefix">คำนำหน้า</option>
+              <option value="category">ประเภทการอบรม</option>
+              <option value="session">รอบอบรม</option>
+            </optgroup>
+            <optgroup label="ระบบแบบทดสอบ">
+              <option value="quiz_course">หลักสูตรแบบทดสอบ</option>
+              <option value="quiz_question">ข้อสอบ</option>
+            </optgroup>
           </select>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="downloadImportTemplate()" style="height:40px;white-space:nowrap;gap:6px;">

@@ -31,6 +31,10 @@ const NOTIFY_API_KEY='54f4fa05-bfb9-4ac5-930d-93e942e36786';
 const currentSite=new URLSearchParams(location.search).get('site')||'theme_1';
 document.getElementById('nav-version').textContent=APP_VERSION;
 
+/* URL ระบบ Quiz (อ่านจาก settings หรือใช้ค่า default) */
+let QUIZ_BASE_URL='';
+let _quizCatIds=new Set(); // category_id ที่มี quiz แล้ว
+
 /* ══════════════════════════════════════════════
    SUPABASE
 ══════════════════════════════════════════════ */
@@ -155,7 +159,7 @@ function canEditReg(reg){
 /* ══════════════════ DB INIT ══════════════════ */
 function setLoading(on){document.getElementById('app-loading').classList.toggle('hidden',!on);}
 async function loadAllData(){
-  const [cR,sR,rR,mR,lR,auR,lvR,asR]=await Promise.all([
+  const [cR,sR,rR,mR,lR,auR,lvR,asR,qcR,quR]=await Promise.all([
     _sb.from('categories').select('*').eq('site',currentSite).order('id'),
     _sb.from('sessions').select('*').eq('site',currentSite).order('id'),
     _sb.from('registrations').select('*').order('id'),
@@ -164,6 +168,8 @@ async function loadAllData(){
     _sb.from('admin_users').select('id,username,created_at').order('id'),
     _sb.from('login_verify').select('*').eq('site',currentSite),
     _sb.from('sessions').select('id,site,capacity').order('id'),
+    _sb.from('courses').select('id,category_id').eq('is_active',true).not('category_id','is',null),
+    _sb.from('settings').select('value').eq('key','quiz_base_url').maybeSingle(),
   ]);
   if(cR.error||sR.error||rR.error||mR.error||lR.error||auR.error)throw new Error('โหลดข้อมูลล้มเหลว');
   categories=(cR.data||[]).map(_mCat);
@@ -182,6 +188,8 @@ async function loadAllData(){
   masterIds.venue=ms.filter(m=>m.type==='venue').map(m=>m.id);
   masterIds.dept=ms.filter(m=>m.type==='dept').map(m=>m.id);
   masterIds.prefix=ms.filter(m=>m.type==='prefix').map(m=>m.id);
+  _quizCatIds=new Set((qcR.data||[]).map(q=>q.category_id));
+  QUIZ_BASE_URL=(quR.data?.value)||(window.location.origin+'/quiz');
 }
 async function initApp(){
   setLoading(true);
@@ -362,6 +370,8 @@ async function adminLogin(){
 function adminLogout(){
   isAdminLoggedIn=false;
   currentAdminUser=null;
+  _quizCurrentTab=null;
+  localStorage.removeItem('bms_quiz_admin');
   pendingPage='admin';
   showPage('register');
   showToast('ออกจากระบบแล้ว','info');
@@ -382,8 +392,21 @@ const IMPORT_CFG={
   session:{label:'รอบอบรม',
     cols:['ประเภท (ชื่อ) *','ชื่อรอบ *','วันที่ (YYYY-MM-DD) *','เวลาเริ่ม','เวลาจบ','สถานที่','วิทยากร','จำนวนที่นั่ง'],
     sample:[]},
+  quiz_course:{label:'แบบทดสอบ – หลักสูตร',
+    cols:['ชื่อหลักสูตร *','คำอธิบาย','จำนวนข้อสุ่ม','เกณฑ์ผ่าน (%)','จำกัดครั้ง (0=ไม่จำกัด)','จำกัดเวลา นาที (0=ไม่จำกัด)'],
+    sample:[
+      ['ความปลอดภัยในการทำงาน','ทดสอบความรู้ด้านความปลอดภัยในการปฏิบัติงาน','10','80','0','0'],
+      ['มาตรฐาน ISO 9001','','15','75','3','30'],
+    ]},
+  quiz_question:{label:'แบบทดสอบ – ข้อสอบ',
+    cols:['หลักสูตร (ชื่อ) *','คำถาม *','ตัวเลือก A *','ตัวเลือก B *','ตัวเลือก C','ตัวเลือก D','ตัวเลือก E','คำตอบที่ถูก (A-E) *','คำอธิบายเฉลย'],
+    sample:[
+      ['ความปลอดภัยในการทำงาน','อุปกรณ์ใดใช้ป้องกันการตกจากที่สูง?','หมวกนิรภัย','เข็มขัดนิรภัย','รองเท้านิรภัย','แว่นตา','','B','เข็มขัดนิรภัยใช้รัดกับโครงสร้างเพื่อป้องกันการตกจากที่สูง'],
+      ['ความปลอดภัยในการทำงาน','ข้อใดคือสัญลักษณ์ไฟฉุกเฉิน?','วงกลมสีเขียว','สามเหลี่ยมสีแดง','ลูกศรสีเขียว','กากบาทสีแดง','','C',''],
+    ]},
 };
 let _importRows=[];
+let _quizCourses=[];
 function openImportModal(){
   document.getElementById('import-type').value='trainer';
   document.getElementById('import-file-input').value='';
@@ -401,11 +424,16 @@ function _resetDropzone(){
     <div style="font-weight:600;font-size:14px;">คลิกหรือลากไฟล์ CSV มาวางที่นี่</div>
     <div style="font-size:12px;opacity:.7;">รองรับเฉพาะไฟล์ .csv (UTF-8 หรือ UTF-8 BOM)</div>`;
 }
-function onImportTypeChange(){
+async function onImportTypeChange(){
   document.getElementById('import-preview-area').style.display='none';
   document.getElementById('import-submit-btn').style.display='none';
   _importRows=[];
   _resetDropzone();
+  const type=document.getElementById('import-type').value;
+  if(type==='quiz_course'||type==='quiz_question'){
+    const {data}=await _sb.from('courses').select('id,name').order('name');
+    _quizCourses=data||[];
+  }
 }
 function downloadImportTemplate(){
   const type=document.getElementById('import-type').value;
@@ -480,6 +508,25 @@ function _validateRows(rows,type){
       r.value={catId:cat.id,name:sessName,date,
         timeStart:(row[3]||'09:00').trim()||'09:00',timeEnd:(row[4]||'16:00').trim()||'16:00',
         venue:(row[5]||'').trim(),trainer:(row[6]||'').trim(),capacity:parseInt(row[7])||20};
+    } else if(type==='quiz_course'){
+      const name=(row[0]||'').trim();
+      if(!name){r.status='error';r.note='ชื่อว่าง';return r;}
+      if(_quizCourses.find(c=>c.name.toLowerCase()===name.toLowerCase())){r.status='dup';r.note='ชื่อซ้ำ';}
+      r.value={name,description:(row[1]||'').trim(),
+        questions_count:parseInt(row[2])||10,pass_percent:parseInt(row[3])||80,
+        max_attempts:parseInt(row[4])||0,time_limit_min:parseInt(row[5])||0};
+    } else if(type==='quiz_question'){
+      const courseName=(row[0]||'').trim(),question=(row[1]||'').trim();
+      const choiceA=(row[2]||'').trim(),choiceB=(row[3]||'').trim();
+      const choiceC=(row[4]||'').trim(),choiceD=(row[5]||'').trim(),choiceE=(row[6]||'').trim();
+      const answer=(row[7]||'').trim().toUpperCase(),explanation=(row[8]||'').trim();
+      if(!courseName||!question||!choiceA||!choiceB||!answer){r.status='error';r.note='ข้อมูลจำเป็นไม่ครบ';return r;}
+      const course=_quizCourses.find(c=>c.name===courseName);
+      if(!course){r.status='error';r.note=`ไม่พบหลักสูตร "${courseName}"`;return r;}
+      const choices=[choiceA,choiceB,choiceC,choiceD,choiceE].filter(c=>c);
+      const ansIdx=['A','B','C','D','E'].indexOf(answer);
+      if(ansIdx<0||ansIdx>=choices.length){r.status='error';r.note=`คำตอบ "${answer}" ไม่ถูกต้อง`;return r;}
+      r.value={courseName,courseId:course.id,question,choices,correctIdx:ansIdx,explanation};
     }
     return r;
   });
@@ -537,18 +584,17 @@ async function executeImport(){
   btn.disabled=true;
   btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite;"></i>กำลังนำเข้า...';
   try{
-    if(clear)await _clearImportType(type);
+    if(clear)await _clearImportType(type,toImport);
     await _insertImportRows(type,toImport);
-    await loadAllData();
+    if(!type.startsWith('quiz')){await loadAllData();renderAdmin();}
     closeModal('modal-import');
-    renderAdmin();
     showToast(`นำเข้า ${toImport.length} รายการสำเร็จ`,'success');
   }catch(e){
     showToast('นำเข้าไม่สำเร็จ: '+e.message,'danger');
     btn.disabled=false;refreshImportStats();
   }
 }
-async function _clearImportType(type){
+async function _clearImportType(type,rows=[]){
   const MASTER=['trainer','venue','dept','prefix'];
   let err;
   if(MASTER.includes(type)){
@@ -557,6 +603,14 @@ async function _clearImportType(type){
     ({error:err}=await _sb.from('categories').delete().gte('id',1));
   } else if(type==='session'){
     ({error:err}=await _sb.from('sessions').delete().gte('id',1));
+  } else if(type==='quiz_course'){
+    ({error:err}=await _sb.from('courses').delete().gte('id',1));
+  } else if(type==='quiz_question'){
+    const ids=[...new Set(rows.map(r=>r.value.courseId))];
+    for(const cid of ids){
+      ({error:err}=await _sb.from('questions').delete().eq('course_id',cid));
+      if(err)throw new Error(err.message);
+    }
   }
   if(err)throw new Error(err.message);
 }
@@ -573,6 +627,28 @@ async function _insertImportRows(type,rows){
     ({error}=await _sb.from('categories').insert(rows.map(r=>({name:r.value.name,description:r.value.desc,icon:r.value.icon,color:r.value.color,site:currentSite}))));
   } else if(type==='session'){
     ({error}=await _sb.from('sessions').insert(rows.map(r=>({cat_id:r.value.catId,name:r.value.name,date:r.value.date,time_start:r.value.timeStart,time_end:r.value.timeEnd,venue:r.value.venue,trainer:r.value.trainer,capacity:r.value.capacity,site:currentSite}))));
+  } else if(type==='quiz_course'){
+    ({error}=await _sb.from('courses').insert(rows.map(r=>({
+      name:r.value.name,description:r.value.description,
+      questions_count:r.value.questions_count,pass_percent:r.value.pass_percent,
+      max_attempts:r.value.max_attempts,time_limit_min:r.value.time_limit_min,is_active:true,
+    }))));
+    if(!error){const {data}=await _sb.from('courses').select('id,name').order('name');_quizCourses=data||[];}
+  } else if(type==='quiz_question'){
+    for(const r of rows){
+      const {data:q,error:qErr}=await _sb.from('questions').insert({
+        course_id:r.value.courseId,question:r.value.question,
+        explanation:r.value.explanation,is_active:true,
+      }).select('id').single();
+      if(qErr)throw new Error(qErr.message);
+      const {error:cErr}=await _sb.from('choices').insert(
+        r.value.choices.map((text,i)=>({
+          question_id:q.id,choice_text:text,
+          is_correct:i===r.value.correctIdx,sort_order:i,
+        }))
+      );
+      if(cErr)throw new Error(cErr.message);
+    }
   }
   if(error)throw new Error(error.message);
 }
@@ -609,6 +685,769 @@ function switchAdminTab(name){
   document.querySelectorAll('.admin-section').forEach(s=>s.classList.remove('active'));
   event.currentTarget.classList.add('active');
   document.getElementById('asec-'+name).classList.add('active');
+  if(name==='survey'){_initSvdSiteSelect();loadSurveyDashboard();}
+  if(name==='quiz'){_initQuizAdmin();}
+}
+
+/* ══════════════════ QUIZ ADMIN EMBED ══════════════════ */
+let _quizCurrentTab = null;
+function _initQuizAdmin(){
+  // sync BMS admin session → quiz admin localStorage so iframe skips login
+  if(isAdminLoggedIn && currentAdminUser){
+    localStorage.setItem('bms_quiz_admin', JSON.stringify({
+      id: currentAdminUser.id,
+      username: currentAdminUser.username,
+    }));
+  }
+  if(!_quizCurrentTab) switchQuizTab('courses');
+}
+function switchQuizTab(tab){
+  if(_quizCurrentTab === tab) return;
+  _quizCurrentTab = tab;
+  const frame = document.getElementById('quiz-admin-frame');
+  const hash = '/admin/' + tab;
+  if(!frame.src || frame.src === window.location.href){
+    frame.src = 'quiz/#' + hash;
+  } else {
+    try {
+      frame.contentWindow.location.hash = hash;
+    } catch(e){
+      frame.src = 'quiz/#' + hash;
+    }
+  }
+  document.getElementById('quiz-open-link').href = 'quiz/#' + hash;
+  ['courses','results','settings'].forEach(t => {
+    const btn = document.getElementById('quiz-subtab-'+t);
+    if(t === tab){
+      btn.className = 'btn btn-primary btn-sm';
+      btn.style.gap = '6px';
+    } else {
+      btn.className = 'btn btn-ghost btn-sm';
+      btn.style.gap = '6px';
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   SURVEY DASHBOARD
+══════════════════════════════════════════════════════════ */
+const SVD_SECTIONS=[
+  {num:1,title:'พฤติกรรมบริการ',icon:'ti-heart-handshake',color:'#2563eb',
+   qs:['วิทยากรและทีมงานมีความพร้อมให้บริการ','ให้บริการสุภาพและเป็นกันเอง','มนุษยสัมพันธ์ดี','ประสานงาน/อำนวยความสะดวกเหมาะสม','ตอบสนองปัญหา/ข้อซักถามรวดเร็ว','ทีมงานเอาใจใส่ผู้เข้าอบรม'],
+   keys:['q1_1','q1_2','q1_3','q1_4','q1_5','q1_6']},
+  {num:2,title:'การเตรียมความพร้อม',icon:'ti-clipboard-check',color:'#0891b2',
+   qs:['จัดเตรียมเอกสารครบถ้วน','คู่มือ/เอกสารเข้าใจง่าย','ลำดับเนื้อหา/Flow ชัดเจน','สื่อ/PowerPoint เหมาะสม','ระบบ/อุปกรณ์พร้อมใช้','Workshop สอดคล้องงานจริง','ระยะเวลาเหมาะสม'],
+   keys:['q2_1','q2_2','q2_3','q2_4','q2_5','q2_6','q2_7']},
+  {num:3,title:'ทักษะการสอน',icon:'ti-presentation',color:'#7c3aed',
+   qs:['ความรู้/ความเข้าใจในระบบดี','อธิบายชัดเจน เข้าใจง่าย','ลำดับเนื้อหาต่อเนื่อง','ยกตัวอย่างเหมาะสม','เปิดโอกาสซักถาม/มีส่วนร่วม','ตอบคำถามตรงประเด็น','วิเคราะห์/เสนอแนวทางแก้ไขได้','สรุปประเด็นสำคัญก่อนจบ','มี Workshop ปฏิบัติจริง','ทีมงานสนับสนุนเพียงพอ'],
+   keys:['q3_1','q3_2','q3_3','q3_4','q3_5','q3_6','q3_7','q3_8','q3_9','q3_10']},
+  {num:4,title:'การมีส่วนร่วม',icon:'ti-users',color:'#059669',
+   qs:['ผู้เรียนพร้อมรับการอบรม','ผู้เรียนให้ความร่วมมือดี','มีส่วนร่วมซักถาม/แลกเปลี่ยน','ตั้งใจ/สนใจเนื้อหา','บรรยากาศเอื้อต่อการเรียนรู้'],
+   keys:['q4_1','q4_2','q4_3','q4_4','q4_5']},
+  {num:5,title:'ผลลัพธ์หลังอบรม',icon:'ti-award',color:'#d97706',
+   qs:['เข้าใจการใช้งานระบบมากขึ้น','ใช้งานระบบถูกต้องมากขึ้น','นำไปประยุกต์ใช้งานได้','ช่วยลดปัญหาในการใช้งาน','มั่นใจหลังอบรม','ตอบโจทย์การปฏิบัติงาน','พร้อม Go-Live'],
+   keys:['q5_1','q5_2','q5_3','q5_4','q5_5','q5_6','q5_7']},
+  {num:6,title:'ความพึงพอใจโดยรวม',icon:'ti-star',color:'#e11d48',
+   qs:['ความพึงพอใจโดยรวม','ความเหมาะสมของเนื้อหา','ความเหมาะสมของเวลา','ความพึงพอใจต่อวิทยากร','ความพึงพอใจต่อระบบ/Workshop'],
+   keys:['q6_1','q6_2','q6_3','q6_4','q6_5']},
+];
+
+let _svData=[],_svSessions=[],_svCats=[],_svCharts={};
+
+function _initSvdSiteSelect(){
+  const el=document.getElementById('svd-site');
+  if(!el||el.options.length>0)return;
+  locations.forEach(l=>{
+    const o=document.createElement('option');
+    o.value=l.code;o.textContent=`${l.code} : ${l.name}`;
+    if(l.code===currentSite)o.selected=true;
+    el.appendChild(o);
+  });
+}
+
+async function onSvdSiteChange(){await loadSurveyDashboard();}
+
+async function loadSurveyDashboard(){
+  const siteEl=document.getElementById('svd-site');
+  if(!siteEl)return;
+  const site=siteEl.value||currentSite;
+
+  document.getElementById('svd-loading').style.display='block';
+  document.getElementById('svd-content').style.display='none';
+  document.getElementById('svd-empty').style.display='none';
+
+  try{
+    const[sR,cR,svR]=await Promise.all([
+      _sb.from('sessions').select('id,name,cat_id,date,trainer').eq('site',site).order('date'),
+      _sb.from('categories').select('id,name,color').eq('site',site),
+      _sb.from('survey_responses').select('*').eq('site',site).order('submitted_at',{ascending:false}),
+    ]);
+    _svSessions=sR.data||[];_svCats=cR.data||[];_svData=svR.data||[];
+
+    const sessEl=document.getElementById('svd-sess');
+    sessEl.innerHTML='<option value="">ทุกรอบ</option>';
+    const sessWithData=_svSessions.filter(s=>_svData.some(r=>+r.session_id===+s.id));
+    sessWithData.forEach(s=>{
+      const cat=_svCats.find(c=>c.id===s.cat_id);
+      const cnt=_svData.filter(r=>r.session_id===s.id).length;
+      const o=document.createElement('option');
+      o.value=s.id;
+      o.textContent=`[${cat?.name||'—'}] ${s.name}${s.trainer?' · '+s.trainer:''} (${fmtDateShort(s.date)}) · ${cnt} ราย`;
+      sessEl.appendChild(o);
+    });
+    renderSurveyCharts();
+  }catch(e){
+    console.error(e);
+    document.getElementById('svd-loading').style.display='none';
+    showToast('โหลดข้อมูลการประเมินไม่สำเร็จ','danger');
+  }
+}
+
+function _svFiltered(){
+  let d=[..._svData];
+  const sessId=parseInt(document.getElementById('svd-sess')?.value);
+  if(sessId)d=d.filter(r=>r.session_id===sessId);
+  const period=document.getElementById('svd-period')?.value;
+  if(period&&period!=='all'){
+    const cut=new Date();cut.setDate(cut.getDate()-parseInt(period));
+    d=d.filter(r=>new Date(r.submitted_at)>=cut);
+  }
+  return d;
+}
+
+const _avg=arr=>{const v=arr.filter(x=>x!=null&&x>=1);return v.length?v.reduce((a,b)=>a+b,0)/v.length:0;};
+const _avgKey=(data,k)=>_avg(data.map(r=>r[k]));
+const _scoreColor=v=>v>=4.5?'#16a34a':v>=4.0?'#65a30d':v>=3.0?'#ca8a04':v>=2.0?'#ea580c':'#dc2626';
+const _scoreBg=v=>v>=4.5?'#dcfce7':v>=4.0?'#ecfccb':v>=3.0?'#fef9c3':v>=2.0?'#ffedd5':'#fee2e2';
+const _scoreLabel=v=>v>=4.5?'ดีมาก':v>=4.0?'ดี':v>=3.0?'พอใช้':v>=2.0?'ต้องปรับปรุง':'ต่ำมาก';
+
+function renderSurveyCharts(){
+  document.getElementById('svd-loading').style.display='none';
+  const data=_svFiltered();
+
+  if(!data.length){
+    document.getElementById('svd-content').style.display='none';
+    document.getElementById('svd-empty').style.display='block';
+    return;
+  }
+  document.getElementById('svd-empty').style.display='none';
+  document.getElementById('svd-content').style.display='block';
+
+  // destroy old charts
+  Object.values(_svCharts).forEach(c=>{try{c.destroy();}catch(e){}});
+  _svCharts={};
+
+  // ── compute section averages ──
+  const secAvgs=SVD_SECTIONS.map(sec=>{
+    const qAvgs=sec.keys.map((k,i)=>({key:k,label:sec.qs[i],secNum:sec.num,secTitle:sec.title,secColor:sec.color,avg:_avgKey(data,k)}));
+    const avg=_avg(qAvgs.map(q=>q.avg).filter(v=>v>0));
+    return{...sec,avg,qAvgs};
+  });
+  const overallAvg=_avg(secAvgs.map(s=>s.avg).filter(v=>v>0));
+
+  // ── KPI ──
+  const bestSec=[...secAvgs].sort((a,b)=>b.avg-a.avg)[0];
+  const worstSec=[...secAvgs].sort((a,b)=>a.avg-b.avg)[0];
+  const ynRows=data.filter(r=>r.q6_6!=null);
+  const ynYes=ynRows.filter(r=>r.q6_6===true).length;
+  const ynPct=ynRows.length?Math.round(ynYes/ynRows.length*100):0;
+  const allQAvgs=secAvgs.flatMap(s=>s.qAvgs).filter(q=>q.avg>0);
+  const topQ=allQAvgs.reduce((a,b)=>a.avg>b.avg?a:b,{avg:0});
+  const botQ=allQAvgs.reduce((a,b)=>a.avg<b.avg?a:b,{avg:999});
+
+  document.getElementById('svd-kpi').innerHTML=`
+    <div class="stat-card blue" style="min-width:0;">
+      <div class="stat-label"><i class="ti ti-clipboard-check" style="margin-right:3px;"></i>ผู้ประเมิน</div>
+      <div class="stat-value">${data.length}<span style="font-size:13px;font-weight:400;color:var(--text-muted);"> ราย</span></div>
+    </div>
+    <div class="stat-card" style="background:${_scoreBg(overallAvg)};border:1px solid var(--border);min-width:0;">
+      <div class="stat-label">คะแนนเฉลี่ยรวม</div>
+      <div style="font-size:28px;font-weight:700;color:${_scoreColor(overallAvg)};line-height:1.1;margin-top:4px;">${overallAvg.toFixed(2)}<span style="font-size:13px;font-weight:400;color:var(--text-muted);"> /5</span></div>
+      <div style="font-size:11px;font-weight:600;color:${_scoreColor(overallAvg)};margin-top:3px;">${_scoreLabel(overallAvg)}</div>
+    </div>
+    <div class="stat-card green" style="min-width:0;">
+      <div class="stat-label"><i class="ti ti-award"></i> ด้านดีที่สุด</div>
+      <div style="font-size:12px;font-weight:600;color:var(--success);margin-top:4px;line-height:1.3;">${bestSec.title}</div>
+      <div style="font-size:20px;font-weight:700;color:var(--success);">${bestSec.avg.toFixed(2)}</div>
+    </div>
+    <div class="stat-card amber" style="min-width:0;">
+      <div class="stat-label"><i class="ti ti-tool"></i> ควรพัฒนา</div>
+      <div style="font-size:12px;font-weight:600;color:var(--warn);margin-top:4px;line-height:1.3;">${worstSec.title}</div>
+      <div style="font-size:20px;font-weight:700;color:var(--warn);">${worstSec.avg.toFixed(2)}</div>
+    </div>
+    <div class="stat-card" style="background:var(--card);border:1px solid var(--border);min-width:0;">
+      <div class="stat-label"><i class="ti ti-repeat" style="color:#7c3aed;"></i> ต้องการอบรมเพิ่ม</div>
+      <div style="font-size:28px;font-weight:700;color:#7c3aed;line-height:1.1;margin-top:4px;">${ynPct}%</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${ynYes} / ${ynRows.length} ราย</div>
+    </div>`;
+
+  // ── Section progress bars ──
+  document.getElementById('svd-section-bars').innerHTML=secAvgs.map(sec=>`
+    <div style="margin-bottom:13px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:${sec.color};flex-shrink:0;display:inline-block;"></span>
+          <span style="font-size:13px;font-weight:600;">${sec.num}. ${sec.title}</span>
+          <span style="font-size:10px;color:var(--text-muted);">(${sec.keys.length} ข้อ)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;background:${_scoreBg(sec.avg)};color:${_scoreColor(sec.avg)};">${_scoreLabel(sec.avg)}</span>
+          <span style="font-size:17px;font-weight:700;color:${_scoreColor(sec.avg)};min-width:36px;text-align:right;">${sec.avg.toFixed(2)}</span>
+        </div>
+      </div>
+      <div style="height:10px;background:#f1f5f9;border-radius:5px;overflow:hidden;">
+        <div style="width:${(sec.avg/5)*100}%;height:100%;background:linear-gradient(90deg,${sec.color},${sec.color}cc);border-radius:5px;transition:width .6s ease;"></div>
+      </div>
+    </div>`).join('');
+
+  // ── Chart.js shared config ──
+  if(typeof Chart==='undefined')return;
+  Chart.defaults.font.family='Sarabun,sans-serif';
+  const fnt=(sz=11,w='normal')=>({family:'Sarabun,sans-serif',size:sz,weight:w});
+  const tip={backgroundColor:'#0f172a',padding:11,cornerRadius:9,titleFont:fnt(12,'600'),bodyFont:fnt(11),titleColor:'#f1f5f9',bodyColor:'#cbd5e1',displayColors:true,boxWidth:8,boxHeight:8,boxPadding:3};
+  const leg=(pos='bottom')=>({position:pos,labels:{font:fnt(10),boxWidth:10,boxHeight:10,padding:10,usePointStyle:true,pointStyleWidth:10}});
+
+  // ── Radar ──
+  const ctxR=document.getElementById('svd-chart-radar');
+  if(ctxR) _svCharts.radar=new Chart(ctxR,{
+    type:'radar',
+    data:{
+      labels:secAvgs.map(s=>`${s.num}. ${s.title.length>8?s.title.slice(0,8)+'…':s.title}`),
+      datasets:[{
+        label:'คะแนน',data:secAvgs.map(s=>+s.avg.toFixed(2)),
+        backgroundColor:'rgba(124,58,237,.12)',borderColor:'#7c3aed',pointBackgroundColor:secAvgs.map(s=>s.color),
+        pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:5,borderWidth:2,
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.raw} / 5`}}},
+      scales:{r:{min:0,max:5,ticks:{stepSize:1,font:fnt(9),color:'#94a3b8',backdropColor:'transparent'},
+        grid:{color:'rgba(226,232,240,.6)'},pointLabels:{font:fnt(10,'600'),color:'#475569'}}}}
+  });
+
+  // ── Distribution stacked bar (%) ──
+  const DIST_COLORS={5:'#22c55e',4:'#84cc16',3:'#eab308',2:'#f97316',1:'#ef4444'};
+  const DIST_LABELS={5:'5 – มากที่สุด',4:'4 – มาก',3:'3 – ปานกลาง',2:'2 – น้อย',1:'1 – น้อยที่สุด'};
+  const distDs=[5,4,3,2,1].map(v=>({
+    label:DIST_LABELS[v],backgroundColor:DIST_COLORS[v],borderRadius:3,borderSkipped:false,stack:'d',
+    data:secAvgs.map(sec=>{
+      const tot=data.length*sec.keys.length;
+      const cnt=sec.keys.reduce((s,k)=>s+data.filter(r=>r[k]===v).length,0);
+      return tot?+(cnt/tot*100).toFixed(1):0;
+    })
+  }));
+  const ctxD=document.getElementById('svd-chart-dist');
+  if(ctxD) _svCharts.dist=new Chart(ctxD,{
+    type:'bar',data:{labels:secAvgs.map(s=>`ด้าน ${s.num}`),datasets:distDs},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:leg(),tooltip:{...tip,callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.raw}%`}}},
+      scales:{x:{grid:{display:false},ticks:{font:fnt(10),color:'#64748b'},border:{display:false},stacked:true},
+        y:{grid:{color:'rgba(226,232,240,.5)'},ticks:{font:fnt(10),color:'#64748b',callback:v=>v+'%'},border:{display:false},stacked:true,max:100}}}
+  });
+
+  // ── Q6.6 Donut ──
+  const ynNo=ynRows.length-ynYes;
+  const ctxY=document.getElementById('svd-chart-yn');
+  if(ctxY) _svCharts.yn=new Chart(ctxY,{
+    type:'doughnut',
+    data:{labels:[`ต้องการ (${ynYes} ราย)`,`ไม่ต้องการ (${ynNo} ราย)`],
+      datasets:[{data:[ynYes||0,ynNo||0],backgroundColor:['#22c55e','#ef4444'],borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      cutout:'65%',
+      plugins:{legend:leg(),tooltip:{...tip}}}
+  });
+  document.getElementById('svd-yn-stats').innerHTML=`<span style="font-size:26px;font-weight:700;color:${ynPct>=50?'#16a34a':'#dc2626'};">${ynPct}%</span><br><span style="font-size:11px;">ต้องการอบรมเพิ่มเติม</span>`;
+
+  // ── Best / Worst 5 questions ──
+  const renderQL=(qs,type)=>qs.map((q,i)=>`
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9;">
+      <span style="min-width:22px;height:22px;border-radius:50%;background:${type==='best'?'#dcfce7':'#fef2f2'};color:${type==='best'?'#15803d':'#991b1b'};font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;line-height:1.45;color:var(--text);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${q.label}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${q.secTitle}</div>
+      </div>
+      <div style="flex-shrink:0;text-align:right;">
+        <div style="font-size:16px;font-weight:700;color:${_scoreColor(q.avg)};">${q.avg.toFixed(2)}</div>
+      </div>
+    </div>`).join('');
+
+  const sortedQs=[...allQAvgs].sort((a,b)=>b.avg-a.avg);
+  document.getElementById('svd-best-qs').innerHTML=renderQL(sortedQs.slice(0,5),'best');
+  document.getElementById('svd-worst-qs').innerHTML=renderQL([...allQAvgs].sort((a,b)=>a.avg-b.avg).slice(0,5),'worst');
+
+  // ── Heatmap table (all questions) ──
+  let hmHtml='';
+  SVD_SECTIONS.forEach(sec=>{
+    hmHtml+=`<div style="margin-bottom:12px;">
+      <div style="font-size:12px;font-weight:700;color:${sec.color};margin-bottom:6px;display:flex;align-items:center;gap:6px;"><i class="ti ${sec.icon}"></i>${sec.num}. ${sec.title}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:5px;">`;
+    const sAvg=secAvgs.find(s=>s.num===sec.num);
+    (sAvg?.qAvgs||[]).forEach((q,i)=>{
+      hmHtml+=`<div style="display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:8px;background:${_scoreBg(q.avg)};border:1px solid ${q.avg>=4?'transparent':'rgba(0,0,0,.05)'};">
+        <span style="font-size:10px;font-weight:700;color:${_scoreColor(q.avg)};min-width:18px;">${sec.num}.${i+1}</span>
+        <span style="font-size:11px;color:var(--text);flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="${q.label}">${q.label}</span>
+        <span style="font-size:14px;font-weight:700;color:${_scoreColor(q.avg)};min-width:30px;text-align:right;">${q.avg>0?q.avg.toFixed(2):'—'}</span>
+      </div>`;
+    });
+    hmHtml+='</div></div>';
+  });
+  document.getElementById('svd-heatmap').innerHTML=hmHtml;
+
+  // ── Session comparison bar ──
+  const sessComp=_svSessions.map(s=>{
+    const sd=data.filter(r=>r.session_id===s.id);
+    if(!sd.length)return null;
+    const avg=_avg(SVD_SECTIONS.flatMap(sec=>sec.keys).map(k=>_avgKey(sd,k)).filter(v=>v>0));
+    const cat=_svCats.find(c=>c.id===s.cat_id);
+    return{label:`${cat?.name||''}`,sublabel:`${s.name}${s.trainer?' · '+s.trainer:''}`,date:fmtDateShort(s.date),avg,cnt:sd.length};
+  }).filter(Boolean);
+
+  const ctxS=document.getElementById('svd-chart-sess');
+  if(ctxS) _svCharts.sess=new Chart(ctxS,{
+    type:'bar',
+    data:{
+      labels:sessComp.map(s=>`${s.sublabel} (${s.date})`),
+      datasets:[{label:'คะแนนเฉลี่ย',data:sessComp.map(s=>+s.avg.toFixed(2)),
+        backgroundColor:sessComp.map(s=>_scoreColor(s.avg)+'cc'),borderRadius:7,borderSkipped:false}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{...tip,callbacks:{
+        title:([ctx])=>sessComp[ctx.dataIndex]?.sublabel||'',
+        label:ctx=>[` คะแนน: ${ctx.raw} / 5.00`,` ผู้ประเมิน: ${sessComp[ctx.dataIndex]?.cnt} ราย`]
+      }}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:fnt(10),color:'#64748b',maxRotation:30},border:{display:false}},
+        y:{grid:{color:'rgba(226,232,240,.5)'},ticks:{font:fnt(10),color:'#64748b'},border:{display:false},min:0,max:5,
+          afterDataLimits:s=>{s.max=5;}}
+      }}
+  });
+
+  // ── Trend line chart (per section) ──
+  const trendSessions=_svSessions.filter(s=>data.some(r=>r.session_id===s.id));
+  const trendDs=SVD_SECTIONS.map(sec=>({
+    label:`ด้าน ${sec.num}`,borderColor:sec.color,backgroundColor:sec.color+'22',
+    data:trendSessions.map(s=>{
+      const sd=data.filter(r=>r.session_id===s.id);
+      const avg=_avg(sec.keys.map(k=>_avgKey(sd,k)).filter(v=>v>0));
+      return avg>0?+avg.toFixed(2):null;
+    }),
+    tension:.35,borderWidth:2,pointRadius:4,pointHoverRadius:6,fill:false,spanGaps:true,
+  }));
+  const ctxT=document.getElementById('svd-chart-trend');
+  if(ctxT) _svCharts.trend=new Chart(ctxT,{
+    type:'line',
+    data:{labels:trendSessions.map(s=>`${s.name} (${fmtDateShort(s.date)})`),datasets:trendDs},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:leg('right'),tooltip:{...tip,mode:'index',intersect:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:fnt(10),color:'#64748b',maxRotation:25},border:{display:false}},
+        y:{grid:{color:'rgba(226,232,240,.5)'},ticks:{font:fnt(10),color:'#64748b'},border:{display:false},min:0,max:5}
+      }}
+  });
+
+  // ── Comments ──
+  const comments=data.filter(r=>r.comments?.trim());
+  document.getElementById('svd-comment-count').textContent=comments.length?`(${comments.length} รายการ)`:'';
+  if(!comments.length){
+    document.getElementById('svd-comments-list').innerHTML=`<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;"><i class="ti ti-message-off" style="font-size:28px;display:block;margin-bottom:8px;opacity:.3;"></i>ไม่มีข้อเสนอแนะ</div>`;
+  } else {
+    document.getElementById('svd-comments-list').innerHTML=comments.slice(0,30).map(r=>{
+      const s=_svSessions.find(x=>x.id===r.session_id);
+      const cat=_svCats.find(c=>c.id===s?.cat_id);
+      const rAllKeys=SVD_SECTIONS.flatMap(sec=>sec.keys);
+      const rAvg=_avg(rAllKeys.map(k=>r[k]||0).filter(v=>v>0));
+      const d=r.submitted_at?new Date(r.submitted_at).toLocaleString('th-TH',{year:'2-digit',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+      return`<div style="padding:12px;background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px;flex-wrap:wrap;">
+          ${cat?`<span style="font-size:11px;background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:12px;font-weight:600;">${cat.name}</span>`:''}
+          ${s?`<span style="font-size:11px;color:var(--text-muted);">${s.name}${s.trainer?' · '+s.trainer:''}</span>`:''}
+          <span style="margin-left:auto;font-size:10px;color:var(--text-muted);">${d}</span>
+          ${rAvg>0?`<span style="font-size:13px;font-weight:700;color:${_scoreColor(rAvg)};padding:1px 7px;border-radius:12px;background:${_scoreBg(rAvg)};">${rAvg.toFixed(2)}</span>`:''}
+        </div>
+        <p style="font-size:13px;color:var(--text);line-height:1.6;margin:0;">"${r.comments}"</p>
+      </div>`;
+    }).join('')+(comments.length>30?`<div style="text-align:center;font-size:12px;color:var(--text-muted);padding:8px;">แสดง 30 รายการล่าสุด จากทั้งหมด ${comments.length} รายการ</div>`:'');
+  }
+}
+
+async function exportSurveyExcel(){
+  if(typeof XLSX==='undefined'){showToast('ไม่พบ XLSX library','danger');return;}
+  const data=_svFiltered();
+  if(!data.length){showToast('ไม่มีข้อมูลสำหรับ Export','danger');return;}
+  const allQs=SVD_SECTIONS.flatMap(sec=>sec.keys.map((k,i)=>({key:k,label:`${sec.num}.${i+1} ${sec.qs[i]}`})));
+  const headers=['ลำดับ','สาขา','ประเภทอบรม','รอบอบรม','วิทยากร','วันที่ประเมิน',...allQs.map(q=>q.label),'6.6 ต้องการอบรมเพิ่ม','ข้อเสนอแนะ','คะแนนเฉลี่ย'];
+  const rows=data.map((r,i)=>{
+    const s=_svSessions.find(x=>x.id===r.session_id);
+    const cat=_svCats.find(c=>c.id===s?.cat_id);
+    const avgR=_avg(allQs.map(q=>r[q.key]||0).filter(v=>v>0));
+    return[i+1,r.site,cat?.name||'',s?.name||'',s?.trainer||'',
+      r.submitted_at?new Date(r.submitted_at).toLocaleDateString('th-TH'):'',
+      ...allQs.map(q=>r[q.key]||''),
+      r.q6_6==null?'':r.q6_6?'ต้องการ':'ไม่ต้องการ',
+      r.comments||'',avgR.toFixed(2)];
+  });
+  const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
+  // set col widths
+  ws['!cols']=[{wch:6},{wch:12},{wch:18},{wch:20},{wch:16},{wch:14},...allQs.map(()=>({wch:12})),{wch:14},{wch:30},{wch:10}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'ผลประเมิน');
+  const site=document.getElementById('svd-site')?.value||currentSite;
+  XLSX.writeFile(wb,`survey_${site}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('Export สำเร็จ','success');
+}
+
+async function saveSurveyImage(){
+  if(typeof html2canvas==='undefined'){showToast('ไม่พบ html2canvas library','danger');return;}
+  const data=_svFiltered();
+  if(!data.length){showToast('ไม่มีข้อมูลสำหรับบันทึก','danger');return;}
+
+  const site=document.getElementById('svd-site')?.value||currentSite;
+  const sessId=parseInt(document.getElementById('svd-sess')?.value)||0;
+  const period=document.getElementById('svd-period')?.value||'all';
+  const selSess=_svSessions.find(s=>+s.id===sessId);
+  const selCat=selSess?_svCats.find(c=>c.id===selSess.cat_id):null;
+  const loc=locations.find(l=>l.code===site);
+
+  const _pLabel=v=>v>=4.5?'มากที่สุด':v>=3.5?'มาก':v>=2.5?'ปานกลาง':v>=1.5?'น้อย':'น้อยที่สุด';
+  const _pColor=v=>v>=4.5?'#16a34a':v>=3.5?'#65a30d':v>=2.5?'#ca8a04':v>=1.5?'#ea580c':'#dc2626';
+  const _pBg  =v=>v>=4.5?'#dcfce7':v>=3.5?'#ecfccb':v>=2.5?'#fef9c3':v>=1.5?'#ffedd5':'#fee2e2';
+  const _pStd =arr=>{const v=arr.filter(x=>x!=null&&x>=1&&x<=5);if(v.length<2)return 0;const m=v.reduce((a,b)=>a+b,0)/v.length;return Math.sqrt(v.reduce((s,x)=>s+(x-m)**2,0)/(v.length-1));};
+
+  // header chips
+  const chips=[];
+  if(selSess){
+    if(selCat?.name)chips.push(`หลักสูตร: ${selCat.name}`);
+    chips.push(`รอบ: ${selSess.name}`);
+    chips.push(`วันที่: ${fmtDateShort(selSess.date)}`);
+    if(selSess.trainer)chips.push(`วิทยากร: ${selSess.trainer}`);
+  }else{
+    chips.push(`สาขา: ${loc?.name||site}`);
+    chips.push('ทุกรอบ');
+    chips.push(`ช่วงเวลา: ${period==='all'?'ทั้งหมด':period+' วันล่าสุด'}`);
+  }
+
+  const secData=SVD_SECTIONS.map(sec=>({...sec,qData:sec.keys.map((k,i)=>{
+    const vals=data.map(r=>r[k]).filter(x=>x!=null&&x>=1&&x<=5);
+    const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+    return{label:sec.qs[i],avg,std:_pStd(vals),counts:[5,4,3,2,1].map(v=>vals.filter(x=>x===v).length)};
+  })}));
+
+  const overallAvg=_avg(secData.flatMap(s=>s.qData).map(q=>q.avg).filter(v=>v>0));
+  const ynRows=data.filter(r=>r.q6_6!=null);
+  const ynYes=ynRows.filter(r=>r.q6_6===true).length;
+  const ynPct=ynRows.length?Math.round(ynYes/ynRows.length*100):0;
+  const comments=data.filter(r=>r.comments?.trim());
+
+  const F="font-family:'Sarabun','Anuphan',Arial,sans-serif;";
+  const Tb=`border:1px solid #e2e8f0;padding:7px 8px;vertical-align:middle;${F}`;
+  const Th=`border:1px solid #1e293b;padding:9px 7px;vertical-align:middle;${F}`;
+
+  // build table rows
+  let rows='';
+  secData.forEach(sec=>{
+    sec.qData.forEach((q,qi)=>{
+      const rowBg=qi%2===0?'#ffffff':'#f8fafc';
+      const lbl=q.avg>0?_pLabel(q.avg):'—';
+      const clr=q.avg>0?_pColor(q.avg):'#94a3b8';
+      const bg =q.avg>0?_pBg(q.avg) :'#f1f5f9';
+      rows+=`<tr>
+        ${qi===0?`<td rowspan="${sec.qData.length}" style="${Tb}background:${sec.color}18;text-align:center;font-weight:700;font-size:12px;color:${sec.color};line-height:1.7;white-space:nowrap;width:90px;">${sec.num}.<br>${sec.title}</td>`:''}
+        <td style="${Tb}font-size:13px;color:#1e293b;background:${rowBg};">${q.label}</td>
+        ${q.counts.map(c=>`<td style="${Tb}text-align:center;font-size:13px;background:${rowBg};">${c||0}</td>`).join('')}
+        <td style="${Tb}text-align:center;font-weight:800;color:#1d4ed8;font-size:15px;background:${rowBg};">${q.avg>0?q.avg.toFixed(2):'—'}</td>
+        <td style="${Tb}text-align:center;font-size:12px;color:#64748b;background:${rowBg};">${q.std>0?q.std.toFixed(2):'0.00'}</td>
+        <td style="${Tb}text-align:center;background:${rowBg};"><span style="background:${bg};color:${clr};padding:4px 11px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap;border:1.5px solid ${clr}44;${F}">${lbl}</span></td>
+      </tr>`;
+    });
+  });
+
+  const legRows=[
+    {lbl:'มากที่สุด',lo:'4.5',hi:'5.00',bg:'#16a34a',tc:'#fff'},
+    {lbl:'มาก',      lo:'3.5',hi:'4.49',bg:'#84cc16',tc:'#14532d'},
+    {lbl:'ปานกลาง', lo:'2.5',hi:'3.49',bg:'#f59e0b',tc:'#451a03'},
+    {lbl:'น้อย',     lo:'1.5',hi:'2.49',bg:'#ea580c',tc:'#fff'},
+    {lbl:'น้อยที่สุด',lo:'1.0',hi:'1.49',bg:'#dc2626',tc:'#fff'},
+  ].map(l=>`<tr>
+    <td style="${Tb}background:${l.bg};color:${l.tc};font-weight:700;text-align:center;font-size:12px;">${l.lbl}</td>
+    <td style="${Tb}text-align:center;font-size:12px;">${l.lo}</td>
+    <td style="${Tb}text-align:center;font-size:12px;">${l.hi}</td>
+  </tr>`).join('');
+
+  const wrap=document.createElement('div');
+  wrap.style.cssText=`position:fixed;left:-9999px;top:0;width:990px;background:#f1f5f9;padding:22px;${F}z-index:-999;`;
+  wrap.innerHTML=`
+  <!-- HEADER -->
+  <div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a6e 55%,#1d4ed8 100%);border-radius:16px;padding:24px 30px;margin-bottom:16px;">
+    <div style="${F}color:#fff;font-size:22px;font-weight:700;letter-spacing:.5px;margin-bottom:12px;">สรุปผลการประเมินของผู้เข้าร่วมรับการอบรม</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${chips.map(c=>`<span style="${F}background:rgba(255,255,255,.15);color:#e0f2fe;font-size:12.5px;padding:5px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.22);">${c}</span>`).join('')}
+    </div>
+  </div>
+
+  <!-- TABLE + SIDE -->
+  <div style="display:flex;gap:14px;margin-bottom:14px;align-items:flex-start;">
+
+    <!-- EVAL TABLE -->
+    <div style="flex:1;min-width:0;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#0f172a;">
+            <th style="${Th}color:#94a3b8;font-size:11px;font-weight:600;text-align:center;width:90px;">หัวข้อ<br>การประเมิน</th>
+            <th style="${Th}color:#e2e8f0;font-size:11px;font-weight:600;text-align:left;">หัวข้อคำถาม</th>
+            <th style="${Th}background:#15803d;color:#fff;font-size:13px;font-weight:700;text-align:center;width:32px;">5</th>
+            <th style="${Th}background:#4d7c0f;color:#fff;font-size:13px;font-weight:700;text-align:center;width:32px;">4</th>
+            <th style="${Th}background:#a16207;color:#fff;font-size:13px;font-weight:700;text-align:center;width:32px;">3</th>
+            <th style="${Th}background:#c2410c;color:#fff;font-size:13px;font-weight:700;text-align:center;width:32px;">2</th>
+            <th style="${Th}background:#b91c1c;color:#fff;font-size:13px;font-weight:700;text-align:center;width:32px;">1</th>
+            <th style="${Th}color:#93c5fd;font-size:11px;font-weight:600;text-align:center;width:52px;">AVG</th>
+            <th style="${Th}color:#94a3b8;font-size:11px;font-weight:600;text-align:center;width:48px;">STD</th>
+            <th style="${Th}color:#e2e8f0;font-size:11px;font-weight:600;text-align:center;width:84px;">แปลผล</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+
+    <!-- SIDE PANEL -->
+    <div style="min-width:208px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;">
+
+      <!-- Legend card -->
+      <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);">
+        <div style="${F}background:#0f172a;color:#e2e8f0;padding:11px 15px;font-size:13px;font-weight:700;">ตารางแปรผลคะแนน</div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="${Tb}background:#f8fafc;text-align:center;color:#475569;font-size:11px;">ระดับ</th>
+              <th style="${Tb}background:#f8fafc;text-align:center;color:#475569;font-size:11px;">ต่ำสุด</th>
+              <th style="${Tb}background:#f8fafc;text-align:center;color:#475569;font-size:11px;">สูงสุด</th>
+            </tr>
+          </thead>
+          <tbody>${legRows}</tbody>
+        </table>
+      </div>
+
+      ${ynRows.length?`
+      <!-- YN card -->
+      <div style="background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.07);">
+        <div style="${F}font-size:12px;font-weight:700;color:#374151;margin-bottom:10px;letter-spacing:.3px;">ต้องการอบรมเพิ่มเติม</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:56px;height:56px;border-radius:50%;background:${ynPct>=50?'#dcfce7':'#fee2e2'};border:3px solid ${ynPct>=50?'#16a34a':'#dc2626'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="${F}font-size:14px;font-weight:800;color:${ynPct>=50?'#16a34a':'#dc2626'};">${ynPct}%</span>
+          </div>
+          <div>
+            <div style="${F}font-size:22px;font-weight:800;color:${ynPct>=50?'#16a34a':'#dc2626'};line-height:1.1;">${ynYes}<span style="font-size:13px;font-weight:500;color:#94a3b8;"> ราย</span></div>
+            <div style="${F}font-size:11px;color:#94a3b8;margin-top:2px;">จากทั้งหมด ${ynRows.length} ราย</div>
+          </div>
+        </div>
+      </div>`:''}
+
+      ${overallAvg>0?`
+      <!-- KPI card (ใต้ตารางแปรผล) -->
+      <div style="background:linear-gradient(160deg,#1e3a5f,#2563eb);border-radius:14px;padding:18px 16px;box-shadow:0 4px 16px rgba(37,99,235,.28);">
+        <div style="${F}font-size:11px;color:#93c5fd;letter-spacing:.4px;margin-bottom:4px;">คะแนนเฉลี่ยรวม</div>
+        <div style="${F}font-size:46px;font-weight:800;color:#fff;line-height:1;letter-spacing:-1px;">${overallAvg.toFixed(2)}</div>
+        <div style="${F}font-size:11px;color:#93c5fd;margin-top:2px;">/ 5.00 คะแนน</div>
+        <div style="margin:12px 0;height:1px;background:rgba(255,255,255,.2);"></div>
+        <div style="${F}font-size:11px;color:#93c5fd;margin-bottom:4px;">ระดับความพึงพอใจ</div>
+        <div style="${F}font-size:20px;font-weight:700;color:#fff;">${_pLabel(overallAvg)}</div>
+        <div style="margin:12px 0;height:1px;background:rgba(255,255,255,.2);"></div>
+        <div style="${F}font-size:11px;color:#93c5fd;margin-bottom:4px;">ผู้เข้ารับการอบรม</div>
+        <div style="${F}font-size:36px;font-weight:800;color:#fff;line-height:1;">${data.length}<span style="font-size:14px;font-weight:400;"> ราย</span></div>
+      </div>`:''}
+    </div>
+  </div>
+
+  <!-- COMMENTS -->
+  <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);">
+    <div style="${F}background:linear-gradient(90deg,#d97706,#fbbf24);padding:12px 18px;font-weight:700;font-size:13px;color:#fff;letter-spacing:.3px;">💬 ข้อเสนอแนะเพิ่มเติม (Comments)</div>
+    <div style="padding:14px 20px;">
+      ${comments.length
+        ?`<ul style="padding-left:20px;margin:0;">${comments.map(r=>`<li style="${F}font-size:13px;padding:5px 0;color:#334155;line-height:1.7;border-bottom:1px solid #f1f5f9;">${r.comments}</li>`).join('')}</ul>`
+        :`<p style="${F}color:#94a3b8;font-size:13px;text-align:center;padding:10px 0;">ไม่มีข้อเสนอแนะ</p>`}
+    </div>
+  </div>`;
+
+  document.body.appendChild(wrap);
+  showToast('กำลังสร้างภาพ กรุณารอสักครู่...','info');
+  try{
+    await new Promise(r=>setTimeout(r,400));
+    const canvas=await html2canvas(wrap,{scale:2,useCORS:true,backgroundColor:'#f1f5f9',width:990,windowWidth:1200,logging:false});
+    const link=document.createElement('a');
+    link.download=`survey_${site}_${new Date().toISOString().slice(0,10)}.png`;
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+    showToast('บันทึกภาพสำเร็จ','success');
+  }catch(e){
+    console.error(e);
+    showToast('บันทึกภาพไม่สำเร็จ','danger');
+  }finally{
+    document.body.removeChild(wrap);
+  }
+}
+
+function printSurveyReport(){
+  const data=_svFiltered();
+  if(!data.length){showToast('ไม่มีข้อมูลสำหรับพิมพ์','danger');return;}
+
+  const site=document.getElementById('svd-site')?.value||currentSite;
+  const sessId=parseInt(document.getElementById('svd-sess')?.value)||0;
+  const period=document.getElementById('svd-period')?.value||'all';
+  const selSess=_svSessions.find(s=>+s.id===sessId);
+  const selCat=selSess?_svCats.find(c=>c.id===selSess.cat_id):null;
+  const loc=locations.find(l=>l.code===site);
+
+  // label/color ตามช่วงคะแนนในตารางแปรผล
+  const _pLabel=v=>v>=4.5?'มากที่สุด':v>=3.5?'มาก':v>=2.5?'ปานกลาง':v>=1.5?'น้อย':'น้อยที่สุด';
+  const _pColor=v=>v>=4.5?'#16a34a':v>=3.5?'#65a30d':v>=2.5?'#ca8a04':v>=1.5?'#ea580c':'#dc2626';
+  // sample standard deviation (n-1)
+  const _pStd=arr=>{
+    const v=arr.filter(x=>x!=null&&x>=1&&x<=5);
+    if(v.length<2)return 0;
+    const m=v.reduce((a,b)=>a+b,0)/v.length;
+    return Math.sqrt(v.reduce((s,x)=>s+(x-m)**2,0)/(v.length-1));
+  };
+
+  // header info
+  let hdr='';
+  if(selSess){
+    hdr=`หลักสูตร/ระบบงาน: ${selCat?.name||''} : ${selSess.name}&nbsp;&nbsp;|&nbsp;&nbsp;วันที่อบรม: ${fmtDateShort(selSess.date)}&nbsp;&nbsp;|&nbsp;&nbsp;วิทยากร: ${selSess.trainer||'—'}`;
+  }else{
+    const pTxt=period==='all'?'ทั้งหมด':`${period} วันล่าสุด`;
+    hdr=`สาขา: ${loc?.name||site}&nbsp;&nbsp;|&nbsp;&nbsp;ทุกรอบ (${data.length} ราย)&nbsp;&nbsp;|&nbsp;&nbsp;ช่วงเวลา: ${pTxt}`;
+  }
+
+  // compute per-question stats
+  const secData=SVD_SECTIONS.map(sec=>({
+    ...sec,
+    qData:sec.keys.map((k,i)=>{
+      const vals=data.map(r=>r[k]).filter(x=>x!=null&&x>=1&&x<=5);
+      const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+      return{label:sec.qs[i],avg,std:_pStd(vals),counts:[5,4,3,2,1].map(v=>vals.filter(x=>x===v).length)};
+    })
+  }));
+
+  const overallAvg=_avg(secData.flatMap(s=>s.qData).map(q=>q.avg).filter(v=>v>0));
+  const ynRows=data.filter(r=>r.q6_6!=null);
+  const ynYes=ynRows.filter(r=>r.q6_6===true).length;
+  const ynPct=ynRows.length?Math.round(ynYes/ynRows.length*100):0;
+  const comments=data.filter(r=>r.comments?.trim());
+
+  // build table rows (rowspan for section header)
+  let rows='';
+  secData.forEach(sec=>{
+    sec.qData.forEach((q,qi)=>{
+      const lbl=q.avg>0?_pLabel(q.avg):'—';
+      const clr=q.avg>0?_pColor(q.avg):'#94a3b8';
+      rows+=`<tr>
+        ${qi===0?`<td rowspan="${sec.qData.length}" class="sc">${sec.num}.<br>${sec.title}</td>`:''}
+        <td class="qc">${q.label}</td>
+        ${q.counts.map(c=>`<td class="nc">${c}</td>`).join('')}
+        <td class="ac">${q.avg>0?q.avg.toFixed(2):'—'}</td>
+        <td class="dc">${q.std>0?q.std.toFixed(2):'0.00'}</td>
+        <td class="lc"><span style="background:${clr};color:#fff;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">${lbl}</span></td>
+      </tr>`;
+    });
+  });
+
+  const html=`<!DOCTYPE html>
+<html lang="th"><head><meta charset="UTF-8">
+<title>สรุปผลการประเมิน — BMS Training</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun',sans-serif;font-size:13px;color:#111;background:#fff;padding:16px}
+.wrap{max-width:1060px;margin:0 auto}
+.title-box{background:#ffff00;border:2px solid #111;text-align:center;padding:10px 16px;margin-bottom:10px;border-radius:2px}
+.title-box h1{font-size:17px;font-weight:700}
+.title-box .sub{font-size:12px;margin-top:5px;color:#1a3a6e;font-weight:600}
+.layout{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start}
+.tbl-wrap{flex:1;min-width:0}
+.side{min-width:205px;flex-shrink:0;display:flex;flex-direction:column;gap:10px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{border:1px solid #555;padding:5px 6px;vertical-align:middle}
+thead th{background:#00b050;color:#fff;text-align:center;font-weight:700}
+thead th.th-l{text-align:left}
+.sc{background:#eff6ff;font-weight:700;font-size:11px;text-align:center;color:#1e40af;line-height:1.5;white-space:nowrap}
+.qc{font-size:11.5px;color:#1a3a6e}
+.nc{text-align:center}
+.ac{text-align:center;font-weight:700;color:#1a56a0;font-size:13px}
+.dc{text-align:center;color:#475569}
+.lc{text-align:center}
+.leg th{background:#ffff00;color:#111;text-align:center;font-size:12px;font-weight:700}
+.l1{background:#dc2626;color:#fff;font-weight:700;text-align:center}
+.l2{background:#ea580c;color:#fff;font-weight:700;text-align:center}
+.l3{background:#f59e0b;color:#111;font-weight:700;text-align:center}
+.l4{background:#84cc16;color:#111;font-weight:700;text-align:center}
+.l5{background:#16a34a;color:#fff;font-weight:700;text-align:center}
+.ynbox{border:1px solid #e2e8f0;border-radius:4px;padding:10px}
+.ynbox .yt{font-size:12px;font-weight:700;margin-bottom:7px;color:#374151}
+.hl{border:2px solid #fbbf24;background:#fffde7;padding:8px 16px;margin-bottom:10px;font-size:13px;text-align:center;border-radius:4px;line-height:1.7}
+.cmtbox{border:2px solid #fbbf24;border-radius:4px;overflow:hidden}
+.cmtt{background:#fbbf24;padding:7px 12px;font-weight:700;font-size:13px}
+.cmtb{padding:10px 16px}
+.cmtb ul{padding-left:16px}
+.cmtb li{font-size:12px;padding:3px 0;color:#374151;line-height:1.5}
+@media print{body{padding:6px}@page{margin:.7cm;size:A4 landscape}}
+</style></head><body>
+<div class="wrap">
+  <div class="title-box">
+    <h1>สรุปผลการประเมินของผู้เข้าร่วมรับการอบรม</h1>
+    <div class="sub">${hdr}</div>
+  </div>
+  <div class="layout">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:88px;">หัวข้อการประเมิน</th>
+          <th class="th-l">หัวข้อคำถาม</th>
+          <th style="width:30px;background:#16a34a;">5</th>
+          <th style="width:30px;background:#65a30d;">4</th>
+          <th style="width:30px;background:#ca8a04;">3</th>
+          <th style="width:30px;background:#ea580c;">2</th>
+          <th style="width:30px;background:#dc2626;">1</th>
+          <th style="width:46px;">AVG</th>
+          <th style="width:42px;">STD</th>
+          <th style="width:78px;">แปลผล</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="side">
+      <table class="leg">
+        <thead>
+          <tr><th colspan="3">ตารางแปรผลคะแนน</th></tr>
+          <tr><th>ระดับ<br>ความคิดเห็น</th><th>ต่ำสุด</th><th>สูงสุด</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="l1">น้อยที่สุด</td><td style="text-align:center">1</td><td style="text-align:center">1.49</td></tr>
+          <tr><td class="l2">น้อย</td><td style="text-align:center">1.5</td><td style="text-align:center">2.49</td></tr>
+          <tr><td class="l3">ปานกลาง</td><td style="text-align:center">2.5</td><td style="text-align:center">3.49</td></tr>
+          <tr><td class="l4">มาก</td><td style="text-align:center">3.5</td><td style="text-align:center">4.49</td></tr>
+          <tr><td class="l5">มากที่สุด</td><td style="text-align:center">4.5</td><td style="text-align:center">5</td></tr>
+        </tbody>
+      </table>
+      ${ynRows.length?`<div class="ynbox">
+        <div class="yt">ต้องการอบรมเพิ่มเติม</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="background:${ynPct>=50?'#16a34a':'#dc2626'};color:#fff;padding:4px 14px;border-radius:20px;font-weight:700;font-size:16px;">${ynPct}%</span>
+          <span style="font-size:12px;color:#64748b;">${ynYes} / ${ynRows.length} ราย</span>
+        </div>
+      </div>`:''}
+    </div>
+  </div>
+  ${overallAvg>0?`<div class="hl">คะแนนเฉลี่ยรวมทุกด้าน <strong>${overallAvg.toFixed(2)} / 5.00</strong> — ระดับ <strong>"${_pLabel(overallAvg)}"</strong> &nbsp;|&nbsp; ผู้เข้ารับการอบรม <strong>${data.length} ราย</strong></div>`:''}
+  <div class="cmtbox">
+    <div class="cmtt">💬 ข้อเสนอแนะเพิ่มเติม (Comments)</div>
+    <div class="cmtb">${comments.length?`<ul>${comments.map(r=>`<li>${r.comments}</li>`).join('')}</ul>`:'<p style="color:#64748b;font-size:12px;">ไม่มี</p>'}</div>
+  </div>
+</div>
+<script>window.onload=()=>setTimeout(()=>{window.print();},400);</script>
+</body></html>`;
+
+  const w=window.open('','_blank','width=1150,height=860');
+  if(!w){showToast('กรุณาอนุญาต Pop-up ในเบราว์เซอร์ก่อนพิมพ์','danger');return;}
+  w.document.write(html);
+  w.document.close();
 }
 
 /* ══════════════════ STEP ══════════════════ */
@@ -701,6 +1540,10 @@ function renderCategories(){
         ${canReg
           ?`<button class="cat-cta-btn" onclick="selectCategory(${c.id});event.stopPropagation()">เลือกรอบอบรม <i class="ti ti-arrow-right"></i></button>`
           :`<button class="cat-cta-btn disabled" disabled><i class="ti ti-lock"></i> เต็มทุกรอบแล้ว</button>`
+        }
+        ${_quizCatIds.has(c.id)
+          ?`<a href="${QUIZ_BASE_URL}/#/category/${c.id}" target="_blank" class="cat-quiz-btn" onclick="event.stopPropagation()"><i class="ti ti-pencil-check"></i> ทำแบบทดสอบ</a>`
+          :''
         }
       </div>
     </div>`;
@@ -1902,6 +2745,12 @@ function renderAdminCats(){
       <td style="font-size:12px;color:var(--text-muted);">${c.desc}</td>
       <td><span class="badge badge-blue">${cs.length} รอบ</span></td>
       <td><span class="badge badge-success">${cr} คน</span></td>
+      <td>
+        ${_quizCatIds.has(c.id)
+          ?`<a href="${QUIZ_BASE_URL}/#/category/${c.id}" target="_blank" class="btn btn-sm" style="background:#ecfdf5;color:#065f46;border:1px solid #10b981;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="เปิดแบบทดสอบ"><i class="ti ti-pencil-check"></i>แบบทดสอบ</a>`
+          :`<a href="${QUIZ_BASE_URL}/#/admin/courses" target="_blank" class="btn btn-ghost btn-sm" style="color:var(--text-muted);text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="ยังไม่มีแบบทดสอบ — คลิกเพื่อสร้าง"><i class="ti ti-circle-plus"></i>สร้างแบบทดสอบ</a>`
+        }
+      </td>
       <td><div style="display:flex;gap:4px;">
         <button class="btn btn-ghost btn-sm" onclick="openEditCat(${c.id})" title="แก้ไข"><i class="ti ti-edit"></i></button>
         <button class="btn btn-danger btn-sm" onclick="deleteCat(${c.id})" title="ลบ"><i class="ti ti-trash"></i></button>

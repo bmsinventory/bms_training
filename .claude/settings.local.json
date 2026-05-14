@@ -18,7 +18,27 @@
       "Bash(find \"d:\\\\\\\\ส่วนตัว\\\\\\\\พัฒนาโปรแกรม\\\\\\\\inv - bms_training\" -type f -name \"*.js\" -o -name \"*.html\" -o -name \"*.css\")",
       "Bash(wc -l \"d:\\\\\\\\ส่วนตัว\\\\\\\\พัฒนาโปรแกรม\\\\\\\\inv - bms_training\\\\\\\\app.js\")",
       "Bash(Get-ChildItem -Path \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\" -Recurse)",
-      "Bash(Select-Object FullName, Length)"
+      "Bash(Select-Object FullName, Length)",
+      "Bash(cd \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\" && mkdir -p quiz-system/src/lib quiz-system/src/contexts quiz-system/src/components quiz-system/src/pages/admin quiz-system/supabase/functions/grade-quiz quiz-system/supabase/functions/send-email quiz-system/supabase/functions/generate-certificate && echo done)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(grep -rn \"cat-cta\\\\|cat-stat\\\\|\\\\.cat-\" \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\\" --include=\"*.css\" | head -30)",
+      "Read(//d/ส่วนตัว/พัฒนาโปรแกรม/**)",
+      "PowerShell($dst = \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\quiz\"; Write-Host \"exists:\" \\(Test-Path $dst\\); Get-ChildItem \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\" | Select-Object Name,Mode)",
+      "PowerShell(head -20)",
+      "PowerShell($p = \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\quiz\"; \\(Get-ChildItem $p -Recurse -ErrorAction SilentlyContinue\\).Count; Get-ChildItem $p -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })",
+      "PowerShell(Get-ChildItem \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\" | Where-Object { $_.Name -ne 'node_modules' -and $_.Name -ne 'quiz-system' } | Select-Object Name, Mode)",
+      "PowerShell($root = \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\"; $dst = \"$root\\\\quiz\"; if \\(Test-Path $dst\\) { Remove-Item $dst -Recurse -Force }; Copy-Item \"$root\\\\quiz-system\\\\dist\" $dst -Recurse; Write-Host \"Copied. index.html content:\"; Get-Content \"$dst\\\\index.html\")",
+      "PowerShell($root = \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\"; $dst = \"$root\\\\quiz\"; if \\(Test-Path $dst\\) { Remove-Item $dst -Recurse -Force }; Copy-Item \"$root\\\\quiz-system\\\\dist\" $dst -Recurse; Write-Host \"Done\")",
+      "Bash(powershell -Command \"Remove-Item -Recurse -Force 'quiz\\\\assets' -ErrorAction SilentlyContinue; Copy-Item -Recurse -Force 'quiz-system\\\\dist\\\\*' 'quiz\\\\'\")",
+      "Bash(Copy-Item -Path \"quiz-system\\\\dist\\\\*\" -Destination \"quiz\\\\\" -Recurse -Force 2>&1; Write-Host \"Deploy done\")",
+      "Read(//d/ส่วนตัว/พัฒนาโปรแgram/inv - bms_training/quiz-system/src/pages/**)",
+      "Bash(Copy-Item -Path \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\quiz-system\\\\dist\\\\*\" -Destination \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\quiz\\\\\" -Recurse -Force)"
+    ],
+    "additionalDirectories": [
+      "d:\\ส่วนตัว\\พัฒนาโปรแกรม\\inv - bms_training\\quiz-system\\src",
+      "d:\\��ǹ���\\�Ѳ�������\\inv - bms_training\\quiz-system\\dist",
+      "d:\\��ǹ���\\�Ѳ�������\\inv - bms_training\\quiz"
     ]
   }
 }
