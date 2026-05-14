@@ -185,24 +185,39 @@ export default function Courses() {
   }
 
   async function handleDelete(c) {
-    askConfirm(`ลบหลักสูตร "${c.name}" จะลบข้อสอบทั้งหมดด้วย ยืนยัน?`, async () => {
-    try {
-      await supabase.from('course_categories').delete().eq('course_id', c.id);
-      const { error } = await supabase.from('courses').delete().eq('id', c.id);
-      if (error) {
-        if (error.code === '23503') {
-          // FK violation — has quiz_attempts referencing this course
-          const { data } = await supabase.from('quiz_attempts').select('id').eq('course_id', c.id).limit(200);
-          setBlockInfo({ course: c, count: data?.length ?? '?' });
-          return;
-        }
-        throw error;
-      }
-      toast.success('ลบสำเร็จ'); load();
-    } catch (e) {
-      toast.error('ลบไม่สำเร็จ: ' + (e?.message || e));
+    // ตรวจสอบก่อนว่ามีประวัติการสอบหรือไม่
+    const { data: attempts } = await supabase
+      .from('quiz_attempts').select('id').eq('course_id', c.id).limit(200);
+    const attemptCount = attempts?.length ?? 0;
+
+    if (attemptCount > 0) {
+      // มีข้อมูล → แสดง block popup ทันที
+      setBlockInfo({ course: c, count: attemptCount });
+      return;
     }
-    });
+
+    // ไม่มีข้อมูล → ถามยืนยันก่อนลบ
+    askConfirm(
+      `ลบหลักสูตร "${c.name}" จะลบข้อสอบทั้งหมดด้วย ยืนยัน?`,
+      async () => {
+        try {
+          await supabase.from('course_categories').delete().eq('course_id', c.id);
+          const { error } = await supabase.from('courses').delete().eq('id', c.id);
+          if (error) {
+            if (error.code === '23503') {
+              // fallback: FK ยังมีอยู่ (race condition)
+              const { data: d2 } = await supabase.from('quiz_attempts').select('id').eq('course_id', c.id).limit(200);
+              setBlockInfo({ course: c, count: d2?.length ?? '?' });
+              return;
+            }
+            throw error;
+          }
+          toast.success('ลบสำเร็จ'); load();
+        } catch (e) {
+          toast.error('ลบไม่สำเร็จ: ' + (e?.message || e));
+        }
+      }
+    );
   }
 
   const quizBaseUrl   = settings.quiz_base_url || window.location.href.split('#')[0].replace(/\/+$/, '');
