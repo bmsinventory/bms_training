@@ -337,27 +337,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Quick links footer */}
-      <div style={s.footer}>
-        <div style={s.ftrInner}>
-          {[
-            { icon:'🔍', label:'ค้นหาผลสอบ',       desc:'ค้นหาจากชื่อหรืออีเมล', to:'/history' },
-            { icon:'📄', label:'ขอส่งใบรับรองใหม่', desc:'แก้ไขอีเมลและส่งซ้ำ',   to:'/resend'  },
-          ].map(item => (
-            <button
-              key={item.to}
-              onClick={() => navigate(item.to)}
-              style={s.ftrBtn}
-              onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <span style={s.ftrIcon}>{item.icon}</span>
-              <span style={s.ftrLbl}>{item.label}</span>
-              <span style={s.ftrDesc}>{item.desc}</span>
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

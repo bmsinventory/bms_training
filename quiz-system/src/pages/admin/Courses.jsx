@@ -125,7 +125,11 @@ export default function Courses() {
   const quizBaseUrl   = settings.quiz_base_url || window.location.href.split('#')[0].replace(/\/+$/, '');
   const activeCount   = courses.filter(c => c.is_active).length;
   const inactiveCount = courses.filter(c => !c.is_active).length;
-  const quizLink = (c) => `${quizBaseUrl}/#/register/${c.id}`;
+  function quizLink(c) {
+    const linked = getLinkedCats(c.id);
+    const siteCode = linked[0]?.location?.code;
+    return siteCode ? `${quizBaseUrl}/#/?site=${siteCode}` : `${quizBaseUrl}/#/`;
+  }
 
   /* ── styles ── */
   const s = {
