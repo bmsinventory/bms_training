@@ -2294,8 +2294,17 @@ async function clearAllAtt(sid){
 }
 /* ══════════════════ WALK-IN ══════════════════ */
 function openWalkinModal(sid){
+  if(!sid){showToast('กรุณาเลือกรอบอบรมก่อน (ไปที่แท็บ "รายชื่อ" แล้วเลือกรอบ)','danger');return;}
   const s=getSess(sid);
-  if(!s){showToast('กรุณาเลือกรอบอบรมก่อน','danger');return;}
+  if(!s){showToast('ไม่พบข้อมูลรอบอบรม','danger');return;}
+  const cnt=getCount(sid);
+  if(cnt>=s.capacity){
+    showAlert(
+      `ที่นั่งเต็มแล้ว — ไม่สามารถเพิ่ม Walk-in ได้`,
+      `รอบ "${s.name}" รับได้ ${s.capacity} คน มีผู้ลงทะเบียนแล้ว ${cnt} คน\nกรุณาไปที่ Admin → จัดการรอบอบรม แล้วเพิ่มจำนวนที่นั่งก่อน`
+    );
+    return;
+  }
   const cat=getCat(s.catId);
   document.getElementById('walkin-sess-id').value=sid;
   document.getElementById('walkin-sess-title').textContent=`${cat?.name||''} — ${s.name}`;
@@ -2314,6 +2323,15 @@ async function submitWalkin(){
   const pos=document.getElementById('walkin-pos').value.trim();
   const dept=document.getElementById('walkin-dept').value;
   if(!fname||!lname||!pos||!dept){showToast('กรอกข้อมูลให้ครบทุกช่อง','danger');return;}
+  const s=getSess(sid);
+  if(s&&getCount(sid)>=s.capacity){
+    closeModal('modal-walkin');
+    showAlert(
+      `ที่นั่งเต็มแล้ว — ไม่สามารถเพิ่ม Walk-in ได้`,
+      `รอบ "${s.name}" รับได้ ${s.capacity} คน มีผู้ลงทะเบียนแล้ว ${getCount(sid)} คน\nกรุณาเพิ่มจำนวนที่นั่งใน Admin ก่อน`
+    );
+    return;
+  }
   const time=nowTime();
   const {data,error}=await _sb.from('registrations').insert({
     session_id:sid,prefix,fname,lname,position:pos,dept,
@@ -3783,6 +3801,21 @@ async function submitEditReg(){
 
 /* ══ UTILS ══ */
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+function showAlert(msg,subMsg='',icon='<i class="ti ti-alert-circle" style="color:var(--danger)"></i>'){
+  return new Promise(resolve=>{
+    document.getElementById('confirm-msg').textContent=msg;
+    const sub=document.getElementById('confirm-sub');
+    sub.textContent=subMsg;sub.style.display=subMsg?'block':'none';
+    document.getElementById('confirm-icon').innerHTML=icon;
+    const okBtn=document.getElementById('confirm-ok-btn');
+    okBtn.className='btn btn-primary';
+    okBtn.innerHTML='<i class="ti ti-check"></i>รับทราบ';
+    const cancelBtn=document.getElementById('confirm-cancel-btn');
+    cancelBtn.style.display='none';
+    document.getElementById('modal-confirm').classList.add('open');
+    okBtn.onclick=()=>{cancelBtn.style.display='';closeModal('modal-confirm');resolve();};
+  });
+}
 function showConfirm(msg,subMsg='',{okLabel='ตกลง',danger=true}={}){
   return new Promise(resolve=>{
     document.getElementById('confirm-msg').textContent=msg;
