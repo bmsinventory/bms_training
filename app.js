@@ -46,7 +46,7 @@ let masterIds={trainer:[],venue:[],dept:[],prefix:[]};
 // row mappers: DB → app format
 const _mCat=r=>({id:r.id,name:r.name,desc:r.description||'',icon:r.icon||'box',color:r.color||'blue',bannerUrl:r.banner_url||null});
 const _mSess=r=>({id:r.id,catId:r.cat_id,name:r.name,date:r.date,timeStart:r.time_start,timeEnd:r.time_end,venue:r.venue||'',trainer:r.trainer||'',capacity:r.capacity});
-const _mReg=r=>({id:r.id,sessionId:r.session_id,prefix:r.prefix||'',fname:r.fname,lname:r.lname,position:r.position||'',dept:r.dept||'',regDate:r.reg_date,attended:r.attended||false,attendedTime:r.attended_time||null});
+const _mReg=r=>({id:r.id,sessionId:r.session_id,prefix:r.prefix||'',fname:r.fname,lname:r.lname,position:r.position||'',dept:r.dept||'',regDate:r.reg_date,attended:r.attended||false,attendedTime:r.attended_time||null,isWalkin:r.is_walkin||false});
 
 async function pushNotify(reg){
   if(!NOTIFY_API_KEY)return;
@@ -683,6 +683,7 @@ function initCheckinPage(){
 function updateCheckinHeroStats(){
   const total=registrations.length;
   const present=registrations.filter(r=>r.attended).length;
+  const walkin=registrations.filter(r=>r.isWalkin).length;
   const absent=total-present;
   const pct=total?Math.round(present/total*100):0;
   const el=document.getElementById('checkin-live-stats');
@@ -691,7 +692,8 @@ function updateCheckinHeroStats(){
     <div class="hero-stat"><div class="hero-stat-num">${total}</div><div class="hero-stat-lbl">ลงทะเบียน</div></div>
     <div class="hero-stat" style="background:rgba(16,185,129,.2);border-color:rgba(16,185,129,.3);"><div class="hero-stat-num" style="color:#6ee7b7;">${present}</div><div class="hero-stat-lbl">เข้าอบรม</div></div>
     <div class="hero-stat" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.25);"><div class="hero-stat-num" style="color:#fca5a5;">${absent}</div><div class="hero-stat-lbl">ขาด</div></div>
-    <div class="hero-stat" style="background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.25);"><div class="hero-stat-num" style="color:var(--accent);">${pct}%</div><div class="hero-stat-lbl">เข้าร่วม</div></div>`;
+    <div class="hero-stat" style="background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.25);"><div class="hero-stat-num" style="color:var(--accent);">${pct}%</div><div class="hero-stat-lbl">เข้าร่วม</div></div>
+    ${walkin?`<div class="hero-stat" style="background:rgba(139,92,246,.15);border-color:rgba(139,92,246,.25);"><div class="hero-stat-num" style="color:#c4b5fd;">${walkin}</div><div class="hero-stat-lbl">Walk-in</div></div>`:''}`;
 }
 
 /* ══════════════════ ADMIN TABS ══════════════════ */
@@ -1157,9 +1159,12 @@ async function saveSurveyImage(){
   // Attendance stats from registrations
   const filteredSessIds=sessId?new Set([sessId]):new Set(_svSessions.map(s=>s.id));
   const attRegs=(registrations||[]).filter(r=>filteredSessIds.has(r.sessionId));
+  const walkinRegs=attRegs.filter(r=>r.isWalkin);
+  const preRegRegs=attRegs.filter(r=>!r.isWalkin);
   const totalReg=attRegs.length;
   const attendedReg=attRegs.filter(r=>r.attended).length;
-  const absentReg=totalReg-attendedReg;
+  const absentReg=preRegRegs.filter(r=>!r.attended).length;
+  const walkinCount=walkinRegs.length;
   const attPct=totalReg?Math.round(attendedReg/totalReg*100):0;
 
   const F="font-family:'Sarabun','Anuphan',Arial,sans-serif;";
@@ -1240,8 +1245,8 @@ async function saveSurveyImage(){
         <div style="${F}background:linear-gradient(90deg,#0369a1,#0ea5e9);color:#fff;padding:11px 15px;font-size:13px;font-weight:700;">สถิติการเข้าร่วมอบรม</div>
         <div style="padding:14px 16px;display:flex;flex-direction:column;gap:9px;">
           <div style="display:flex;align-items:center;justify-content:space-between;">
-            <span style="${F}font-size:12px;color:#64748b;">ลงทะเบียนทั้งหมด</span>
-            <span style="${F}font-size:19px;font-weight:800;color:#0369a1;">${totalReg}<span style="font-size:11px;font-weight:500;color:#94a3b8;"> คน</span></span>
+            <span style="${F}font-size:12px;color:#64748b;">ลงทะเบียนล่วงหน้า</span>
+            <span style="${F}font-size:19px;font-weight:800;color:#0369a1;">${preRegRegs.length}<span style="font-size:11px;font-weight:500;color:#94a3b8;"> คน</span></span>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;background:#dcfce7;border-radius:8px;padding:7px 10px;">
             <span style="${F}font-size:12px;color:#15803d;font-weight:600;">✅ เข้าอบรม</span>
@@ -1250,6 +1255,14 @@ async function saveSurveyImage(){
           <div style="display:flex;align-items:center;justify-content:space-between;background:#fee2e2;border-radius:8px;padding:7px 10px;">
             <span style="${F}font-size:12px;color:#b91c1c;font-weight:600;">❌ ไม่เข้าอบรม</span>
             <span style="${F}font-size:19px;font-weight:800;color:#b91c1c;">${absentReg}<span style="font-size:11px;font-weight:500;"> คน</span></span>
+          </div>
+          ${walkinCount?`<div style="display:flex;align-items:center;justify-content:space-between;background:#ede9fe;border-radius:8px;padding:7px 10px;">
+            <span style="font-family:'Sarabun','Anuphan',Arial,sans-serif;font-size:12px;color:#6d28d9;font-weight:600;">🚶 Walk-in</span>
+            <span style="font-family:'Sarabun','Anuphan',Arial,sans-serif;font-size:19px;font-weight:800;color:#6d28d9;">${walkinCount}<span style="font-size:11px;font-weight:500;"> คน</span></span>
+          </div>`:''}
+          <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #e2e8f0;padding-top:8px;margin-top:2px;">
+            <span style="${F}font-size:12px;color:#64748b;">รวมเข้าอบรมทั้งหมด</span>
+            <span style="${F}font-size:19px;font-weight:800;color:#0369a1;">${totalReg}<span style="font-size:11px;font-weight:500;color:#94a3b8;"> คน</span></span>
           </div>
           ${totalReg>0?`<div>
             <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:4px;font-family:'Sarabun','Anuphan',Arial,sans-serif;"><span>อัตราเข้าร่วม</span><span style="font-weight:700;color:#0369a1;">${attPct}%</span></div>
@@ -2196,7 +2209,10 @@ function loadAttendance(){
   if(!sid){c.innerHTML='<div class="empty"><i class="ti ti-calendar-event"></i><p>เลือกรอบอบรมเพื่อดูรายชื่อ</p></div>';return;}
   const s=getSess(sid),cat=getCat(s.catId);
   const regs=registrations.filter(r=>r.sessionId===sid);
-  const present=regs.filter(r=>r.attended).length,absent=regs.length-present;
+  const present=regs.filter(r=>r.attended).length;
+  const walkinCount=regs.filter(r=>r.isWalkin).length;
+  const preReg=regs.filter(r=>!r.isWalkin).length;
+  const absent=preReg-regs.filter(r=>r.attended&&!r.isWalkin).length;
   const pct=regs.length?Math.round(present/regs.length*100):0;
   c.innerHTML=`
     <div class="card">
@@ -2210,18 +2226,20 @@ function loadAttendance(){
         </div>
       </div>
       <div class="att-summary">
-        <div class="att-sum-card total"><div class="att-sum-num">${regs.length}</div><div class="att-sum-lbl">ลงทะเบียน</div></div>
+        <div class="att-sum-card total"><div class="att-sum-num">${preReg}</div><div class="att-sum-lbl">ลงทะเบียน</div></div>
         <div class="att-sum-card present"><div class="att-sum-num">${present}</div><div class="att-sum-lbl">เข้าอบรม</div></div>
         <div class="att-sum-card absent"><div class="att-sum-num">${absent}</div><div class="att-sum-lbl">ขาด</div></div>
         <div class="att-sum-card pct"><div class="att-sum-num">${pct}%</div><div class="att-sum-lbl">อัตราเข้าร่วม</div></div>
+        ${walkinCount?`<div class="att-sum-card" style="border-color:#8b5cf6;background:rgba(139,92,246,.07);"><div class="att-sum-num" style="color:#7c3aed;">${walkinCount}</div><div class="att-sum-lbl">Walk-in</div></div>`:''}
       </div>
       <div class="att-progress-bar"><div class="att-progress-fill" style="width:${pct}%;"></div></div>
-      <div style="font-size:11px;color:var(--text-muted);text-align:right;">${present}/${regs.length} คน</div>
+      <div style="font-size:11px;color:var(--text-muted);text-align:right;">${present}/${regs.length} คน${walkinCount?` (รวม Walk-in ${walkinCount} คน)`:''}</div>
     </div>
     <div class="card" style="padding:0;overflow:hidden;">
       <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
         <div style="font-family:var(--heading);font-size:14px;font-weight:600;color:var(--primary);display:flex;align-items:center;gap:8px;"><i class="ti ti-users"></i>รายชื่อ</div>
         <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;gap:5px;" onclick="openWalkinModal(${sid})"><i class="ti ti-walk"></i>Walk-in</button>
           <button class="btn btn-success btn-sm" onclick="markAllPresent(${sid})"><i class="ti ti-check-all"></i>เช็คทั้งหมด</button>
           <button class="btn btn-ghost btn-sm" onclick="clearAllAtt(${sid})"><i class="ti ti-x"></i>ล้าง</button>
         </div>
@@ -2232,15 +2250,16 @@ function loadAttendance(){
           return`<div class="att-row ${r.attended?'present':''}">
             <div class="att-avatar ${r.attended?'present':'absent'}">${ini}</div>
             <div class="att-info">
-              <div class="att-name">${r.prefix||''}${r.fname} ${r.lname}</div>
+              <div class="att-name">${r.prefix||''}${r.fname} ${r.lname}${r.isWalkin?'<span style="margin-left:6px;font-size:10px;font-weight:700;background:#ede9fe;color:#7c3aed;padding:1px 6px;border-radius:10px;vertical-align:middle;">🚶 Walk-in</span>':''}</div>
               <div class="att-sub">${r.position||'-'} | ${r.dept}</div>
             </div>
             <div style="font-size:11px;color:var(--text-muted);text-align:right;min-width:80px;">
               ${r.attended?`<span class="badge badge-success"><i class="ti ti-clock"></i>${r.attendedTime}</span>`:'<span style="color:var(--text-muted);">ยังไม่เช็ค</span>'}
             </div>
-            <button class="check-btn ${r.attended?'checked':''}" onclick="toggleAtt(${r.id})" title="${r.attended?'ยกเลิก':'เช็คชื่อ'}">
-              <i class="ti ti-${r.attended?'check':''}"></i>
-            </button>
+            ${r.isWalkin
+              ?`<button class="check-btn checked" style="background:#dc2626;" onclick="deleteWalkin(${r.id})" title="ลบ Walk-in"><i class="ti ti-trash"></i></button>`
+              :`<button class="check-btn ${r.attended?'checked':''}" onclick="toggleAtt(${r.id})" title="${r.attended?'ยกเลิก':'เช็คชื่อ'}"><i class="ti ti-${r.attended?'check':''}"></i></button>`
+            }
           </div>`;
         }).join('')+'</div>'
       }
@@ -2273,6 +2292,51 @@ async function clearAllAtt(sid){
   toClr.forEach(r=>{r.attended=false;r.attendedTime=null;});
   loadAttendance();showToast('ล้างการเช็คชื่อแล้ว','warn');
 }
+/* ══════════════════ WALK-IN ══════════════════ */
+function openWalkinModal(sid){
+  const s=getSess(sid);
+  if(!s){showToast('กรุณาเลือกรอบอบรมก่อน','danger');return;}
+  const cat=getCat(s.catId);
+  document.getElementById('walkin-sess-id').value=sid;
+  document.getElementById('walkin-sess-title').textContent=`${cat?.name||''} — ${s.name}`;
+  document.getElementById('walkin-sess-meta').textContent=`${fmtDate(s.date)} · ${sessTxt(s)}`;
+  ['walkin-fname','walkin-lname','walkin-pos'].forEach(id=>document.getElementById(id).value='');
+  populateSelect('walkin-prefix',prefixes,'คำนำหน้า...');
+  populateSelect('walkin-dept',departments,'เลือกแผนก...');
+  document.getElementById('modal-walkin').classList.add('open');
+  setTimeout(()=>document.getElementById('walkin-fname').focus(),200);
+}
+async function submitWalkin(){
+  const sid=parseInt(document.getElementById('walkin-sess-id').value);
+  const prefix=document.getElementById('walkin-prefix').value;
+  const fname=document.getElementById('walkin-fname').value.trim();
+  const lname=document.getElementById('walkin-lname').value.trim();
+  const pos=document.getElementById('walkin-pos').value.trim();
+  const dept=document.getElementById('walkin-dept').value;
+  if(!fname||!lname||!pos||!dept){showToast('กรอกข้อมูลให้ครบทุกช่อง','danger');return;}
+  const time=nowTime();
+  const {data,error}=await _sb.from('registrations').insert({
+    session_id:sid,prefix,fname,lname,position:pos,dept,
+    reg_date:new Date().toISOString().split('T')[0],
+    attended:true,attended_time:time,is_walkin:true,
+  }).select().single();
+  if(error){showToast('บันทึกไม่สำเร็จ: '+error.message,'danger');return;}
+  registrations.push(_mReg(data));
+  closeModal('modal-walkin');
+  loadAttendance();updateCheckinHeroStats();
+  showToast(`✓ Walk-in: ${prefix||''}${fname} ${lname}`,'success');
+}
+async function deleteWalkin(regId){
+  const reg=getReg(regId);if(!reg||!reg.isWalkin)return;
+  if(!await showConfirm(`ลบ Walk-in "${reg.prefix||''}${reg.fname} ${reg.lname}" ออก?`,'',{okLabel:'ลบ',danger:true}))return;
+  const {error}=await _sb.from('registrations').delete().eq('id',regId);
+  if(error){showToast('ลบไม่สำเร็จ','danger');return;}
+  const idx=registrations.findIndex(r=>r.id===regId);
+  if(idx!==-1)registrations.splice(idx,1);
+  loadAttendance();updateCheckinHeroStats();
+  showToast('ลบ Walk-in แล้ว','warn');
+}
+
 function exportAttendance(){
   const sid=parseInt(document.getElementById('att-sess-sel').value);
   if(!sid){showToast('กรุณาเลือกรอบอบรมก่อน','danger');return;}
@@ -2304,11 +2368,12 @@ function exportAttendance(){
     'นามสกุล':r.lname,
     'ตำแหน่ง':r.position||'',
     'แผนก':r.dept,
+    'ประเภท':r.isWalkin?'Walk-in':'ลงทะเบียน',
     'สถานะ':r.attended?'เข้าอบรม':'ขาด',
     'เวลาเข้า':r.attendedTime||'-',
   }));
   const wsAtt=XLSX.utils.json_to_sheet(rows);
-  wsAtt['!cols']=[{wch:6},{wch:10},{wch:16},{wch:16},{wch:18},{wch:22},{wch:10},{wch:10}];
+  wsAtt['!cols']=[{wch:6},{wch:10},{wch:16},{wch:16},{wch:18},{wch:22},{wch:12},{wch:10},{wch:10}];
   XLSX.utils.book_append_sheet(wb,wsAtt,'รายชื่อเช็คชื่อ');
 
   XLSX.writeFile(wb,`เช็คชื่อ_${s.name}_${s.date}.xlsx`);
