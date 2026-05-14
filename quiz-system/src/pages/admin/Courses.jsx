@@ -97,6 +97,7 @@ export default function Courses() {
   const [form, setForm]                 = useState(EMPTY);
   const [saving, setSaving]             = useState(false);
   const [blockInfo, setBlockInfo]       = useState(null); // { course, count }
+  const [confirmDlg, setConfirmDlg]     = useState(null); // { message, onOk }
 
   async function load() {
     setLoading(true);
@@ -136,6 +137,9 @@ export default function Courses() {
     if (!locGroups[key]) { locGroups[key] = { loc: cat.location, cats: [] }; locOrder.push(key); }
     locGroups[key].cats.push(cat);
   });
+
+  function askConfirm(message, onOk) { setConfirmDlg({ message, onOk }); }
+  function closeConfirm() { setConfirmDlg(null); }
 
   function openAdd()   { setForm(EMPTY); setModal('add'); }
   async function openEdit(c) {
@@ -181,7 +185,7 @@ export default function Courses() {
   }
 
   async function handleDelete(c) {
-    if (!confirm(`ลบหลักสูตร "${c.name}" จะลบข้อสอบทั้งหมดด้วย ยืนยัน?`)) return;
+    askConfirm(`ลบหลักสูตร "${c.name}" จะลบข้อสอบทั้งหมดด้วย ยืนยัน?`, async () => {
     try {
       await supabase.from('course_categories').delete().eq('course_id', c.id);
       const { error } = await supabase.from('courses').delete().eq('id', c.id);
@@ -198,6 +202,7 @@ export default function Courses() {
     } catch (e) {
       toast.error('ลบไม่สำเร็จ: ' + (e?.message || e));
     }
+    });
   }
 
   const quizBaseUrl   = settings.quiz_base_url || window.location.href.split('#')[0].replace(/\/+$/, '');
@@ -308,6 +313,31 @@ export default function Courses() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Confirm dialog */}
+      {confirmDlg && (
+        <div style={s.overlay}>
+          <div style={{ background:'#fff', borderRadius:16, boxShadow:'0 20px 60px rgba(0,0,0,.2)',
+                        width:'100%', maxWidth:380, overflow:'hidden' }}>
+            <div style={{ padding:'20px 22px 16px' }}>
+              <div style={{ fontWeight:700, fontSize:15, color:'#0f172a', marginBottom:10 }}>ยืนยันการดำเนินการ</div>
+              <p style={{ fontSize:13, color:'#475569', lineHeight:1.7, margin:0 }}>{confirmDlg.message}</p>
+            </div>
+            <div style={{ padding:'12px 22px 18px', display:'flex', gap:8, justifyContent:'flex-end' }}>
+              <button onClick={closeConfirm}
+                style={{ background:'transparent', color:'#64748b', border:'1px solid #e2e8f0',
+                         borderRadius:8, padding:'7px 18px', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+                ยกเลิก
+              </button>
+              <button onClick={() => { closeConfirm(); confirmDlg.onOk(); }}
+                style={{ background:'#dc2626', color:'#fff', border:'none',
+                         borderRadius:8, padding:'7px 20px', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                ตกลง
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
