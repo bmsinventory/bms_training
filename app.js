@@ -604,8 +604,6 @@ async function _clearImportType(type,rows=[]){
     ({error:err}=await _sb.from('categories').delete().gte('id',1));
   } else if(type==='session'){
     ({error:err}=await _sb.from('sessions').delete().gte('id',1));
-  } else if(type==='quiz_course'){
-    ({error:err}=await _sb.from('courses').delete().not('id','is',null));
   } else if(type==='quiz_question'){
     const ids=[...new Set(rows.map(r=>r.value.courseId))];
     for(const cid of ids){
@@ -629,12 +627,28 @@ async function _insertImportRows(type,rows){
   } else if(type==='session'){
     ({error}=await _sb.from('sessions').insert(rows.map(r=>({cat_id:r.value.catId,name:r.value.name,date:r.value.date,time_start:r.value.timeStart,time_end:r.value.timeEnd,venue:r.value.venue,trainer:r.value.trainer,capacity:r.value.capacity,site:currentSite}))));
   } else if(type==='quiz_course'){
-    ({error}=await _sb.from('courses').insert(rows.map(r=>({
-      name:r.value.name,description:r.value.description,
-      questions_count:r.value.questions_count,pass_percent:r.value.pass_percent,
-      max_attempts:r.value.max_attempts,time_limit_min:r.value.time_limit_min,is_active:true,
-    }))));
-    if(!error){const {data}=await _sb.from('courses').select('id,name').order('name');_quizCourses=data||[];}
+    const newRows=rows.filter(r=>r.status==='ok');
+    const dupRows=rows.filter(r=>r.status==='dup');
+    if(newRows.length){
+      ({error}=await _sb.from('courses').insert(newRows.map(r=>({
+        name:r.value.name,description:r.value.description,
+        questions_count:r.value.questions_count,pass_percent:r.value.pass_percent,
+        max_attempts:r.value.max_attempts,time_limit_min:r.value.time_limit_min,is_active:true,
+      }))));
+      if(error)throw new Error(error.message);
+    }
+    for(const r of dupRows){
+      const existing=_quizCourses.find(c=>c.name.toLowerCase()===r.value.name.toLowerCase());
+      if(!existing)continue;
+      const {error:uErr}=await _sb.from('courses').update({
+        description:r.value.description,
+        questions_count:r.value.questions_count,pass_percent:r.value.pass_percent,
+        max_attempts:r.value.max_attempts,time_limit_min:r.value.time_limit_min,
+        updated_at:new Date().toISOString(),
+      }).eq('id',existing.id);
+      if(uErr)throw new Error(uErr.message);
+    }
+    {const {data}=await _sb.from('courses').select('id,name').order('name');_quizCourses=data||[];}
   } else if(type==='quiz_question'){
     for(const r of rows){
       const {data:q,error:qErr}=await _sb.from('questions').insert({
