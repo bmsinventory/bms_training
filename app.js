@@ -1156,11 +1156,26 @@ async function saveSurveyImage(){
   const ynPct=ynRows.length?Math.round(ynYes/ynRows.length*100):0;
   const comments=data.filter(r=>r.comments?.trim());
 
-  // Attendance stats from registrations
-  const filteredSessIds=sessId?new Set([sessId]):new Set(_svSessions.map(s=>s.id));
-  const attRegs=(registrations||[]).filter(r=>filteredSessIds.has(r.sessionId));
-  const walkinRegs=attRegs.filter(r=>r.isWalkin);
-  const preRegRegs=attRegs.filter(r=>!r.isWalkin);
+  // Attendance stats — scope depends on active filter
+  const svSessIdSet=new Set(_svSessions.map(s=>s.id));
+  let attSessIds;
+  if(sessId){
+    // Specific session selected
+    attSessIds=[sessId];
+  }else if(period&&period!=='all'){
+    // Period filter active: use sessions that appear in filtered survey data AND belong to this site
+    attSessIds=[...new Set(data.map(r=>r.session_id).filter(id=>id&&svSessIdSet.has(id)))];
+  }else{
+    // No filter: all sessions for the site
+    attSessIds=_svSessions.map(s=>s.id);
+  }
+  let attRegs=[];
+  if(attSessIds.length>0){
+    const{data:regData}=await _sb.from('registrations').select('attended,is_walkin').in('session_id',attSessIds);
+    attRegs=regData||[];
+  }
+  const walkinRegs=attRegs.filter(r=>r.is_walkin);
+  const preRegRegs=attRegs.filter(r=>!r.is_walkin);
   const totalReg=attRegs.length;
   const attendedReg=attRegs.filter(r=>r.attended).length;
   const absentReg=preRegRegs.filter(r=>!r.attended).length;
@@ -1221,16 +1236,16 @@ async function saveSurveyImage(){
       <table style="width:100%;border-collapse:collapse;">
         <thead>
           <tr style="background:#0f172a;">
-            <th style="${Th}color:#94a3b8;font-size:11px;font-weight:600;text-align:center;width:90px;">หัวข้อ<br>การประเมิน</th>
-            <th style="${Th}color:#e2e8f0;font-size:11px;font-weight:600;text-align:left;">หัวข้อคำถาม</th>
-            <th style="${Th}background:#15803d;color:#fff;font-size:13px;font-weight:700;text-align:center;width:32px;">5</th>
-            <th style="${Th}background:#4d7c0f;color:#fff;font-size:13px;font-weight:700;text-align:center;width:32px;">4</th>
-            <th style="${Th}background:#a16207;color:#fff;font-size:13px;font-weight:700;text-align:center;width:32px;">3</th>
-            <th style="${Th}background:#c2410c;color:#fff;font-size:13px;font-weight:700;text-align:center;width:32px;">2</th>
-            <th style="${Th}background:#b91c1c;color:#fff;font-size:13px;font-weight:700;text-align:center;width:32px;">1</th>
-            <th style="${Th}color:#93c5fd;font-size:11px;font-weight:600;text-align:center;width:52px;">AVG</th>
-            <th style="${Th}color:#94a3b8;font-size:11px;font-weight:600;text-align:center;width:48px;">STD</th>
-            <th style="${Th}color:#e2e8f0;font-size:11px;font-weight:600;text-align:center;width:84px;">แปลผล</th>
+            <th style="${Th}background:#0f172a;color:#ffffff;font-size:11px;font-weight:700;text-align:center;width:90px;">หัวข้อ<br>การประเมิน</th>
+            <th style="${Th}background:#0f172a;color:#ffffff;font-size:11px;font-weight:700;text-align:left;">หัวข้อคำถาม</th>
+            <th style="${Th}background:#16a34a;color:#ffffff;font-size:14px;font-weight:800;text-align:center;width:32px;">5</th>
+            <th style="${Th}background:#4d7c0f;color:#ffffff;font-size:14px;font-weight:800;text-align:center;width:32px;">4</th>
+            <th style="${Th}background:#a16207;color:#ffffff;font-size:14px;font-weight:800;text-align:center;width:32px;">3</th>
+            <th style="${Th}background:#c2410c;color:#ffffff;font-size:14px;font-weight:800;text-align:center;width:32px;">2</th>
+            <th style="${Th}background:#b91c1c;color:#ffffff;font-size:14px;font-weight:800;text-align:center;width:32px;">1</th>
+            <th style="${Th}background:#0f172a;color:#bfdbfe;font-size:11px;font-weight:700;text-align:center;width:52px;">AVG</th>
+            <th style="${Th}background:#0f172a;color:#cbd5e1;font-size:11px;font-weight:700;text-align:center;width:48px;">STD</th>
+            <th style="${Th}background:#0f172a;color:#ffffff;font-size:11px;font-weight:700;text-align:center;width:84px;">แปลผล</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -1331,7 +1346,7 @@ async function saveSurveyImage(){
         <div style="${F}font-size:11px;color:#93c5fd;margin-bottom:4px;">ระดับความพึงพอใจ</div>
         <div style="${F}font-size:20px;font-weight:700;color:#fff;">${_pLabel(overallAvg)}</div>
         <div style="margin:12px 0;height:1px;background:rgba(255,255,255,.2);"></div>
-        <div style="${F}font-size:11px;color:#93c5fd;margin-bottom:4px;">ผู้เข้ารับการอบรม</div>
+        <div style="${F}font-size:11px;color:#93c5fd;margin-bottom:4px;">ผู้ทำแบบประเมิน</div>
         <div style="${F}font-size:36px;font-weight:800;color:#fff;line-height:1;">${data.length}<span style="font-size:14px;font-weight:400;"> ราย</span></div>
       </div>`:''}
     </div>
@@ -1351,7 +1366,7 @@ async function saveSurveyImage(){
   showToast('กำลังสร้างภาพ กรุณารอสักครู่...','info');
   try{
     await new Promise(r=>setTimeout(r,400));
-    const canvas=await html2canvas(wrap,{scale:2,useCORS:true,backgroundColor:'#f1f5f9',width:990,windowWidth:1200,logging:false});
+    const canvas=await html2canvas(wrap,{scale:3,useCORS:true,backgroundColor:'#f1f5f9',width:990,windowWidth:1200,logging:false,letterRendering:true,imageTimeout:0});
     const link=document.createElement('a');
     link.download=`survey_${site}_${new Date().toISOString().slice(0,10)}.png`;
     link.href=canvas.toDataURL('image/png');
@@ -1515,7 +1530,7 @@ thead th.th-l{text-align:left}
       </div>`:''}
     </div>
   </div>
-  ${overallAvg>0?`<div class="hl">คะแนนเฉลี่ยรวมทุกด้าน <strong>${overallAvg.toFixed(2)} / 5.00</strong> — ระดับ <strong>"${_pLabel(overallAvg)}"</strong> &nbsp;|&nbsp; ผู้เข้ารับการอบรม <strong>${data.length} ราย</strong></div>`:''}
+  ${overallAvg>0?`<div class="hl">คะแนนเฉลี่ยรวมทุกด้าน <strong>${overallAvg.toFixed(2)} / 5.00</strong> — ระดับ <strong>"${_pLabel(overallAvg)}"</strong> &nbsp;|&nbsp; ผู้ทำแบบประเมิน <strong>${data.length} ราย</strong></div>`:''}
   <div class="cmtbox">
     <div class="cmtt">💬 ข้อเสนอแนะเพิ่มเติม (Comments)</div>
     <div class="cmtb">${comments.length?`<ul>${comments.map(r=>`<li>${r.comments}</li>`).join('')}</ul>`:'<p style="color:#64748b;font-size:12px;">ไม่มี</p>'}</div>
@@ -2560,15 +2575,15 @@ function clearTrack(){
 
 /* ══════════════════ ADMIN ══════════════════ */
 function renderAdmin(){
-  const attTotal=registrations.filter(r=>r.attended).length;
+  const siteRegs=registrations.filter(r=>!!getSess(r.sessionId));
   document.getElementById('admin-stats').innerHTML=`
     <div class="stat-card blue"><div class="stat-label">ประเภทอบรม</div><div class="stat-value">${categories.length}</div></div>
     <div class="stat-card amber"><div class="stat-label">รอบอบรม</div><div class="stat-value">${sessions.length}</div></div>
-    <div class="stat-card green"><div class="stat-label">ผู้ลงทะเบียน</div><div class="stat-value">${registrations.length}</div></div>
-    <div class="stat-card green"><div class="stat-label">เข้าอบรมแล้ว</div><div class="stat-value">${attTotal}</div></div>`;
+    <div class="stat-card green"><div class="stat-label">ผู้ลงทะเบียน</div><div class="stat-value" id="stat-reg-count">${siteRegs.length}</div></div>
+    <div class="stat-card green"><div class="stat-label">เข้าอบรมแล้ว</div><div class="stat-value" id="stat-att-count">${siteRegs.filter(r=>r.attended).length}</div></div>`;
   renderAdminCats();
   const catOpts='<option value="">ทุกประเภท</option>'+categories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-  ['admin-filter-cat'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=catOpts;});
+  ['admin-filter-cat','admin-reg-filter-cat'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=catOpts;});
   document.getElementById('admin-filter-sess').innerHTML='<option value="">ทุกรอบ</option>'+sessions.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   renderAdminSessions();renderMasters();renderAdminRegs();renderAdminLocations();renderAdminUsers();renderLoginVerify();
 }
@@ -3605,12 +3620,23 @@ async function loadLoginVerify(){
 }
 
 /* ══ ADMIN REGS ══ */
+function onAdminCatChange(){
+  const cid=parseInt(document.getElementById('admin-reg-filter-cat').value)||0;
+  const filtSess=cid?sessions.filter(s=>s.catId===cid):sessions;
+  document.getElementById('admin-filter-sess').innerHTML='<option value="">ทุกรอบ</option>'+filtSess.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  renderAdminRegs();
+}
 function renderAdminRegs(){
   const q=(document.getElementById('admin-search').value||'').toLowerCase();
+  const cid=parseInt(document.getElementById('admin-reg-filter-cat')?.value)||0;
   const sid=document.getElementById('admin-filter-sess').value;
   let regs=registrations.filter(r=>!!getSess(r.sessionId));
   if(q)regs=regs.filter(r=>(r.fname+r.lname+(r.position||'')).toLowerCase().includes(q));
+  if(cid)regs=regs.filter(r=>{const s=getSess(r.sessionId);return s&&s.catId===cid;});
   if(sid)regs=regs.filter(r=>r.sessionId==sid);
+  const sc=document.getElementById('stat-reg-count'),sa=document.getElementById('stat-att-count');
+  if(sc)sc.textContent=regs.length;
+  if(sa)sa.textContent=regs.filter(r=>r.attended).length;
   const tbody=document.getElementById('admin-reg-tbody');
   if(!regs.length){tbody.innerHTML='<tr><td colspan="12"><div class="empty"><i class="ti ti-users-minus"></i><p>ไม่พบรายการ</p></div></td></tr>';return;}
   tbody.innerHTML=regs.map((r,i)=>{

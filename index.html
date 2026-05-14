@@ -404,6 +404,7 @@
           <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:15px;"></i>
           <input class="form-control" id="admin-search" placeholder="ค้นหา..." oninput="renderAdminRegs()" style="padding-left:32px;">
         </div>
+        <select class="form-control" id="admin-reg-filter-cat" style="width:180px;" onchange="onAdminCatChange()"><option value="">ทุกประเภท</option></select>
         <select class="form-control" id="admin-filter-sess" style="width:200px;" onchange="renderAdminRegs()"><option value="">ทุกรอบ</option></select>
       </div>
       <div class="table-wrap"><table><thead><tr><th>#</th><th>คำนำหน้า</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th>ประเภท</th><th>รอบ</th><th>วันที่ลง</th><th>สถานะ</th><th>QR</th><th>แก้ไข</th><th>ลบ</th></tr></thead><tbody id="admin-reg-tbody"></tbody></table></div>
