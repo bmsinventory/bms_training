@@ -33,7 +33,9 @@
       "Bash(powershell -Command \"Remove-Item -Recurse -Force 'quiz\\\\assets' -ErrorAction SilentlyContinue; Copy-Item -Recurse -Force 'quiz-system\\\\dist\\\\*' 'quiz\\\\'\")",
       "Bash(Copy-Item -Path \"quiz-system\\\\dist\\\\*\" -Destination \"quiz\\\\\" -Recurse -Force 2>&1; Write-Host \"Deploy done\")",
       "Read(//d/ส่วนตัว/พัฒนาโปรแgram/inv - bms_training/quiz-system/src/pages/**)",
-      "Bash(Copy-Item -Path \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\quiz-system\\\\dist\\\\*\" -Destination \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\quiz\\\\\" -Recurse -Force)"
+      "Bash(Copy-Item -Path \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\quiz-system\\\\dist\\\\*\" -Destination \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\quiz\\\\\" -Recurse -Force)",
+      "Bash(Remove-Item -Recurse -Force \"quiz\\\\assets\" -ErrorAction SilentlyContinue)",
+      "Bash(Copy-Item -Recurse -Force \"quiz-system\\\\dist\\\\*\" \"quiz\\\\\" 2>&1; Write-Output \"Done\")"
     ],
     "additionalDirectories": [
       "d:\\ส่วนตัว\\พัฒนาโปรแกรม\\inv - bms_training\\quiz-system\\src",
