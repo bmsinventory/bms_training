@@ -605,7 +605,7 @@ async function _clearImportType(type,rows=[]){
   } else if(type==='session'){
     ({error:err}=await _sb.from('sessions').delete().gte('id',1));
   } else if(type==='quiz_course'){
-    ({error:err}=await _sb.from('courses').delete().gte('id',1));
+    ({error:err}=await _sb.from('courses').delete().not('id','is',null));
   } else if(type==='quiz_question'){
     const ids=[...new Set(rows.map(r=>r.value.courseId))];
     for(const cid of ids){
