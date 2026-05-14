@@ -13,23 +13,89 @@ const EMPTY = {
   is_active: true, categoryIds: [],
 };
 
-const Stat = ({ label, value, color }) => (
-  <div style={{ background:'#fff', borderRadius:10, border:'1px solid #e2e8f0', padding:'10px 16px' }}>
-    <div style={{ fontSize:11, color:'#64748b', marginBottom:3 }}>{label}</div>
-    <div style={{ fontSize:22, fontWeight:700, color }}>{value}</div>
-  </div>
-);
+const s = {
+  page:      { fontFamily:"'Anuphan','Sarabun',sans-serif", fontSize:14 },
+  statsGrid: { display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:16 },
+  statBox:   { background:'#fff', borderRadius:10, border:'1px solid #e2e8f0', padding:'10px 16px' },
+  statLbl:   { fontSize:11, color:'#64748b', marginBottom:3 },
+  statVal:   { fontSize:22, fontWeight:700 },
+
+  toolbar:   { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 },
+  secTitle:  { fontSize:14, fontWeight:600, color:'#2563eb', display:'flex', alignItems:'center', gap:8 },
+  btnPri:    { background:'#2563eb', color:'#fff', border:'none', borderRadius:8, padding:'7px 16px',
+               fontSize:13, fontWeight:500, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6 },
+
+  grid:      { display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:14 },
+
+  card:      (active) => ({
+    background:'#fff', borderRadius:12, border:'1px solid #e2e8f0',
+    boxShadow:'0 1px 3px rgba(0,0,0,.06)', display:'flex', flexDirection:'column',
+    opacity: active ? 1 : 0.6, overflow:'hidden',
+  }),
+  cardTop:   { padding:'14px 16px 10px', flex:1 },
+  cardFoot:  { padding:'10px 14px', borderTop:'1px solid #f1f5f9',
+               display:'flex', gap:5, flexWrap:'wrap', alignItems:'center' },
+
+  badge:     (active) => ({
+    display:'inline-flex', alignItems:'center', padding:'2px 9px',
+    borderRadius:20, fontSize:11, fontWeight:600,
+    background: active ? '#ecfdf5' : '#f1f5f9',
+    color:      active ? '#065f46' : '#475569',
+  }),
+  chip:      { display:'inline-flex', alignItems:'center', padding:'2px 8px',
+               borderRadius:8, fontSize:11, fontWeight:500,
+               background:'#f1f5f9', color:'#475569' },
+  chipBlue:  { display:'inline-flex', alignItems:'center', gap:4, padding:'2px 8px',
+               borderRadius:8, fontSize:11, fontWeight:500,
+               background:'#eff6ff', color:'#1d4ed8' },
+
+  btnSm:     { background:'transparent', color:'#64748b', border:'1px solid #e2e8f0',
+               borderRadius:7, padding:'4px 9px', fontSize:12, fontWeight:500,
+               cursor:'pointer', display:'inline-flex', alignItems:'center', gap:3 },
+  btnSmPri:  { background:'#2563eb', color:'#fff', border:'none',
+               borderRadius:7, padding:'4px 9px', fontSize:12, fontWeight:500,
+               cursor:'pointer', display:'inline-flex', alignItems:'center', gap:3, textDecoration:'none' },
+  btnSmDanger:{ background:'transparent', color:'#dc2626', border:'1px solid #fecaca',
+               borderRadius:7, padding:'4px 9px', fontSize:12, cursor:'pointer' },
+
+  empty:     { textAlign:'center', padding:'56px 0', color:'#94a3b8' },
+
+  /* modal */
+  overlay:   { position:'fixed', inset:0, zIndex:999, display:'flex', alignItems:'center',
+               justifyContent:'center', background:'rgba(15,23,42,.55)', padding:16 },
+  modal:     { background:'#fff', borderRadius:16, boxShadow:'0 20px 60px rgba(0,0,0,.2)',
+               width:'100%', maxWidth:520, maxHeight:'90vh', overflow:'hidden', display:'flex', flexDirection:'column' },
+  mHead:     { background:'linear-gradient(135deg,#1a3a6b,#1a56a0)', padding:'16px 22px', color:'#fff' },
+  mBody:     { overflowY:'auto', flex:1, padding:22 },
+  mFoot:     { padding:'12px 22px', borderTop:'1px solid #f1f5f9', display:'flex', gap:8, justifyContent:'flex-end' },
+
+  input:     { width:'100%', padding:'8px 12px', border:'1px solid #e2e8f0', borderRadius:8,
+               fontFamily:"inherit", fontSize:14, color:'#0f172a', background:'#fff', boxSizing:'border-box' },
+  label:     { display:'block', fontSize:13, fontWeight:500, color:'#334155', marginBottom:5 },
+  fGroup:    { marginBottom:14 },
+  btnCancel: { background:'transparent', color:'#64748b', border:'1px solid #e2e8f0',
+               borderRadius:8, padding:'7px 18px', fontSize:13, fontWeight:500, cursor:'pointer' },
+};
+
+function Stat({ label, value, color }) {
+  return (
+    <div style={s.statBox}>
+      <div style={s.statLbl}>{label}</div>
+      <div style={{ ...s.statVal, color }}>{value}</div>
+    </div>
+  );
+}
 
 export default function Courses() {
   const toast = useToast();
-  const [courses, setCourses]         = useState([]);
+  const [courses, setCourses]           = useState([]);
   const [trainingCats, setTrainingCats] = useState([]);
-  const [courseLinks, setCourseLinks] = useState([]); // course_categories rows
-  const [settings, setSettings]       = useState({});
-  const [loading, setLoading]         = useState(true);
-  const [modal, setModal]             = useState(null);
-  const [form, setForm]               = useState(EMPTY);
-  const [saving, setSaving]           = useState(false);
+  const [courseLinks, setCourseLinks]   = useState([]);
+  const [settings, setSettings]         = useState({});
+  const [loading, setLoading]           = useState(true);
+  const [modal, setModal]               = useState(null);
+  const [form, setForm]                 = useState(EMPTY);
+  const [saving, setSaving]             = useState(false);
 
   async function load() {
     setLoading(true);
@@ -50,13 +116,11 @@ export default function Courses() {
 
   const catMap = Object.fromEntries(trainingCats.map(c => [c.id, c]));
 
-  // categories used by OTHER courses (to disable in multi-select)
   const editingId  = modal && modal !== 'add' ? modal.id : null;
   const usedCatIds = courseLinks
     .filter(l => l.course_id !== editingId)
     .map(l => l.category_id);
 
-  // categories linked to current course (for table display)
   function getLinkedCats(courseId) {
     return courseLinks
       .filter(l => l.course_id === courseId)
@@ -64,7 +128,6 @@ export default function Courses() {
       .filter(Boolean);
   }
 
-  // location groups from trainingCats
   const locGroups = {};
   const locOrder  = [];
   trainingCats.forEach(cat => {
@@ -108,7 +171,7 @@ export default function Courses() {
       await setCourseCategories(courseId, categoryIds.map(Number));
       closeModal(); load();
     } catch (e) { toast.error('บันทึกไม่สำเร็จ: ' + (e?.message || e)); }
-    finally   { setSaving(false); }
+    finally     { setSaving(false); }
   }
 
   async function toggleActive(c) {
@@ -125,35 +188,15 @@ export default function Courses() {
   const quizBaseUrl   = settings.quiz_base_url || window.location.href.split('#')[0].replace(/\/+$/, '');
   const activeCount   = courses.filter(c => c.is_active).length;
   const inactiveCount = courses.filter(c => !c.is_active).length;
+
   function quizLink(c) {
     const linked  = getLinkedCats(c.id);
     const codes   = [...new Set(linked.map(cat => cat.location?.code).filter(Boolean))];
     const bmsSite = localStorage.getItem('bms_quiz_site');
-    // prefer current BMS site if it's among the linked locations
-    const site = (bmsSite && codes.includes(bmsSite)) ? bmsSite
-               : codes.length === 1 ? codes[0]
-               : '';
+    const site    = (bmsSite && codes.includes(bmsSite)) ? bmsSite
+                  : codes.length === 1 ? codes[0] : '';
     return site ? `${quizBaseUrl}/#/?site=${site}` : `${quizBaseUrl}/#/`;
   }
-
-  /* ── styles ── */
-  const s = {
-    page:      { fontFamily:"'Anuphan','Sarabun',sans-serif", fontSize:14 },
-    statsGrid: { display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:14 },
-    card:      { background:'#fff', borderRadius:12, border:'1px solid #e2e8f0', marginBottom:14, overflow:'hidden' },
-    cardHd:    { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 18px', borderBottom:'1px solid #f1f5f9' },
-    cardTitle: { fontSize:14, fontWeight:600, color:'#2563eb', display:'flex', alignItems:'center', gap:8 },
-    th:        { textAlign:'left', padding:'9px 12px', fontSize:12, fontWeight:600, color:'#64748b', background:'#f8fafc', borderBottom:'1px solid #e2e8f0', whiteSpace:'nowrap' },
-    td:        { padding:'10px 12px', fontSize:13, borderBottom:'1px solid #f1f5f9', color:'#0f172a', verticalAlign:'middle' },
-    badge:     (active) => ({ display:'inline-flex', alignItems:'center', padding:'2px 9px', borderRadius:20, fontSize:11, fontWeight:600,
-                  background: active ? '#ecfdf5' : '#f1f5f9', color: active ? '#065f46' : '#475569' }),
-    btnPri:    { background:'#2563eb', color:'#fff', border:'none', borderRadius:8, padding:'6px 14px', fontSize:13, fontWeight:500, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6 },
-    btnGhost:  { background:'transparent', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:8, padding:'5px 10px', fontSize:12, fontWeight:500, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:4 },
-    btnDanger: { background:'transparent', color:'#dc2626', border:'1px solid #fecaca', borderRadius:8, padding:'5px 10px', fontSize:12, cursor:'pointer' },
-    input:     { width:'100%', padding:'8px 12px', border:'1px solid #e2e8f0', borderRadius:8, fontFamily:"inherit", fontSize:14, color:'#0f172a', background:'#fff', boxSizing:'border-box' },
-    label:     { display:'block', fontSize:13, fontWeight:500, color:'#334155', marginBottom:5 },
-    fGroup:    { marginBottom:14 },
-  };
 
   return (
     <div style={s.page}>
@@ -165,109 +208,106 @@ export default function Courses() {
         <Stat label="ปิดใช้งาน"       value={inactiveCount} color="#94a3b8" />
       </div>
 
-      {/* Table card */}
-      <div style={s.card}>
-        <div style={s.cardHd}>
-          <div style={s.cardTitle}><span>📚</span> จัดการหลักสูตรแบบทดสอบ</div>
-          <button onClick={openAdd} style={s.btnPri}><span>+</span> เพิ่มหลักสูตร</button>
-        </div>
-
-        {loading ? <InlineLoader /> : (
-          <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={s.th}>สถานะ</th>
-                  <th style={s.th}>ชื่อหลักสูตร</th>
-                  <th style={s.th}>เชื่อมกับหลักสูตรอบรม</th>
-                  <th style={{ ...s.th, textAlign:'center' }}>ข้อสอบ</th>
-                  <th style={{ ...s.th, textAlign:'center' }}>ผ่าน</th>
-                  <th style={{ ...s.th, textAlign:'center' }}>เวลา</th>
-                  <th style={s.th}>จัดการ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {courses.map(c => {
-                  const linkedCats = getLinkedCats(c.id);
-                  return (
-                    <tr key={c.id} style={{ opacity: c.is_active ? 1 : 0.55 }}
-                      onMouseEnter={e => e.currentTarget.querySelectorAll('td').forEach(td => td.style.background='#f8fafc')}
-                      onMouseLeave={e => e.currentTarget.querySelectorAll('td').forEach(td => td.style.background='')}>
-                      <td style={s.td}><span style={s.badge(c.is_active)}>{c.is_active ? 'เปิด' : 'ปิด'}</span></td>
-                      <td style={s.td}>
-                        <div style={{ fontWeight:600, color:'#0f172a' }}>{c.name}</div>
-                        {c.description && <div style={{ fontSize:12, color:'#94a3b8', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.description}</div>}
-                      </td>
-                      <td style={s.td}>
-                        {linkedCats.length > 0 ? (
-                          <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
-                            {linkedCats.map(cat => (
-                              <span key={cat.id} style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12,
-                                background:'#eff6ff', color:'#1d4ed8', padding:'2px 8px', borderRadius:8, fontWeight:500, width:'fit-content' }}>
-                                {cat.location?.code && (
-                                  <span style={{ fontFamily:'monospace', fontWeight:700, color:'#1e40af' }}>{cat.location.code}</span>
-                                )}
-                                {cat.location?.code ? ' · ' : '🔗 '}{cat.name}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span style={{ fontSize:12, color:'#cbd5e1' }}>—</span>
-                        )}
-                      </td>
-                      <td style={{ ...s.td, textAlign:'center', fontWeight:700, fontFamily:'monospace', color:'#334155' }}>{c.questions_count}</td>
-                      <td style={{ ...s.td, textAlign:'center' }}>
-                        <span style={{ fontWeight:700, color:'#d97706' }}>{c.pass_percent}%</span>
-                      </td>
-                      <td style={{ ...s.td, textAlign:'center', fontSize:12, color:'#64748b' }}>
-                        {c.time_limit_min > 0 ? `${c.time_limit_min} นาที` : '—'}
-                      </td>
-                      <td style={s.td}>
-                        <div style={{ display:'flex', gap:5, flexWrap:'wrap', alignItems:'center' }}>
-                          <Link to={`/admin/questions/${c.id}`}
-                            style={{ ...s.btnPri, fontSize:12, padding:'4px 10px', textDecoration:'none' }}>
-                            📝 ข้อสอบ
-                          </Link>
-                          <button onClick={() => openEdit(c)} style={s.btnGhost} title="แก้ไข">✏️ แก้ไข</button>
-                          <button onClick={() => toggleActive(c)} style={s.btnGhost} title={c.is_active ? 'ปิด' : 'เปิด'}>
-                            {c.is_active ? '🔴 ปิด' : '🟢 เปิด'}
-                          </button>
-                          <a href={quizLink(c)} target="_blank" rel="noopener noreferrer"
-                            style={{ ...s.btnGhost, textDecoration:'none' }} title="เปิดแบบทดสอบ">🔗 เปิด</a>
-                          <button onClick={() => handleDelete(c)} style={s.btnDanger} title="ลบ">🗑️</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {courses.length === 0 && (
-              <div style={{ textAlign:'center', padding:'48px 0', color:'#94a3b8' }}>
-                <div style={{ fontSize:48, marginBottom:10 }}>📚</div>
-                <p>ยังไม่มีหลักสูตร คลิก "เพิ่มหลักสูตร" เพื่อเริ่มต้น</p>
-              </div>
-            )}
-          </div>
-        )}
+      {/* Toolbar */}
+      <div style={s.toolbar}>
+        <div style={s.secTitle}><span>📚</span> จัดการหลักสูตรแบบทดสอบ</div>
+        <button onClick={openAdd} style={s.btnPri}><span>+</span> เพิ่มหลักสูตร</button>
       </div>
+
+      {/* Cards */}
+      {loading ? <InlineLoader /> : courses.length === 0 ? (
+        <div style={s.empty}>
+          <div style={{ fontSize:48, marginBottom:10 }}>📚</div>
+          <p>ยังไม่มีหลักสูตร คลิก "เพิ่มหลักสูตร" เพื่อเริ่มต้น</p>
+        </div>
+      ) : (
+        <div style={s.grid}>
+          {courses.map(c => {
+            const linkedCats = getLinkedCats(c.id);
+            return (
+              <div key={c.id} style={s.card(c.is_active)}>
+                <div style={s.cardTop}>
+
+                  {/* Title row */}
+                  <div style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:6 }}>
+                    <span style={{ ...s.badge(c.is_active), flexShrink:0, marginTop:2 }}>
+                      {c.is_active ? 'เปิด' : 'ปิด'}
+                    </span>
+                    <div style={{ fontWeight:700, fontSize:15, color:'#0f172a', lineHeight:1.4 }}>
+                      {c.name}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {c.description && (
+                    <div style={{ fontSize:12, color:'#64748b', lineHeight:1.6, marginBottom:10,
+                                  display:'-webkit-box', WebkitLineClamp:3,
+                                  WebkitBoxOrient:'vertical', overflow:'hidden' }}>
+                      {c.description}
+                    </div>
+                  )}
+
+                  {/* Stats chips */}
+                  <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:10 }}>
+                    <span style={s.chip}>📝 {c.questions_count} ข้อ</span>
+                    <span style={{ ...s.chip, background:'#fffbeb', color:'#92400e' }}>🎯 ผ่าน {c.pass_percent}%</span>
+                    {c.time_limit_min > 0 && (
+                      <span style={s.chip}>⏱ {c.time_limit_min} นาที</span>
+                    )}
+                    {c.max_attempts > 0 && (
+                      <span style={s.chip}>🔁 {c.max_attempts} ครั้ง</span>
+                    )}
+                  </div>
+
+                  {/* Linked categories */}
+                  {linkedCats.length > 0 ? (
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                      {linkedCats.map(cat => (
+                        <span key={cat.id} style={s.chipBlue}>
+                          {cat.location?.code && (
+                            <span style={{ fontFamily:'monospace', fontWeight:700, fontSize:10 }}>
+                              {cat.location.code}
+                            </span>
+                          )}
+                          {cat.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span style={{ fontSize:11, color:'#cbd5e1' }}>ไม่ได้เชื่อมหลักสูตรอบรม</span>
+                  )}
+                </div>
+
+                {/* Action footer */}
+                <div style={s.cardFoot}>
+                  <Link to={`/admin/questions/${c.id}`} style={s.btnSmPri}>📝 ข้อสอบ</Link>
+                  <button onClick={() => openEdit(c)}    style={s.btnSm}>✏️ แก้ไข</button>
+                  <button onClick={() => toggleActive(c)} style={s.btnSm}>
+                    {c.is_active ? '🔴 ปิด' : '🟢 เปิด'}
+                  </button>
+                  <a href={quizLink(c)} target="_blank" rel="noopener noreferrer" style={{ ...s.btnSm, textDecoration:'none' }}>
+                    🔗 เปิด
+                  </a>
+                  <button onClick={() => handleDelete(c)} style={{ ...s.btnSmDanger, marginLeft:'auto' }}>🗑️</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Modal */}
       {modal && (
-        <div style={{ position:'fixed', inset:0, zIndex:999, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(15,23,42,.55)', padding:16 }}>
-          <div style={{ background:'#fff', borderRadius:16, boxShadow:'0 20px 60px rgba(0,0,0,.2)', width:'100%', maxWidth:520, maxHeight:'90vh', overflow:'hidden', display:'flex', flexDirection:'column' }}>
-
-            {/* Header */}
-            <div style={{ background:'linear-gradient(135deg,#1a3a6b,#1a56a0)', padding:'16px 22px', color:'#fff' }}>
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <div style={s.mHead}>
               <div style={{ fontWeight:700, fontSize:15 }}>
                 {modal === 'add' ? '➕ เพิ่มหลักสูตรใหม่' : '✏️ แก้ไขหลักสูตร'}
               </div>
             </div>
 
-            {/* Body */}
-            <div style={{ overflowY:'auto', flex:1, padding:22 }}>
-
+            <div style={s.mBody}>
+              {/* Category links */}
               <div style={s.fGroup}>
                 <label style={s.label}>
                   🔗 เชื่อมกับหลักสูตรอบรม
@@ -280,20 +320,16 @@ export default function Courses() {
                 </label>
                 <div style={{ border:'1px solid #e2e8f0', borderRadius:8, overflow:'hidden' }}>
                   {trainingCats.length === 0 ? (
-                    <div style={{ padding:'10px 14px', fontSize:13, color:'#94a3b8' }}>
-                      ยังไม่มีหลักสูตรอบรม
-                    </div>
+                    <div style={{ padding:'10px 14px', fontSize:13, color:'#94a3b8' }}>ยังไม่มีหลักสูตรอบรม</div>
                   ) : (
-                    <div style={{ maxHeight:220, overflowY:'auto' }}>
+                    <div style={{ maxHeight:200, overflowY:'auto' }}>
                       {locOrder.map(key => {
                         const { loc, cats } = locGroups[key];
                         return (
                           <div key={key}>
-                            {/* location header */}
-                            <div style={{ padding:'6px 12px', background:'#f8fafc',
+                            <div style={{ padding:'5px 12px', background:'#f8fafc',
                                           borderBottom:'1px solid #f1f5f9',
-                                          fontSize:11, fontWeight:700, color:'#475569',
-                                          display:'flex', alignItems:'center', gap:6 }}>
+                                          fontSize:11, fontWeight:700, color:'#475569' }}>
                               📍 {loc ? `${loc.name} (${loc.code})` : 'ไม่ระบุสาขา'}
                             </div>
                             {cats.map(cat => {
@@ -302,15 +338,12 @@ export default function Courses() {
                               return (
                                 <label key={cat.id} style={{
                                   display:'flex', alignItems:'center', gap:10,
-                                  padding:'8px 14px', cursor: isUsed ? 'not-allowed' : 'pointer',
+                                  padding:'7px 14px', cursor: isUsed ? 'not-allowed' : 'pointer',
                                   background: isChecked ? '#eff6ff' : 'transparent',
-                                  borderBottom:'1px solid #f8fafc',
-                                  opacity: isUsed ? 0.45 : 1,
+                                  borderBottom:'1px solid #f8fafc', opacity: isUsed ? 0.45 : 1,
                                 }}>
-                                  <input type="checkbox"
-                                    style={{ width:15, height:15, flexShrink:0 }}
-                                    checked={isChecked}
-                                    disabled={isUsed}
+                                  <input type="checkbox" style={{ width:15, height:15, flexShrink:0 }}
+                                    checked={isChecked} disabled={isUsed}
                                     onChange={() => !isUsed && toggleCat(cat.id)} />
                                   <span style={{ fontSize:13, flex:1, color: isChecked ? '#1d4ed8' : '#0f172a' }}>
                                     {loc?.code && (
@@ -340,45 +373,49 @@ export default function Courses() {
 
               <div style={s.fGroup}>
                 <label style={s.label}>ชื่อหลักสูตร (Quiz) *</label>
-                <input style={s.input} value={form.name} onChange={e => setF('name', e.target.value)} placeholder="เช่น ความปลอดภัยในการทำงาน" />
+                <input style={s.input} value={form.name}
+                  onChange={e => setF('name', e.target.value)}
+                  placeholder="เช่น ความปลอดภัยในการทำงาน" />
               </div>
 
               <div style={s.fGroup}>
                 <label style={s.label}>คำอธิบาย</label>
-                <textarea style={{ ...s.input, minHeight:70, resize:'vertical' }} value={form.description} onChange={e => setF('description', e.target.value)} />
+                <textarea style={{ ...s.input, minHeight:80, resize:'vertical' }}
+                  value={form.description} onChange={e => setF('description', e.target.value)} />
               </div>
 
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div style={s.fGroup}>
                   <label style={s.label}>จำนวนข้อที่สุ่ม</label>
-                  <input type="number" min="1" max="100" style={s.input} value={form.questions_count} onChange={e => setF('questions_count', +e.target.value)} />
+                  <input type="number" min="1" max="100" style={s.input}
+                    value={form.questions_count} onChange={e => setF('questions_count', +e.target.value)} />
                 </div>
                 <div style={s.fGroup}>
                   <label style={s.label}>เกณฑ์ผ่าน (%)</label>
-                  <input type="number" min="1" max="100" style={s.input} value={form.pass_percent} onChange={e => setF('pass_percent', +e.target.value)} />
+                  <input type="number" min="1" max="100" style={s.input}
+                    value={form.pass_percent} onChange={e => setF('pass_percent', +e.target.value)} />
                 </div>
                 <div style={s.fGroup}>
                   <label style={s.label}>จำกัดครั้ง (0=ไม่จำกัด)</label>
-                  <input type="number" min="0" style={s.input} value={form.max_attempts} onChange={e => setF('max_attempts', +e.target.value)} />
+                  <input type="number" min="0" style={s.input}
+                    value={form.max_attempts} onChange={e => setF('max_attempts', +e.target.value)} />
                 </div>
                 <div style={s.fGroup}>
                   <label style={s.label}>จำกัดเวลา นาที (0=ไม่จำกัด)</label>
-                  <input type="number" min="0" style={s.input} value={form.time_limit_min} onChange={e => setF('time_limit_min', +e.target.value)} />
+                  <input type="number" min="0" style={s.input}
+                    value={form.time_limit_min} onChange={e => setF('time_limit_min', +e.target.value)} />
                 </div>
               </div>
 
               <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, fontWeight:500, color:'#334155' }}>
-                <input type="checkbox" checked={form.is_active} onChange={e => setF('is_active', e.target.checked)} style={{ width:16, height:16 }} />
+                <input type="checkbox" checked={form.is_active}
+                  onChange={e => setF('is_active', e.target.checked)} style={{ width:16, height:16 }} />
                 เปิดใช้งาน
               </label>
             </div>
 
-            {/* Footer */}
-            <div style={{ padding:'12px 22px', borderTop:'1px solid #f1f5f9', display:'flex', gap:8, justifyContent:'flex-end' }}>
-              <button onClick={closeModal}
-                style={{ background:'transparent', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:8, padding:'7px 18px', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-                ยกเลิก
-              </button>
+            <div style={s.mFoot}>
+              <button onClick={closeModal} style={s.btnCancel}>ยกเลิก</button>
               <button onClick={handleSave} disabled={saving} style={{ ...s.btnPri, padding:'7px 20px' }}>
                 {saving ? '⏳ กำลังบันทึก...' : '💾 บันทึก'}
               </button>
