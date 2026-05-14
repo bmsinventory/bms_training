@@ -9,7 +9,7 @@ export default function AdminLayout() {
 
   useEffect(() => {
     if (!loading && !user && !isEmbedded) {
-      window.location.replace('../');
+      window.location.replace('#/admin/login');
     }
   }, [user, loading]);
 

@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/bms_training/quiz/',
+  base: './',
   server: { port: 5173, base: '/quiz/' },
   build: {
     outDir: 'dist',
