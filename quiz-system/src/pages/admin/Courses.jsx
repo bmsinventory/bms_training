@@ -180,9 +180,25 @@ export default function Courses() {
   }
 
   async function handleDelete(c) {
+    // check if any attempts reference this course
+    const { count } = await supabase
+      .from('quiz_attempts')
+      .select('id', { count: 'exact', head: true })
+      .eq('course_id', c.id);
+    if (count > 0) {
+      toast.error(`ไม่สามารถลบได้ มีประวัติการสอบ ${count} รายการ กรุณาปิดใช้งานแทน`);
+      return;
+    }
     if (!confirm(`ลบหลักสูตร "${c.name}" จะลบข้อสอบทั้งหมดด้วย ยืนยัน?`)) return;
-    await supabase.from('courses').delete().eq('id', c.id);
-    toast.success('ลบสำเร็จ'); load();
+    try {
+      // remove category links first
+      await supabase.from('course_categories').delete().eq('course_id', c.id);
+      const { error } = await supabase.from('courses').delete().eq('id', c.id);
+      if (error) throw error;
+      toast.success('ลบสำเร็จ'); load();
+    } catch (e) {
+      toast.error('ลบไม่สำเร็จ: ' + (e?.message || e));
+    }
   }
 
   const quizBaseUrl   = settings.quiz_base_url || window.location.href.split('#')[0].replace(/\/+$/, '');
