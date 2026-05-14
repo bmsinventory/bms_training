@@ -122,7 +122,7 @@ export default function Courses() {
     toast.success('ลบสำเร็จ'); load();
   }
 
-  const quizBaseUrl   = settings.quiz_base_url || (window.location.origin + '/quiz');
+  const quizBaseUrl   = settings.quiz_base_url || window.location.href.split('#')[0].replace(/\/+$/, '');
   const activeCount   = courses.filter(c => c.is_active).length;
   const inactiveCount = courses.filter(c => !c.is_active).length;
   const quizLink = (c) => `${quizBaseUrl}/#/register/${c.id}`;
