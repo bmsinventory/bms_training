@@ -126,9 +126,14 @@ export default function Courses() {
   const activeCount   = courses.filter(c => c.is_active).length;
   const inactiveCount = courses.filter(c => !c.is_active).length;
   function quizLink(c) {
-    const linked = getLinkedCats(c.id);
-    const codes = [...new Set(linked.map(cat => cat.location?.code).filter(Boolean))];
-    return codes.length === 1 ? `${quizBaseUrl}/#/?site=${codes[0]}` : `${quizBaseUrl}/#/`;
+    const linked  = getLinkedCats(c.id);
+    const codes   = [...new Set(linked.map(cat => cat.location?.code).filter(Boolean))];
+    const bmsSite = localStorage.getItem('bms_quiz_site');
+    // prefer current BMS site if it's among the linked locations
+    const site = (bmsSite && codes.includes(bmsSite)) ? bmsSite
+               : codes.length === 1 ? codes[0]
+               : '';
+    return site ? `${quizBaseUrl}/#/?site=${site}` : `${quizBaseUrl}/#/`;
   }
 
   /* ── styles ── */

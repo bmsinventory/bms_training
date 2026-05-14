@@ -372,6 +372,7 @@ function adminLogout(){
   currentAdminUser=null;
   _quizCurrentTab=null;
   localStorage.removeItem('bms_quiz_admin');
+  localStorage.removeItem('bms_quiz_site');
   pendingPage='admin';
   showPage('register');
   showToast('ออกจากระบบแล้ว','info');
@@ -698,6 +699,7 @@ function _initQuizAdmin(){
       id: currentAdminUser.id,
       username: currentAdminUser.username,
     }));
+    localStorage.setItem('bms_quiz_site', currentSite);
   }
   if(!_quizCurrentTab) switchQuizTab('courses');
 }
