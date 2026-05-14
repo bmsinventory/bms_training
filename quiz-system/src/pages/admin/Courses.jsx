@@ -127,8 +127,8 @@ export default function Courses() {
   const inactiveCount = courses.filter(c => !c.is_active).length;
   function quizLink(c) {
     const linked = getLinkedCats(c.id);
-    const siteCode = linked[0]?.location?.code;
-    return siteCode ? `${quizBaseUrl}/#/?site=${siteCode}` : `${quizBaseUrl}/#/`;
+    const codes = [...new Set(linked.map(cat => cat.location?.code).filter(Boolean))];
+    return codes.length === 1 ? `${quizBaseUrl}/#/?site=${codes[0]}` : `${quizBaseUrl}/#/`;
   }
 
   /* ── styles ── */
