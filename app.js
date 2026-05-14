@@ -1154,6 +1154,14 @@ async function saveSurveyImage(){
   const ynPct=ynRows.length?Math.round(ynYes/ynRows.length*100):0;
   const comments=data.filter(r=>r.comments?.trim());
 
+  // Attendance stats from registrations
+  const filteredSessIds=sessId?new Set([sessId]):new Set(_svSessions.map(s=>s.id));
+  const attRegs=(registrations||[]).filter(r=>filteredSessIds.has(r.sessionId));
+  const totalReg=attRegs.length;
+  const attendedReg=attRegs.filter(r=>r.attended).length;
+  const absentReg=totalReg-attendedReg;
+  const attPct=totalReg?Math.round(attendedReg/totalReg*100):0;
+
   const F="font-family:'Sarabun','Anuphan',Arial,sans-serif;";
   const Tb=`border:1px solid #e2e8f0;padding:7px 8px;vertical-align:middle;${F}`;
   const Th=`border:1px solid #1e293b;padding:9px 7px;vertical-align:middle;${F}`;
@@ -1226,6 +1234,29 @@ async function saveSurveyImage(){
 
     <!-- SIDE PANEL -->
     <div style="min-width:208px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;">
+
+      <!-- Attendance card -->
+      <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);">
+        <div style="${F}background:linear-gradient(90deg,#0369a1,#0ea5e9);color:#fff;padding:11px 15px;font-size:13px;font-weight:700;">สถิติการเข้าร่วมอบรม</div>
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:9px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="${F}font-size:12px;color:#64748b;">ลงทะเบียนทั้งหมด</span>
+            <span style="${F}font-size:19px;font-weight:800;color:#0369a1;">${totalReg}<span style="font-size:11px;font-weight:500;color:#94a3b8;"> คน</span></span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;background:#dcfce7;border-radius:8px;padding:7px 10px;">
+            <span style="${F}font-size:12px;color:#15803d;font-weight:600;">✅ เข้าอบรม</span>
+            <span style="${F}font-size:19px;font-weight:800;color:#15803d;">${attendedReg}<span style="font-size:11px;font-weight:500;"> คน</span></span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;background:#fee2e2;border-radius:8px;padding:7px 10px;">
+            <span style="${F}font-size:12px;color:#b91c1c;font-weight:600;">❌ ไม่เข้าอบรม</span>
+            <span style="${F}font-size:19px;font-weight:800;color:#b91c1c;">${absentReg}<span style="font-size:11px;font-weight:500;"> คน</span></span>
+          </div>
+          ${totalReg>0?`<div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:4px;font-family:'Sarabun','Anuphan',Arial,sans-serif;"><span>อัตราเข้าร่วม</span><span style="font-weight:700;color:#0369a1;">${attPct}%</span></div>
+            <div style="height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden;"><div style="height:100%;width:${attPct}%;background:linear-gradient(90deg,#0369a1,#0ea5e9);border-radius:4px;"></div></div>
+          </div>`:''}
+        </div>
+      </div>
 
       <!-- Legend card -->
       <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);">
