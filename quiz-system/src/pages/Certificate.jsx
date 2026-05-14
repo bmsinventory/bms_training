@@ -165,17 +165,6 @@ export default function Certificate() {
           </button>
         </div>
 
-        {/* Verify link */}
-        <div style={{ ...s.infoCard, textAlign:'center' }}>
-          <div style={{ fontSize:13, fontWeight:600, color:'#374151', marginBottom:4 }}>ตรวจสอบใบรับรอง</div>
-          <div style={{ fontSize:12, color:'#94a3b8', marginBottom:8 }}>
-            สแกน QR บนใบรับรอง หรือคลิกลิงก์ด้านล่าง
-          </div>
-          <a href={verifyUrl} target="_blank" rel="noopener noreferrer"
-            style={{ fontSize:13, color:'#2563eb', wordBreak:'break-all' }}>
-            {verifyUrl}
-          </a>
-        </div>
 
         {/* Navigation */}
         <div style={{ display:'flex', gap:10, justifyContent:'center' }}>

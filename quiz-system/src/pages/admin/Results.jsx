@@ -160,12 +160,9 @@ export default function Results() {
                         <span style={a.status === 'PASS' ? s.badgePass : s.badgeFail}>{a.status}</span>
                       </td>
                       <td style={s.td}>
-                        {cert ? (
-                          <Link to={`/verify/${cert.cert_id}`} target="_blank"
-                            style={{ fontFamily:'monospace', fontSize:12, color:'#2563eb', textDecoration:'none' }}>
-                            {cert.cert_id}
-                          </Link>
-                        ) : <span style={{ color:'#e2e8f0' }}>—</span>}
+                        {cert
+                          ? <span style={{ fontFamily:'monospace', fontSize:12, color:'#475569' }}>{cert.cert_id}</span>
+                          : <span style={{ color:'#e2e8f0' }}>—</span>}
                       </td>
                       <td style={{ ...s.td, fontSize:12, color:'#64748b', whiteSpace:'nowrap' }}>
                         {fmtDateTime(a.completed_at)}

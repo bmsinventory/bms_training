@@ -1,9 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
 
 const navLinks = [
-  { to: '/',        label: 'ทำแบบทดสอบ',     icon: '📝' },
-  { to: '/history', label: 'ค้นหาผลสอบ',      icon: '🔍' },
-  { to: '/verify',  label: 'ตรวจสอบใบรับรอง', icon: '🛡️' },
+  { to: '/',        label: 'ทำแบบทดสอบ', icon: '📝' },
+  { to: '/history', label: 'ค้นหาผลสอบ', icon: '🔍' },
 ];
 
 export default function Navbar({ siteName = 'BMS Quiz' }) {
