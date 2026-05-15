@@ -602,13 +602,20 @@ export default function AdminSettings() {
                   <input type="text" style={{ ...t.input, flex:1 }}
                     placeholder="https://...certificate-template.png"
                     value={settings.cert_bg_image_url || ''}
-                    onChange={e => handleChange('cert_bg_image_url', e.target.value)} />
+                    onChange={e => {
+                      let v = e.target.value;
+                      v = v.replace(
+                        /https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+)/,
+                        'https://raw.githubusercontent.com/$1/$2/$3'
+                      );
+                      handleChange('cert_bg_image_url', v);
+                    }} />
                   {settings.cert_bg_image_url && (
                     <button type="button" onClick={() => handleChange('cert_bg_image_url', '')}
                       style={{ ...t.btnDanger, ...t.btnSm }}>✕ ลบ</button>
                   )}
                 </div>
-                <div style={{ fontSize:11, color:'#94a3b8', marginTop:4 }}>รองรับ PNG, JPG — แนะนำให้เว้นพื้นที่ว่างไว้สำหรับข้อมูลแต่ละช่อง</div>
+                <div style={{ fontSize:11, color:'#94a3b8', marginTop:4 }}>รองรับ PNG, JPG — วาง GitHub blob URL ได้เลย ระบบแปลงเป็น raw URL ให้อัตโนมัติ</div>
               </div>
 
               <div style={{ ...s.grid2, marginBottom:16 }}>
