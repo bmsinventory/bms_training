@@ -194,10 +194,14 @@ async function loadAllData(){
     ...(qcR.data||[]).map(q=>q.category_id),
     ...(qjR.data||[]).map(q=>q.category_id),
   ].filter(Boolean));
-  // คำนวณ URL ของ quiz จากตำแหน่ง index.html (รองรับทั้ง local และ GitHub Pages subdirectory)
+  // คำนวณ URL ของ quiz จากตำแหน่ง index.html จริง (รองรับ GitHub Pages subdirectory)
   const _computedQuizUrl=(window.location.origin+window.location.pathname).replace(/\/[^\/]*$/,'')+'/quiz';
   const _storedQuizUrl=quR.data?.value||'';
-  // ใช้ค่าที่ตั้งไว้เฉพาะเมื่อไม่ใช่ localhost เพื่อป้องกันค่าเก่าจาก local dev ค้างอยู่
+  const _isLocalhost=/localhost|127\.0\.0\.1/.test(window.location.hostname);
+  if(_storedQuizUrl&&/localhost|127\.0\.0\.1/.test(_storedQuizUrl)&&!_isLocalhost){
+    // ค่าใน DB เป็น localhost แต่เราอยู่บน production → update ให้อัตโนมัติ
+    _sb.from('settings').upsert({key:'quiz_base_url',value:_computedQuizUrl,updated_at:new Date().toISOString()}).then(()=>{});
+  }
   QUIZ_BASE_URL=(_storedQuizUrl&&!/localhost|127\.0\.0\.1/.test(_storedQuizUrl))?_storedQuizUrl:_computedQuizUrl;
 }
 async function initApp(){
