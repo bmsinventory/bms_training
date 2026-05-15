@@ -126,8 +126,6 @@ const I = {
   chR:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="15" height="15"><polyline points="9 18 15 12 9 6"/></svg>,
   chk:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>,
   snd:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
-  grd:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="15" height="15"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
-  X:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="15" height="15"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
   rkt:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="15" height="15"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>,
   spn:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="q-spn" width="15" height="15"><path d="M12 2a10 10 0 1 0 10 10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>,
   kbd:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="13" height="13"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>,
@@ -299,124 +297,6 @@ function ConfirmModal({ unanswered, onConfirm, onCancel }) {
   );
 }
 
-/* ─────────────────────── Review Modal ────────────────────────────────────── */
-function ReviewModal({ questions, answers, current, onGoto, onClose, onSubmit, submitting }) {
-  const done  = Object.keys(answers).length;
-  const total = questions.length;
-
-  return (
-    <div
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 100,
-        background: 'rgba(15,23,42,.55)',
-        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-      }}
-    >
-      <div className="q-mod" style={{
-        width: '100%', maxWidth: 780,
-        background: T.card,
-        border: `1px solid ${T.border}`,
-        borderRadius: '22px 22px 0 0',
-        boxShadow: '0 -20px 60px rgba(0,0,0,.14)',
-        overflow: 'hidden', maxHeight: '80vh', display: 'flex', flexDirection: 'column',
-      }}>
-        {/* header */}
-        <div style={{
-          padding: '18px 22px', borderBottom: `1px solid ${T.border}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
-          background: T.primaryL,
-        }}>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: T.t1 }}>ตรวจสอบคำตอบ</div>
-            <div style={{ fontSize: 12, color: T.t3, marginTop: 3 }}>
-              ตอบแล้ว {done}/{total} ข้อ
-              {done < total ? ` · ยังไม่ตอบ ${total - done} ข้อ` : ' · ครบทุกข้อแล้ว ✓'}
-            </div>
-          </div>
-          <button onClick={onClose} style={{
-            width: 34, height: 34, borderRadius: 9,
-            border: `1px solid ${T.border}`, background: T.card,
-            color: T.t3, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all .15s',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.background = T.borderS; e.currentTarget.style.color = T.t1; }}
-            onMouseLeave={e => { e.currentTarget.style.background = T.card; e.currentTarget.style.color = T.t3; }}
-          >{I.X}</button>
-        </div>
-
-        {/* grid */}
-        <div style={{ padding: '18px 22px', overflow: 'auto', flex: 1 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(56px,1fr))', gap: 8 }}>
-            {questions.map((q, i) => {
-              const isAns = !!answers[q.id];
-              const isCur = i === current;
-              return (
-                <button
-                  key={q.id}
-                  onClick={() => { onGoto(i); onClose(); }}
-                  style={{
-                    height: 56, borderRadius: 12,
-                    border: `1.5px solid ${isCur ? T.primary : isAns ? '#6EE7B7' : T.border}`,
-                    background: isCur ? T.primaryL : isAns ? T.successL : T.borderS,
-                    color: isCur ? T.primary : isAns ? T.success : T.t3,
-                    fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center', gap: 2,
-                    transition: 'all .18s', fontFamily: "'Anuphan','Sarabun',sans-serif",
-                    boxShadow: isCur ? `0 0 0 3px ${T.primary}22` : 'none',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.06)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-                >
-                  <span style={{ fontSize: 13 }}>{i + 1}</span>
-                  <span style={{ fontSize: 10, opacity: .75 }}>{isAns ? '✓' : '–'}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* legend */}
-          <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
-            {[
-              { c: T.primaryL, bd: T.primary, lbl: 'กำลังดูอยู่' },
-              { c: T.successL, bd: '#6EE7B7', lbl: 'ตอบแล้ว' },
-              { c: T.borderS,  bd: T.border,  lbl: 'ยังไม่ตอบ' },
-            ].map(x => (
-              <div key={x.lbl} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: T.t3 }}>
-                <span style={{ width: 12, height: 12, borderRadius: 4, background: x.c, border: `1.5px solid ${x.bd}`, display: 'block' }} />
-                {x.lbl}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* submit */}
-        <div style={{ padding: '14px 22px', borderTop: `1px solid ${T.border}`, flexShrink: 0, background: T.borderS }}>
-          <button
-            onClick={onSubmit} disabled={submitting}
-            style={{
-              width: '100%', padding: '13px', borderRadius: 12, border: 'none',
-              background: submitting ? T.border : T.primary,
-              color: submitting ? T.t3 : '#fff',
-              fontSize: 14, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              fontFamily: "'Anuphan','Sarabun',sans-serif",
-              opacity: submitting ? .6 : 1,
-              boxShadow: !submitting ? `0 4px 14px rgba(37,99,235,.35)` : 'none',
-              transition: 'all .2s',
-            }}
-          >
-            {submitting ? <>{I.spn} กำลังส่ง...</> : <>{I.snd} ส่งคำตอบ</>}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ─────────────────────── Main Quiz ───────────────────────────────────────── */
 export default function Quiz() {
   const { attemptId } = useParams();
@@ -434,7 +314,6 @@ export default function Quiz() {
   const [timeLeft,   setTimeLeft]   = useState(null);
   const [animDir,    setAnimDir]    = useState('l');
   const [animKey,    setAnimKey]    = useState(0);
-  const [showRev,     setShowRev]    = useState(false);
   const [showConfirm, setShowConfirm]= useState(false);
   const [unanswered,  setUnanswered] = useState(0);
 
@@ -488,7 +367,7 @@ export default function Quiz() {
   /* keyboard */
   useEffect(() => {
     const h = (e) => {
-      if (showRev || !q) return;
+      if (!q) return;
       const n = parseInt(e.key);
       if (!isNaN(n) && n >= 1 && q.choices?.[n - 1]) handleSelect(q.id, q.choices[n - 1].id);
       if (e.key === 'ArrowRight' && answered && current < questions.length - 1) goTo(current + 1);
@@ -500,7 +379,7 @@ export default function Quiz() {
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [current, answered, q, questions.length, showRev]);
+  }, [current, answered, q, questions.length]);
 
   const goTo = useCallback((idx) => {
     setAnimDir(idx > current ? 'l' : 'r');
@@ -635,8 +514,6 @@ export default function Quiz() {
               </div>
             )}
 
-            {/* Review btn */}
-            <ReviewIconBtn count={answeredCount} onClick={() => setShowRev(true)} />
           </div>
         </div>
 
@@ -870,53 +747,11 @@ export default function Quiz() {
         />
       )}
 
-      {/* ── Review Modal ── */}
-      {showRev && (
-        <ReviewModal
-          questions={questions} answers={answers} current={current}
-          onGoto={goTo}
-          onClose={() => setShowRev(false)}
-          onSubmit={() => { setShowRev(false); handleSubmit(); }}
-          submitting={submitting}
-        />
-      )}
     </div>
   );
 }
 
 /* ─── Small reusable components ───────────────────────────────────────────── */
-function ReviewIconBtn({ count, onClick }) {
-  const [h, setH] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setH(true)}
-      onMouseLeave={() => setH(false)}
-      title="ตรวจสอบคำตอบ"
-      style={{
-        position: 'relative', width: 36, height: 36, borderRadius: 9,
-        border: `1px solid ${h ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.12)'}`,
-        background: h ? 'rgba(37,99,235,.35)' : 'rgba(255,255,255,.08)',
-        color: h ? '#93C5FD' : 'rgba(255,255,255,.6)',
-        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'all .18s',
-      }}
-    >
-      {I.grd}
-      {count > 0 && (
-        <span style={{
-          position: 'absolute', top: -4, right: -4,
-          width: 16, height: 16, borderRadius: '50%',
-          background: T.primary, color: '#fff',
-          fontSize: 9, fontWeight: 700,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          border: `2px solid ${T.nav}`,
-        }}>{count > 9 ? '9+' : count}</span>
-      )}
-    </button>
-  );
-}
-
 function NavGhost({ onClick, disabled, icon, label, iconLeft }) {
   const [h, setH] = useState(false);
   return (
