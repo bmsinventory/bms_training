@@ -36,41 +36,33 @@ const ANIM = `
 .q-blob{ animation: qBlob 14s ease-in-out infinite }
 `;
 
-/* ─── Design tokens – BMS Training light theme ────────────────────────────── */
+/* ─── Design tokens ───────────────────────────────────────────────────────── */
 const T = {
-  /* background */
   pageBg:   'linear-gradient(145deg, #EFF6FF 0%, #F1F5F9 45%, #EEF2FF 100%)',
-  /* nav – matches BMS Training nav exactly */
   nav:      '#0F172A',
   navBorder:'rgba(255,255,255,.07)',
-  /* card surfaces */
   card:     '#FFFFFF',
   cardBorder:'#E2E8F0',
   cardShadow:'0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05)',
-  cardShadowHover:'0 4px 12px rgba(0,0,0,.1), 0 2px 6px rgba(0,0,0,.06)',
-  /* brand */
   primary:  '#2563EB',
   primaryL: '#EFF6FF',
   primaryM: '#3B82F6',
   primaryD: '#1D4ED8',
-  /* text */
   t1:  '#0F172A',
   t2:  '#334155',
   t3:  '#64748B',
   t4:  '#94A3B8',
-  /* status */
   success:  '#059669',
   successL: '#ECFDF5',
   danger:   '#DC2626',
   dangerL:  '#FEF2F2',
   warn:     '#D97706',
   warnL:    '#FFFBEB',
-  /* border */
   border:   '#E2E8F0',
   borderS:  '#F1F5F9',
 };
 
-/* ─── Choice palette (light) ──────────────────────────────────────────────── */
+/* ─── Choice palette ──────────────────────────────────────────────────────── */
 const PAL = [
   { l:'A', c:'#2563EB', bg:'#EFF6FF', bgH:'#DBEAFE', border:'#93C5FD', glow:'rgba(37,99,235,.18)'  },
   { l:'B', c:'#0891B2', bg:'#ECFEFF', bgH:'#CFFAFE', border:'#67E8F9', glow:'rgba(8,145,178,.18)'  },
@@ -85,11 +77,11 @@ const fmt = (s) =>
   `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
 
 const getMotive = (pct) => {
-  if (pct === 0)  return { e:'🎯', h:'เริ่มต้นได้เลย!',      s:'เลือกคำตอบที่ถูกต้องในแต่ละข้อ' };
-  if (pct < 30)   return { e:'🔥', h:'ทำได้ดีมาก!',           s:'ทำต่อเลย คุณทำได้แน่ๆ' };
-  if (pct < 60)   return { e:'⚡', h:'กำลังดีเลย!',            s:'ผ่านครึ่งทางแล้ว ไปต่อ' };
-  if (pct < 90)   return { e:'🚀', h:'เกือบถึงแล้ว!',          s:'อีกนิดเดียว สู้ๆ' };
-  return               { e:'🎉', h:'ตอบครบทุกข้อแล้ว!',  s:'พร้อมส่งคำตอบได้เลย' };
+  if (pct === 0)  return { e:'🎯', h:'เริ่มต้นได้เลย!',    s:'เลือกคำตอบที่ถูกต้องในแต่ละข้อ' };
+  if (pct < 30)   return { e:'🔥', h:'ทำได้ดีมาก!',         s:'ทำต่อเลย คุณทำได้แน่ๆ' };
+  if (pct < 60)   return { e:'⚡', h:'กำลังดีเลย!',          s:'ผ่านครึ่งทางแล้ว ไปต่อ' };
+  if (pct < 90)   return { e:'🚀', h:'เกือบถึงแล้ว!',        s:'อีกนิดเดียว สู้ๆ' };
+  return               { e:'🎉', h:'ตอบครบทุกข้อแล้ว!', s:'พร้อมส่งคำตอบได้เลย' };
 };
 
 function playTick() {
@@ -131,8 +123,8 @@ const I = {
   kbd:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="13" height="13"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>,
 };
 
-/* ─────────────────────── ChoiceCard (light) ──────────────────────────────── */
-function ChoiceCard({ choice, idx, selected, onSelect, keyHint }) {
+/* ─────────────────────── ChoiceCard ─────────────────────────────────────── */
+function ChoiceCard({ choice, idx, selected, onSelect, keyHint, compact }) {
   const [hov, setHov] = useState(false);
   const [pop, setPop] = useState(false);
   const p = PAL[idx % PAL.length];
@@ -146,12 +138,14 @@ function ChoiceCard({ choice, idx, selected, onSelect, keyHint }) {
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: 14,
-        padding: '14px 18px', borderRadius: 14, cursor: 'pointer',
+        width: '100%', display: 'flex', alignItems: 'center',
+        gap: compact ? 10 : 14,
+        padding: compact ? '10px 12px' : '14px 18px',
+        borderRadius: compact ? 11 : 14, cursor: 'pointer',
         border: `1.5px solid ${selected ? p.c + 'aa' : hov ? p.border : T.border}`,
         background: selected ? p.bg : hov ? p.bgH : T.card,
         textAlign: 'left', fontFamily: "'Anuphan','Sarabun',sans-serif",
-        fontSize: 15, lineHeight: 1.6,
+        fontSize: compact ? 14 : 15, lineHeight: 1.5,
         color: selected ? p.c : hov ? p.c : T.t2,
         fontWeight: selected ? 600 : 400,
         boxShadow: selected
@@ -165,17 +159,18 @@ function ChoiceCard({ choice, idx, selected, onSelect, keyHint }) {
       {/* Label badge */}
       <span style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+        width: compact ? 28 : 34, height: compact ? 28 : 34,
+        borderRadius: compact ? 8 : 10, flexShrink: 0,
         background: selected ? p.c : hov ? p.bg : T.borderS,
         color: selected ? '#fff' : hov ? p.c : T.t3,
-        fontSize: 13, fontWeight: 800,
+        fontSize: compact ? 12 : 13, fontWeight: 800,
         boxShadow: selected ? `0 3px 10px ${p.glow}` : 'none',
         transition: 'all .2s',
       }}>{p.l}</span>
 
       <span style={{ flex: 1 }}>{choice.choice_text}</span>
 
-      {keyHint && !selected && (
+      {keyHint && !selected && !compact && (
         <span style={{
           fontSize: 11, color: T.t4, padding: '2px 7px',
           background: T.borderS, borderRadius: 6,
@@ -185,7 +180,8 @@ function ChoiceCard({ choice, idx, selected, onSelect, keyHint }) {
 
       {selected && (
         <span className="q-chk" style={{
-          width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+          width: compact ? 22 : 26, height: compact ? 22 : 26,
+          borderRadius: '50%', flexShrink: 0,
           background: p.c, display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: '#fff', boxShadow: `0 3px 10px ${p.glow}`,
         }}>{I.chk}</span>
@@ -208,29 +204,23 @@ function ConfirmModal({ unanswered, onConfirm, onCancel }) {
       }}
     >
       <div style={{
-        width: '100%', maxWidth: 400,
-        background: '#FFFFFF',
+        width: '100%', maxWidth: 400, background: '#FFFFFF',
         borderRadius: 20,
         boxShadow: '0 20px 60px rgba(0,0,0,.18), 0 4px 16px rgba(0,0,0,.1)',
         overflow: 'hidden',
         animation: 'qPopIn .24s cubic-bezier(.34,1.56,.64,1) both',
       }}>
-        {/* Icon header */}
         <div style={{
           padding: '28px 28px 20px',
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
           textAlign: 'center',
         }}>
-          {/* Warning icon */}
           <div style={{
             width: 60, height: 60, borderRadius: '50%',
-            background: '#FFFBEB',
-            border: '1.5px solid #FCD34D',
+            background: '#FFFBEB', border: '1.5px solid #FCD34D',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 28,
-            boxShadow: '0 4px 14px rgba(217,119,6,.2)',
+            fontSize: 28, boxShadow: '0 4px 14px rgba(217,119,6,.2)',
           }}>⚠️</div>
-
           <div>
             <div style={{ fontSize: 17, fontWeight: 700, color: '#0F172A', marginBottom: 8 }}>
               ยืนยันการส่งคำตอบ
@@ -238,59 +228,38 @@ function ConfirmModal({ unanswered, onConfirm, onCancel }) {
             <div style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65 }}>
               ยังมี{' '}
               <span style={{
-                fontWeight: 700, color: '#D97706',
-                background: '#FFFBEB', padding: '1px 8px',
-                borderRadius: 6, border: '1px solid #FCD34D',
-              }}>
-                {unanswered} ข้อ
-              </span>
-              {' '}ที่ยังไม่ได้ตอบ
-              <br />ต้องการส่งคำตอบหรือไม่?
+                fontWeight: 700, color: '#D97706', background: '#FFFBEB',
+                padding: '1px 8px', borderRadius: 6, border: '1px solid #FCD34D',
+              }}>{unanswered} ข้อ</span>
+              {' '}ที่ยังไม่ได้ตอบ<br />ต้องการส่งคำตอบหรือไม่?
             </div>
           </div>
         </div>
-
-        {/* Divider */}
         <div style={{ height: 1, background: '#F1F5F9' }} />
-
-        {/* Buttons */}
-        <div style={{
-          padding: '16px 24px',
-          display: 'flex', gap: 10,
-          background: '#F8FAFC',
-        }}>
+        <div style={{ padding: '16px 24px', display: 'flex', gap: 10, background: '#F8FAFC' }}>
           <button
             onClick={onCancel}
             style={{
               flex: 1, padding: '11px', borderRadius: 12,
-              border: '1.5px solid #E2E8F0',
-              background: '#FFFFFF', color: '#64748B',
+              border: '1.5px solid #E2E8F0', background: '#FFFFFF', color: '#64748B',
               fontSize: 14, fontWeight: 600, cursor: 'pointer',
-              fontFamily: "'Anuphan','Sarabun',sans-serif",
-              transition: 'all .15s',
+              fontFamily: "'Anuphan','Sarabun',sans-serif", transition: 'all .15s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.color = '#334155'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#FFFFFF'; e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.color = '#64748B'; }}
-          >
-            ยกเลิก
-          </button>
+            onMouseEnter={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#334155'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#FFFFFF'; e.currentTarget.style.color = '#64748B'; }}
+          >ยกเลิก</button>
           <button
             onClick={onConfirm}
             style={{
-              flex: 1, padding: '11px', borderRadius: 12,
-              border: 'none',
-              background: 'linear-gradient(135deg, #2563EB, #3B82F6)',
-              color: '#fff',
+              flex: 1, padding: '11px', borderRadius: 12, border: 'none',
+              background: 'linear-gradient(135deg, #2563EB, #3B82F6)', color: '#fff',
               fontSize: 14, fontWeight: 700, cursor: 'pointer',
               fontFamily: "'Anuphan','Sarabun',sans-serif",
-              boxShadow: '0 4px 12px rgba(37,99,235,.35)',
-              transition: 'all .15s',
+              boxShadow: '0 4px 12px rgba(37,99,235,.35)', transition: 'all .15s',
             }}
             onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 18px rgba(37,99,235,.48)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
             onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,.35)'; e.currentTarget.style.transform = 'none'; }}
-          >
-            ตกลง ส่งเลย
-          </button>
+          >ตกลง ส่งเลย</button>
         </div>
       </div>
     </div>
@@ -314,8 +283,9 @@ export default function Quiz() {
   const [timeLeft,   setTimeLeft]   = useState(null);
   const [animDir,    setAnimDir]    = useState('l');
   const [animKey,    setAnimKey]    = useState(0);
-  const [showConfirm, setShowConfirm]= useState(false);
-  const [unanswered,  setUnanswered] = useState(0);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [unanswered,  setUnanswered]  = useState(0);
+  const [isMobile,    setIsMobile]    = useState(window.innerWidth < 640);
 
   const timerRef = useRef(null);
   const touchRef = useRef(null);
@@ -328,6 +298,13 @@ export default function Quiz() {
       el.id = id; el.textContent = ANIM;
       document.head.appendChild(el);
     }
+  }, []);
+
+  /* responsive */
+  useEffect(() => {
+    const h = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
   }, []);
 
   /* load */
@@ -360,7 +337,7 @@ export default function Quiz() {
     return () => clearTimeout(timerRef.current);
   }, [timeLeft, submitting]);
 
-  /* derived (before keyboard effect) */
+  /* derived */
   const q        = questions[current];
   const answered = answers[q?.id];
 
@@ -436,7 +413,6 @@ export default function Quiz() {
   const navPct        = questions.length ? (current + 1) / questions.length * 100 : 0;
   const motive        = getMotive(pct);
 
-  /* timer states */
   const isUrg  = timeLeft !== null && timeLeft < 60;
   const isWarn = timeLeft !== null && timeLeft < 300 && !isUrg;
   const timerCfg = isUrg
@@ -444,6 +420,8 @@ export default function Quiz() {
     : isWarn
     ? { bg: T.warnL,   bd: '#FCD34D', tx: T.warn,   dot: T.warn   }
     : { bg: T.successL,bd: '#6EE7B7', tx: T.success, dot: T.success };
+
+  const m = isMobile;
 
   /* ── render ── */
   return (
@@ -456,20 +434,22 @@ export default function Quiz() {
         position: 'relative',
       }}
     >
-      {/* ── Subtle decorative blobs ── */}
-      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-        <div className="q-blob" style={{
-          position: 'absolute', top: '-12%', right: '-8%', width: 560, height: 560, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(37,99,235,.07) 0%, transparent 65%)',
-        }} />
-        <div className="q-blob" style={{
-          position: 'absolute', bottom: '-18%', left: '-8%', width: 500, height: 500, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(79,70,229,.05) 0%, transparent 65%)',
-          animationDelay: '-6s',
-        }} />
-      </div>
+      {/* ── Decorative blobs (desktop only) ── */}
+      {!m && (
+        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+          <div className="q-blob" style={{
+            position: 'absolute', top: '-12%', right: '-8%', width: 560, height: 560, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(37,99,235,.07) 0%, transparent 65%)',
+          }} />
+          <div className="q-blob" style={{
+            position: 'absolute', bottom: '-18%', left: '-8%', width: 500, height: 500, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(79,70,229,.05) 0%, transparent 65%)',
+            animationDelay: '-6s',
+          }} />
+        </div>
+      )}
 
-      {/* ── Sticky header — matches BMS Training nav style ── */}
+      {/* ── Sticky header ── */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 40,
         background: T.nav,
@@ -477,47 +457,50 @@ export default function Quiz() {
         boxShadow: '0 1px 0 rgba(255,255,255,.06), 0 4px 20px rgba(0,0,0,.25)',
       }}>
         <div style={{
-          maxWidth: 820, margin: '0 auto', padding: '0 20px',
-          height: 60, display: 'flex', alignItems: 'center', gap: 12,
+          maxWidth: 820, margin: '0 auto',
+          padding: m ? '0 14px' : '0 20px',
+          height: m ? 52 : 60,
+          display: 'flex', alignItems: 'center', gap: m ? 10 : 12,
         }}>
-          {/* Brand icon + name */}
+          {/* Brand icon */}
           <div style={{
-            width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+            width: m ? 30 : 36, height: m ? 30 : 36, borderRadius: 10, flexShrink: 0,
             background: 'linear-gradient(135deg, #2563EB, #3B82F6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#fff', boxShadow: '0 4px 12px rgba(37,99,235,.45)',
           }}>{I.book}</div>
 
           <div style={{ flex: 1, overflow: 'hidden' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#F8FAFC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{
+              fontSize: m ? 12 : 13, fontWeight: 700, color: '#F8FAFC',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
               {course?.name || 'แบบทดสอบ'}
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', marginTop: 1 }}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', marginTop: 1 }}>
               ข้อ {current + 1} / {questions.length}
+              {m && ` · ตอบแล้ว ${answeredCount} ข้อ`}
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0 }}>
-            {/* Timer */}
-            {timeLeft !== null && (
-              <div
-                className={isUrg ? 'q-urg' : ''}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '5px 13px', borderRadius: 20,
-                  background: timerCfg.bg, border: `1px solid ${timerCfg.bd}`,
-                  color: timerCfg.tx, fontSize: 13, fontWeight: 700,
-                }}
-              >
-                <span style={{ color: timerCfg.dot, display: 'flex' }}>{I.clk}</span>
-                {fmt(timeLeft)}
-              </div>
-            )}
-
-          </div>
+          {/* Timer */}
+          {timeLeft !== null && (
+            <div
+              className={isUrg ? 'q-urg' : ''}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: m ? '4px 10px' : '5px 13px', borderRadius: 20,
+                background: timerCfg.bg, border: `1px solid ${timerCfg.bd}`,
+                color: timerCfg.tx, fontSize: m ? 12 : 13, fontWeight: 700,
+              }}
+            >
+              <span style={{ color: timerCfg.dot, display: 'flex' }}>{I.clk}</span>
+              {fmt(timeLeft)}
+            </div>
+          )}
         </div>
 
-        {/* Progress bar — blue, matches BMS Training primary */}
+        {/* Progress bar */}
         <div style={{ height: 3, background: 'rgba(255,255,255,.08)' }}>
           <div style={{
             height: '100%',
@@ -532,11 +515,43 @@ export default function Quiz() {
       </div>
 
       {/* ── Main content ── */}
-      <div style={{ maxWidth: 820, margin: '0 auto', padding: '24px 20px 96px', position: 'relative', zIndex: 1 }}>
+      <div style={{
+        maxWidth: 820, margin: '0 auto',
+        padding: m ? '10px 12px 72px' : '24px 20px 96px',
+        position: 'relative', zIndex: 1,
+      }}>
 
-        {/* Dot navigation */}
-        <div className="q-up" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <div style={{ flex: 1, display: 'flex', gap: 3, alignItems: 'center' }}>
+        {/* Dot navigation — desktop only */}
+        {!m && (
+          <div className="q-up" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <div style={{ flex: 1, display: 'flex', gap: 3, alignItems: 'center' }}>
+              {questions.map((_, i) => {
+                const isA = !!answers[questions[i]?.id];
+                const isC = i === current;
+                return (
+                  <div
+                    key={i}
+                    onClick={() => goTo(i)}
+                    title={`ข้อ ${i + 1}${isA ? ' ✓' : ''}`}
+                    style={{
+                      flex: 1, height: isC ? 8 : 4, borderRadius: 4, cursor: 'pointer',
+                      transition: 'all .3s cubic-bezier(.4,0,.2,1)',
+                      background: isC ? T.primary : isA ? '#93C5FD' : T.border,
+                      boxShadow: isC ? `0 0 8px ${T.primary}88` : 'none',
+                    }}
+                  />
+                );
+              })}
+            </div>
+            <span style={{ fontSize: 12, color: T.t3, fontWeight: 600, flexShrink: 0 }}>
+              {answeredCount}/{questions.length} ตอบแล้ว
+            </span>
+          </div>
+        )}
+
+        {/* Mobile dot navigation — compact pill strip */}
+        {m && (
+          <div style={{ display: 'flex', gap: 2, alignItems: 'center', marginBottom: 8 }}>
             {questions.map((_, i) => {
               const isA = !!answers[questions[i]?.id];
               const isC = i === current;
@@ -544,21 +559,16 @@ export default function Quiz() {
                 <div
                   key={i}
                   onClick={() => goTo(i)}
-                  title={`ข้อ ${i + 1}${isA ? ' ✓' : ''}`}
                   style={{
-                    flex: 1, height: isC ? 8 : 4, borderRadius: 4, cursor: 'pointer',
-                    transition: 'all .3s cubic-bezier(.4,0,.2,1)',
+                    flex: 1, height: isC ? 5 : 3, borderRadius: 3, cursor: 'pointer',
+                    transition: 'all .25s',
                     background: isC ? T.primary : isA ? '#93C5FD' : T.border,
-                    boxShadow: isC ? `0 0 8px ${T.primary}88` : 'none',
                   }}
                 />
               );
             })}
           </div>
-          <span style={{ fontSize: 12, color: T.t3, fontWeight: 600, flexShrink: 0 }}>
-            {answeredCount}/{questions.length} ตอบแล้ว
-          </span>
-        </div>
+        )}
 
         {/* ── Question card ── */}
         {q && (
@@ -566,35 +576,40 @@ export default function Quiz() {
 
             {/* Question header */}
             <div style={{
-              padding: '22px 26px 20px',
-              borderRadius: '20px 20px 0 0',
+              padding: m ? '14px 16px 12px' : '22px 26px 20px',
+              borderRadius: m ? '14px 14px 0 0' : '20px 20px 0 0',
               background: T.card,
               border: `1px solid ${T.cardBorder}`,
               borderBottom: `1px solid ${T.borderS}`,
               boxShadow: T.cardShadow,
               position: 'relative', overflow: 'hidden',
             }}>
-              {/* Blue accent line top */}
               <div style={{
                 position: 'absolute', top: 0, left: 0, right: 0, height: 3,
                 background: `linear-gradient(90deg, ${T.primary}, ${T.primaryM}, #38BDF8)`,
               }} />
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginTop: 4 }}>
-                {/* Number badge */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: m ? 10 : 14, marginTop: 4 }}>
                 <div style={{
-                  width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+                  width: m ? 32 : 42, height: m ? 32 : 42,
+                  borderRadius: m ? 9 : 12, flexShrink: 0,
                   background: `linear-gradient(135deg, ${T.primary}, ${T.primaryM})`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 16, fontWeight: 900, color: '#fff',
+                  fontSize: m ? 13 : 16, fontWeight: 900, color: '#fff',
                   boxShadow: `0 6px 16px rgba(37,99,235,.35)`,
                 }}>{current + 1}</div>
 
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.primary, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, color: T.primary,
+                    letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: m ? 4 : 8,
+                  }}>
                     คำถามที่ {current + 1} จาก {questions.length}
                   </div>
-                  <h2 style={{ fontSize: 18, fontWeight: 700, color: T.t1, lineHeight: 1.7, margin: 0 }}>
+                  <h2 style={{
+                    fontSize: m ? 15 : 18, fontWeight: 700, color: T.t1,
+                    lineHeight: 1.6, margin: 0,
+                  }}>
                     {q.question}
                   </h2>
                 </div>
@@ -603,19 +618,21 @@ export default function Quiz() {
 
             {/* Choices */}
             <div style={{
-              padding: '18px 26px',
+              padding: m ? '10px 12px' : '18px 26px',
               background: T.card,
               border: `1px solid ${T.cardBorder}`,
               borderTop: 'none', borderBottom: 'none',
-              display: 'flex', flexDirection: 'column', gap: 10,
+              display: 'flex', flexDirection: 'column', gap: m ? 7 : 10,
             }}>
-              {/* Keyboard hint */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                <span style={{ color: T.t4, display: 'flex' }}>{I.kbd}</span>
-                <span style={{ fontSize: 11, color: T.t4 }}>
-                  กด 1–{q.choices.length} เลือกคำตอบ &nbsp;·&nbsp; ← → เปลี่ยนข้อ
-                </span>
-              </div>
+              {/* Keyboard hint — desktop only */}
+              {!m && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  <span style={{ color: T.t4, display: 'flex' }}>{I.kbd}</span>
+                  <span style={{ fontSize: 11, color: T.t4 }}>
+                    กด 1–{q.choices.length} เลือกคำตอบ &nbsp;·&nbsp; ← → เปลี่ยนข้อ
+                  </span>
+                </div>
+              )}
 
               {q.choices.map((ch, ci) => (
                 <ChoiceCard
@@ -624,6 +641,7 @@ export default function Quiz() {
                   idx={ci}
                   selected={answered === ch.id}
                   keyHint={String(ci + 1)}
+                  compact={m}
                   onSelect={() => handleSelect(q.id, ch.id)}
                 />
               ))}
@@ -631,25 +649,22 @@ export default function Quiz() {
 
             {/* Navigation footer */}
             <div style={{
-              padding: '14px 26px 20px',
-              borderRadius: '0 0 20px 20px',
+              padding: m ? '10px 12px' : '14px 26px 20px',
+              borderRadius: m ? '0 0 14px 14px' : '0 0 20px 20px',
               background: T.borderS,
               border: `1px solid ${T.cardBorder}`,
               borderTop: `1px solid ${T.border}`,
               boxShadow: T.cardShadow,
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
             }}>
-              {/* Back */}
-              <NavGhost onClick={() => goTo(current - 1)} disabled={current === 0} icon={I.chL} label="ก่อนหน้า" iconLeft />
+              <NavGhost onClick={() => goTo(current - 1)} disabled={current === 0} icon={I.chL} label={m ? '' : 'ก่อนหน้า'} iconLeft compact={m} />
 
-              {/* Status */}
-              <div style={{ fontSize: 12, color: answered ? T.success : T.t4, fontWeight: 500 }}>
+              <div style={{ fontSize: m ? 11 : 12, color: answered ? T.success : T.t4, fontWeight: 500 }}>
                 {answered ? '✓ เลือกแล้ว' : 'เลือกคำตอบก่อน'}
               </div>
 
-              {/* Next / Submit */}
               {current < questions.length - 1 ? (
-                <NavPrimary onClick={() => answered && goTo(current + 1)} disabled={!answered} icon={I.chR} label="ถัดไป" />
+                <NavPrimary onClick={() => answered && goTo(current + 1)} disabled={!answered} icon={I.chR} label={m ? '' : 'ถัดไป'} compact={m} />
               ) : (
                 <NavSuccess
                   onClick={() => {
@@ -660,54 +675,55 @@ export default function Quiz() {
                   disabled={submitting}
                   icon={submitting ? I.spn : I.snd}
                   label={submitting ? 'กำลังส่ง...' : 'ส่งคำตอบ'}
+                  compact={m}
                 />
               )}
             </div>
           </div>
         )}
 
-        {/* ── Bottom stats ── */}
-        <div className="q-up" style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {/* Progress */}
-          <div style={{
-            padding: '16px 20px', borderRadius: 16,
-            background: T.card, border: `1px solid ${T.cardBorder}`,
-            boxShadow: T.cardShadow,
-          }}>
-            <div style={{ fontSize: 10, color: T.t3, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
-              ความคืบหน้า
+        {/* ── Bottom stats — desktop only ── */}
+        {!m && (
+          <div className="q-up" style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{
+              padding: '16px 20px', borderRadius: 16,
+              background: T.card, border: `1px solid ${T.cardBorder}`,
+              boxShadow: T.cardShadow,
+            }}>
+              <div style={{ fontSize: 10, color: T.t3, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
+                ความคืบหน้า
+              </div>
+              <div style={{ height: 6, background: T.border, borderRadius: 6, overflow: 'hidden', marginBottom: 10 }}>
+                <div style={{
+                  height: '100%', borderRadius: 6,
+                  background: `linear-gradient(90deg, ${T.primary}, #38BDF8)`,
+                  width: `${pct}%`, transition: 'width .5s ease',
+                  boxShadow: `0 0 8px ${T.primary}66`,
+                }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, color: T.t2, fontWeight: 600 }}>{answeredCount} / {questions.length} ข้อ</span>
+                <span style={{ fontSize: 13, color: T.primary, fontWeight: 700 }}>{Math.round(pct)}%</span>
+              </div>
             </div>
-            <div style={{ height: 6, background: T.border, borderRadius: 6, overflow: 'hidden', marginBottom: 10 }}>
-              <div style={{
-                height: '100%', borderRadius: 6,
-                background: `linear-gradient(90deg, ${T.primary}, #38BDF8)`,
-                width: `${pct}%`, transition: 'width .5s ease',
-                boxShadow: `0 0 8px ${T.primary}66`,
-              }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: T.t2, fontWeight: 600 }}>{answeredCount} / {questions.length} ข้อ</span>
-              <span style={{ fontSize: 13, color: T.primary, fontWeight: 700 }}>{Math.round(pct)}%</span>
+
+            <div style={{
+              padding: '16px 20px', borderRadius: 16,
+              background: T.card, border: `1px solid ${T.cardBorder}`,
+              boxShadow: T.cardShadow,
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <span className="q-flt" style={{ fontSize: 26, flexShrink: 0 }}>{motive.e}</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: T.t1 }}>{motive.h}</div>
+                <div style={{ fontSize: 11, color: T.t3, marginTop: 3, lineHeight: 1.5 }}>{motive.s}</div>
+              </div>
             </div>
           </div>
+        )}
 
-          {/* Motivational */}
-          <div style={{
-            padding: '16px 20px', borderRadius: 16,
-            background: T.card, border: `1px solid ${T.cardBorder}`,
-            boxShadow: T.cardShadow,
-            display: 'flex', alignItems: 'center', gap: 12,
-          }}>
-            <span className="q-flt" style={{ fontSize: 26, flexShrink: 0 }}>{motive.e}</span>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: T.t1 }}>{motive.h}</div>
-              <div style={{ fontSize: 11, color: T.t3, marginTop: 3, lineHeight: 1.5 }}>{motive.s}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── All-answered CTA ── */}
-        {allAnswered && current < questions.length - 1 && (
+        {/* ── All-answered CTA — desktop only ── */}
+        {!m && allAnswered && current < questions.length - 1 && (
           <div className="q-up" style={{ marginTop: 14 }}>
             <button
               onClick={handleSubmit} disabled={submitting}
@@ -718,8 +734,7 @@ export default function Quiz() {
                 color: submitting ? T.t3 : '#fff',
                 fontSize: 15, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer',
                 boxShadow: !submitting ? `0 6px 20px rgba(37,99,235,.38)` : 'none',
-                fontFamily: "'Anuphan','Sarabun',sans-serif",
-                transition: 'all .25s',
+                fontFamily: "'Anuphan','Sarabun',sans-serif", transition: 'all .25s',
               }}
               onMouseEnter={e => { if (!submitting) { e.currentTarget.style.boxShadow = '0 8px 28px rgba(37,99,235,.5)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = !submitting ? '0 6px 20px rgba(37,99,235,.38)' : 'none'; e.currentTarget.style.transform = 'none'; }}
@@ -730,12 +745,35 @@ export default function Quiz() {
           </div>
         )}
 
-        {/* swipe hint */}
-        <div style={{ textAlign: 'center', marginTop: 24 }}>
-          <span style={{ fontSize: 11, color: T.t4, letterSpacing: .5 }}>
-            ← เลื่อนซ้าย/ขวาเพื่อเปลี่ยนข้อ →
-          </span>
-        </div>
+        {/* Mobile: compact answered CTA when all answered and not on last question */}
+        {m && allAnswered && current < questions.length - 1 && (
+          <div style={{ marginTop: 10 }}>
+            <button
+              onClick={handleSubmit} disabled={submitting}
+              style={{
+                width: '100%', padding: '11px',
+                borderRadius: 12, border: 'none',
+                background: submitting ? T.border : T.primary,
+                color: submitting ? T.t3 : '#fff',
+                fontSize: 13, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                fontFamily: "'Anuphan','Sarabun',sans-serif",
+                boxShadow: !submitting ? `0 4px 14px rgba(37,99,235,.35)` : 'none',
+              }}
+            >
+              {submitting ? <>{I.spn} กำลังส่ง...</> : <>{I.snd} ตอบครบแล้ว — ส่งคำตอบ</>}
+            </button>
+          </div>
+        )}
+
+        {/* Swipe hint — desktop only */}
+        {!m && (
+          <div style={{ textAlign: 'center', marginTop: 24 }}>
+            <span style={{ fontSize: 11, color: T.t4, letterSpacing: .5 }}>
+              ← เลื่อนซ้าย/ขวาเพื่อเปลี่ยนข้อ →
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ── Confirm Submit Modal ── */}
@@ -746,26 +784,26 @@ export default function Quiz() {
           onCancel={() => setShowConfirm(false)}
         />
       )}
-
     </div>
   );
 }
 
-/* ─── Small reusable components ───────────────────────────────────────────── */
-function NavGhost({ onClick, disabled, icon, label, iconLeft }) {
+/* ─── Nav buttons ─────────────────────────────────────────────────────────── */
+function NavGhost({ onClick, disabled, icon, label, iconLeft, compact }) {
   const [h, setH] = useState(false);
   return (
     <button onClick={onClick} disabled={disabled}
       onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
       style={{
-        display: 'flex', alignItems: 'center', gap: 7,
-        padding: '9px 16px', borderRadius: 10,
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: compact ? '8px 12px' : '9px 16px', borderRadius: 10,
         border: `1.5px solid ${h && !disabled ? T.primary + '44' : T.border}`,
         background: h && !disabled ? T.primaryL : T.card,
         color: disabled ? T.t4 : h ? T.primary : T.t2,
         fontSize: 13, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? .35 : 1, fontFamily: "'Anuphan','Sarabun',sans-serif",
-        transition: 'all .18s',
+        transition: 'all .18s', minWidth: compact ? 40 : 'auto',
+        justifyContent: 'center',
       }}
     >
       {iconLeft && <span style={{ display: 'flex' }}>{icon}</span>}
@@ -775,14 +813,14 @@ function NavGhost({ onClick, disabled, icon, label, iconLeft }) {
   );
 }
 
-function NavPrimary({ onClick, disabled, icon, label }) {
+function NavPrimary({ onClick, disabled, icon, label, compact }) {
   const [h, setH] = useState(false);
   return (
     <button onClick={onClick} disabled={disabled}
       onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
       style={{
-        display: 'flex', alignItems: 'center', gap: 7,
-        padding: '9px 20px', borderRadius: 10, border: 'none',
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: compact ? '8px 12px' : '9px 20px', borderRadius: 10, border: 'none',
         background: disabled ? T.border : h ? T.primaryD : T.primary,
         color: disabled ? T.t3 : '#fff',
         fontSize: 13, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer',
@@ -790,6 +828,7 @@ function NavPrimary({ onClick, disabled, icon, label }) {
         boxShadow: !disabled ? (h ? '0 6px 16px rgba(37,99,235,.45)' : '0 4px 12px rgba(37,99,235,.3)') : 'none',
         transform: h && !disabled ? 'translateY(-1px)' : 'none',
         fontFamily: "'Anuphan','Sarabun',sans-serif", transition: 'all .18s',
+        minWidth: compact ? 40 : 'auto', justifyContent: 'center',
       }}
     >
       {label}
@@ -798,17 +837,17 @@ function NavPrimary({ onClick, disabled, icon, label }) {
   );
 }
 
-function NavSuccess({ onClick, disabled, icon, label }) {
+function NavSuccess({ onClick, disabled, icon, label, compact }) {
   const [h, setH] = useState(false);
   return (
     <button onClick={onClick} disabled={disabled}
       onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
       style={{
-        display: 'flex', alignItems: 'center', gap: 7,
-        padding: '9px 20px', borderRadius: 10, border: 'none',
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: compact ? '8px 14px' : '9px 20px', borderRadius: 10, border: 'none',
         background: disabled ? T.border : h ? '#047857' : T.success,
         color: disabled ? T.t3 : '#fff',
-        fontSize: 13, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer',
+        fontSize: compact ? 12 : 13, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer',
         boxShadow: !disabled ? (h ? '0 6px 16px rgba(5,150,105,.45)' : '0 4px 12px rgba(5,150,105,.3)') : 'none',
         transform: h && !disabled ? 'translateY(-1px)' : 'none',
         fontFamily: "'Anuphan','Sarabun',sans-serif", transition: 'all .18s',
