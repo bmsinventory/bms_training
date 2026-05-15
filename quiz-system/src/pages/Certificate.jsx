@@ -7,38 +7,10 @@ import {
   getAttempt, getCertificateByAttempt, updateCertificatePdf,
   uploadCertPdf, getSettings,
 } from '../lib/supabase';
-import { generateCertPDF, generateQR } from '../lib/certificate';
+import { generateCertPDF } from '../lib/certificate';
 import { downloadBlob } from '../lib/utils';
 import { sendCertEmail } from '../lib/email';
 import CertPreviewCard from '../components/CertPreviewCard';
-
-const s = {
-  page:    { fontFamily:"'Anuphan','Sarabun',sans-serif", minHeight:'100vh', background:'#f1f5f9' },
-  wrap:    { maxWidth:800, margin:'0 auto', padding:'28px 16px 48px' },
-  hero:    { textAlign:'center', marginBottom:28 },
-
-  previewCard:{ background:'#fff', borderRadius:14, border:'1px solid #e2e8f0',
-                boxShadow:'0 1px 4px rgba(0,0,0,.07)', marginBottom:16,
-                overflow:'hidden', padding:0 },
-  infoCard:{ background:'#fff', borderRadius:14, border:'1px solid #e2e8f0',
-              boxShadow:'0 1px 4px rgba(0,0,0,.07)', padding:'16px 20px', marginBottom:16 },
-
-  grid2:   { display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 },
-  btnPrimary:{ padding:'13px 20px', background:'#2563eb', color:'#fff', border:'none',
-               borderRadius:10, fontSize:15, fontWeight:700, cursor:'pointer',
-               display:'flex', alignItems:'center', justifyContent:'center', gap:8 },
-  btnSecondary:{ padding:'13px 20px', background:'#fff', color:'#374151',
-                  border:'1.5px solid #e2e8f0', borderRadius:10, fontSize:15,
-                  fontWeight:600, cursor:'pointer',
-                  display:'flex', alignItems:'center', justifyContent:'center', gap:8 },
-  btnDis:  { opacity:0.55, cursor:'not-allowed' },
-  btnGhost:{ display:'inline-flex', alignItems:'center', gap:6, padding:'9px 18px',
-             background:'transparent', color:'#64748b', border:'1.5px solid #e2e8f0',
-             borderRadius:9, fontSize:14, fontWeight:600, textDecoration:'none' },
-  btnBlue: { display:'inline-flex', alignItems:'center', gap:6, padding:'9px 18px',
-             background:'#eff6ff', color:'#1d4ed8', border:'1px solid #bfdbfe',
-             borderRadius:9, fontSize:14, fontWeight:600, textDecoration:'none' },
-};
 
 export default function Certificate() {
   const { attemptId } = useParams();
@@ -51,6 +23,20 @@ export default function Certificate() {
   const [generating, setGenerating] = useState(false);
   const [sending, setSending]       = useState(false);
   const [loading, setLoading]       = useState(true);
+  const [isMobile, setIsMobile]     = useState(window.innerWidth < 640);
+  const [previewScale, setPreviewScale] = useState(
+    window.innerWidth < 640 ? Math.min(0.32, (window.innerWidth - 32) / 1123) : 0.47
+  );
+
+  useEffect(() => {
+    function h() {
+      const mobile = window.innerWidth < 640;
+      setIsMobile(mobile);
+      setPreviewScale(mobile ? Math.min(0.32, (window.innerWidth - 32) / 1123) : 0.47);
+    }
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -123,53 +109,149 @@ export default function Certificate() {
   if (loading) return <><Navbar /><InlineLoader text="กำลังโหลดใบรับรอง..." /></>;
   if (!cert || !attempt) return null;
 
-  const verifyUrl = `${settings.verify_base_url || window.location.origin + '/verify'}/${cert.cert_id}`;
+  const m = isMobile;
 
   return (
-    <div style={s.page}>
+    <div style={{ fontFamily:"'Anuphan','Sarabun',sans-serif", minHeight:'100vh', background:'#f1f5f9' }}>
       <Navbar siteName={settings.site_name} />
 
-      <div style={s.wrap}>
+      <div style={{ maxWidth:800, margin:'0 auto', padding: m ? '10px 12px 20px' : '28px 16px 48px' }}>
 
         {/* Header */}
-        <div style={s.hero}>
-          <div style={{ fontSize:44, marginBottom:10 }}>🏆</div>
-          <div style={{ fontSize:22, fontWeight:800, color:'#0f172a', marginBottom:4 }}>
+        <div style={{ textAlign:'center', marginBottom: m ? 10 : 28 }}>
+          <div style={{ fontSize: m ? 34 : 44, marginBottom: m ? 4 : 10 }}>🏆</div>
+          <div style={{ fontSize: m ? 17 : 22, fontWeight:800, color:'#0f172a', marginBottom: m ? 2 : 4 }}>
             ใบรับรองการผ่านการทดสอบ
           </div>
-          <div style={{ fontSize:14, color:'#64748b' }}>
-            Cert ID: <span style={{ fontFamily:'monospace', fontWeight:700, color:'#2563eb' }}>{cert.cert_id}</span>
+          <div style={{ fontSize: m ? 11 : 14, color:'#64748b' }}>
+            ID:{' '}
+            <span style={{
+              fontFamily:'monospace', fontWeight:700, color:'#2563eb',
+              wordBreak:'break-all', fontSize: m ? 10 : 13,
+            }}>
+              {cert.cert_id}
+            </span>
           </div>
         </div>
 
         {/* Certificate preview */}
-        <div style={s.previewCard}>
-          <CertPreviewCard cert={cert} settings={settings} scale={0.47} />
+        <div style={{
+          background:'#fff', borderRadius: m ? 10 : 14,
+          border:'1px solid #e2e8f0',
+          boxShadow:'0 1px 4px rgba(0,0,0,.07)',
+          marginBottom: m ? 10 : 16,
+          overflow:'hidden', padding:0,
+          display:'flex', justifyContent:'center',
+        }}>
+          <CertPreviewCard cert={cert} settings={settings} scale={previewScale} />
         </div>
 
+        {/* Score chip on mobile */}
+        {m && (
+          <div style={{
+            display:'flex', gap:8, justifyContent:'center',
+            marginBottom:10, flexWrap:'wrap',
+          }}>
+            <span style={{
+              display:'inline-flex', alignItems:'center', gap:4,
+              padding:'4px 12px', borderRadius:20,
+              fontSize:12, fontWeight:700,
+              background:'#ecfdf5', color:'#065f46',
+            }}>
+              ✅ ผ่านการทดสอบ
+            </span>
+            <span style={{
+              display:'inline-flex', alignItems:'center', gap:4,
+              padding:'4px 12px', borderRadius:20,
+              fontSize:12, fontWeight:700,
+              background:'#eff6ff', color:'#1d4ed8',
+            }}>
+              🎯 {cert.score}/{cert.total} คะแนน ({cert.percent}%)
+            </span>
+          </div>
+        )}
+
         {/* Action buttons */}
-        <div style={s.grid2}>
+        <div style={{
+          display:'flex',
+          flexDirection: m ? 'column' : 'row',
+          gap: m ? 8 : 12,
+          marginBottom: m ? 8 : 16,
+        }}>
           <button
             onClick={handleDownload}
             disabled={generating}
-            style={{ ...s.btnPrimary, ...(generating ? s.btnDis : {}) }}
+            style={{
+              flex:1,
+              padding: m ? '11px 16px' : '13px 20px',
+              background: generating ? '#93c5fd' : '#2563eb',
+              color:'#fff', border:'none', borderRadius:10,
+              fontSize: m ? 14 : 15, fontWeight:700,
+              cursor: generating ? 'not-allowed' : 'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+              opacity: generating ? 0.7 : 1,
+              transition:'background .15s',
+            }}
+            onMouseEnter={e => { if (!generating) e.currentTarget.style.background = '#1d4ed8'; }}
+            onMouseLeave={e => { if (!generating) e.currentTarget.style.background = '#2563eb'; }}
           >
-            {generating ? '⏳ กำลังสร้าง PDF...' : '⬇️ ดาวน์โหลด PDF'}
+            {generating ? '⏳ กำลังสร้าง PDF...' : '⬇️ ดาวน์โหลดใบรับรอง PDF'}
           </button>
+
           <button
             onClick={handleSendEmail}
             disabled={sending}
-            style={{ ...s.btnSecondary, ...(sending ? s.btnDis : {}) }}
+            style={{
+              flex:1,
+              padding: m ? '11px 16px' : '13px 20px',
+              background:'#fff', color:'#374151',
+              border:'1.5px solid #e2e8f0', borderRadius:10,
+              fontSize: m ? 14 : 15, fontWeight:600,
+              cursor: sending ? 'not-allowed' : 'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+              opacity: sending ? 0.7 : 1,
+              transition:'border-color .15s',
+            }}
           >
-            {sending ? '⏳ กำลังส่ง...' : `📧 ส่งไปยัง ${cert.email}`}
+            {sending ? '⏳ กำลังส่ง...' : '📧 ส่งใบรับรองทางอีเมล'}
           </button>
         </div>
 
+        {/* Email info */}
+        <div style={{
+          fontSize: m ? 11 : 12, color:'#94a3b8',
+          textAlign:'center', marginBottom: m ? 12 : 16,
+          wordBreak:'break-all',
+        }}>
+          📧 จะส่งไปยัง {cert.email}
+        </div>
 
         {/* Navigation */}
-        <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
-          <Link to="/" style={s.btnGhost}>← กลับหน้าหลัก</Link>
-          <Link to="/resend" style={s.btnBlue}>📧 แก้ไขอีเมล / ส่งใหม่</Link>
+        <div style={{
+          display:'flex', gap: m ? 8 : 10,
+          justifyContent:'center',
+          flexDirection: m ? 'column' : 'row',
+        }}>
+          <Link to="/" style={{
+            display:'inline-flex', alignItems:'center',
+            justifyContent: m ? 'center' : 'flex-start',
+            gap:6, padding: m ? '10px 16px' : '9px 18px',
+            background:'transparent', color:'#64748b',
+            border:'1.5px solid #e2e8f0', borderRadius:9,
+            fontSize: m ? 13 : 14, fontWeight:600, textDecoration:'none',
+          }}>
+            ← กลับหน้าหลัก
+          </Link>
+          <Link to="/resend" style={{
+            display:'inline-flex', alignItems:'center',
+            justifyContent: m ? 'center' : 'flex-start',
+            gap:6, padding: m ? '10px 16px' : '9px 18px',
+            background:'#eff6ff', color:'#1d4ed8',
+            border:'1px solid #bfdbfe', borderRadius:9,
+            fontSize: m ? 13 : 14, fontWeight:600, textDecoration:'none',
+          }}>
+            📧 ส่งใบรับรองใหม่ / แก้ไขอีเมล
+          </Link>
         </div>
 
       </div>

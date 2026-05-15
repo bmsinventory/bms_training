@@ -148,11 +148,11 @@ export default function Register() {
           </div>
 
           {/* body */}
-          <div style={{ padding: m ? '14px 16px' : '22px' }}>
+          <div style={{ padding: m ? '12px 14px' : '22px' }}>
             <form onSubmit={handleSubmit} noValidate>
 
               {/* ชื่อ-นามสกุล */}
-              <div style={{ marginBottom: m ? 12 : 18 }}>
+              <div style={{ marginBottom: m ? 10 : 18 }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: m ? 4 : 6 }}>
                   ชื่อ-นามสกุล <span style={{ color: '#dc2626', marginLeft: 2 }}>*</span>
                 </label>
@@ -177,7 +177,7 @@ export default function Register() {
               </div>
 
               {/* อีเมล */}
-              <div style={{ marginBottom: m ? 12 : 18 }}>
+              <div style={{ marginBottom: m ? 10 : 18 }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: m ? 4 : 6 }}>
                   อีเมล <span style={{ color: '#dc2626', marginLeft: 2 }}>*</span>
                 </label>
@@ -200,7 +200,7 @@ export default function Register() {
                 />
                 {errors.email
                   ? <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4 }}>⚠ {errors.email}</div>
-                  : <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>📧 ใบรับรองจะส่งไปยังอีเมลนี้เมื่อผ่าน</div>
+                  : <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>📧 {m ? 'ใบรับรองจะส่งไปยังอีเมลนี้' : 'ใบรับรองจะส่งไปยังอีเมลนี้เมื่อผ่าน'}</div>
                 }
               </div>
 
@@ -208,8 +208,8 @@ export default function Register() {
               <div style={{
                 display: 'flex', gap: 8, alignItems: 'flex-start',
                 background: '#fffbeb', border: '1px solid #fde68a',
-                borderRadius: 8, padding: m ? '8px 10px' : '12px 14px',
-                marginBottom: m ? 12 : 20, fontSize: m ? 12 : 13, color: '#92400e',
+                borderRadius: 8, padding: m ? '7px 10px' : '12px 14px',
+                marginBottom: m ? 10 : 20, fontSize: m ? 12 : 13, color: '#92400e',
               }}>
                 <span style={{ fontSize: 14, flexShrink: 0 }}>⚠️</span>
                 <span>เมื่อเริ่มแล้ว <strong>จะไม่สามารถย้อนกลับ</strong>มาแก้ไขข้อมูลได้</span>
