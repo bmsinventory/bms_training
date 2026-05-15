@@ -7,17 +7,46 @@ import { supabase } from '../../lib/supabase';
 const EMPTY_Q = { question: '', explanation: '', is_active: true };
 const EMPTY_C = { choice_text: '', is_correct: false };
 
+function ConfirmDialog({ open, title, desc, onOk, onCancel, loading }) {
+  if (!open) return null;
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:10000,
+                  display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ background:'#fff', borderRadius:14, padding:'28px 28px 22px', maxWidth:380, width:'90%',
+                    boxShadow:'0 20px 60px rgba(0,0,0,.2)', fontFamily:"'Anuphan','Sarabun',sans-serif" }}>
+        <div style={{ fontSize:16, fontWeight:700, color:'#0f172a', marginBottom:8 }}>{title}</div>
+        {desc && <div style={{ fontSize:13, color:'#64748b', marginBottom:20, lineHeight:1.6 }}>{desc}</div>}
+        <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+          <button onClick={onCancel} disabled={loading}
+            style={{ background:'transparent', border:'1px solid #e2e8f0', borderRadius:8,
+                     padding:'7px 16px', fontSize:13, cursor:'pointer', color:'#64748b', fontFamily:'inherit' }}>
+            ยกเลิก
+          </button>
+          <button onClick={onOk} disabled={loading}
+            style={{ background:'#dc2626', color:'#fff', border:'none', borderRadius:8,
+                     padding:'7px 18px', fontSize:13, fontWeight:600, fontFamily:'inherit',
+                     cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+            {loading ? '⏳ กำลังลบ...' : '🗑️ ยืนยันลบ'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Questions() {
   const { courseId } = useParams();
   const toast = useToast();
 
-  const [course, setCourse]     = useState(null);
-  const [questions, setQs]      = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [modal, setModal]       = useState(null);
-  const [form, setForm]         = useState(EMPTY_Q);
-  const [choices, setChoices]   = useState([EMPTY_C, EMPTY_C, EMPTY_C, EMPTY_C]);
-  const [saving, setSaving]     = useState(false);
+  const [course, setCourse]       = useState(null);
+  const [questions, setQs]        = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [modal, setModal]         = useState(null);
+  const [form, setForm]           = useState(EMPTY_Q);
+  const [choices, setChoices]     = useState([EMPTY_C, EMPTY_C, EMPTY_C, EMPTY_C]);
+  const [saving, setSaving]       = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting]   = useState(false);
 
   async function load() {
     setLoading(true);
@@ -113,11 +142,19 @@ export default function Questions() {
     } finally { setSaving(false); }
   }
 
-  async function handleDelete(q) {
-    if (!confirm(`ลบข้อสอบ "${q.question.slice(0, 40)}..."?`)) return;
-    await supabase.from('questions').delete().eq('id', q.id);
-    toast.success('ลบสำเร็จ');
-    load();
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await supabase.from('quiz_answers').delete().in('question_id', [deleteTarget.id]);
+      await supabase.from('choices').delete().eq('question_id', deleteTarget.id);
+      await supabase.from('questions').delete().eq('id', deleteTarget.id);
+      toast.success('ลบสำเร็จ');
+      setQs(prev => prev.filter(q => q.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (e) {
+      toast.error('ลบไม่สำเร็จ: ' + e.message);
+    } finally { setDeleting(false); }
   }
 
   async function toggleActive(q) {
@@ -127,6 +164,15 @@ export default function Questions() {
 
   return (
     <div style={{ fontFamily: "'Anuphan','Sarabun',sans-serif", color: '#0f172a' }}>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="ลบข้อสอบ"
+        desc={deleteTarget ? `ลบข้อสอบ "${deleteTarget.question.slice(0, 60)}${deleteTarget.question.length > 60 ? '...' : ''}" — ข้อมูลจะหายถาวร` : ''}
+        loading={deleting}
+        onOk={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       {/* Page header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -156,7 +202,7 @@ export default function Questions() {
               idx={idx}
               onEdit={() => openEdit(q)}
               onToggle={() => toggleActive(q)}
-              onDelete={() => handleDelete(q)}
+              onDelete={() => setDeleteTarget(q)}
             />
           ))}
 

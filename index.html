@@ -478,6 +478,7 @@
           <button class="btn btn-ghost btn-sm" onclick="loadSurveyDashboard()" style="gap:5px;"><i class="ti ti-refresh"></i>รีเฟรช</button>
           <button class="btn btn-ghost btn-sm" onclick="exportSurveyExcel()" style="gap:5px;"><i class="ti ti-file-spreadsheet"></i>Export Excel</button>
           <button class="btn btn-sm" onclick="saveSurveyImage()" style="background:#7c3aed;color:#fff;gap:5px;border:none;"><i class="ti ti-photo-down"></i>บันทึกเป็นภาพ</button>
+          <button class="btn btn-sm" onclick="openClearSurveyBySite()" style="background:transparent;color:#dc2626;border:1px solid #fecaca;gap:5px;"><i class="ti ti-trash"></i>เคียร์ตามสาขา</button>
         </div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
@@ -1061,6 +1062,33 @@
       <div style="display:flex;gap:8px;">
         <button class="btn btn-ghost" onclick="closeModal('modal-clear-regs-site')" style="flex:1;"><i class="ti ti-x"></i>ยกเลิก</button>
         <button class="btn btn-danger" id="clear-site-ok-btn" onclick="confirmClearRegsBySite()" style="flex:2;justify-content:center;" disabled><i class="ti ti-trash"></i>ยืนยันลบข้อมูล</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Clear Survey By Site -->
+<div class="modal-overlay" id="modal-clear-survey-site">
+  <div class="modal" style="max-width:420px;padding:0;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#4c1d95,#6d28d9);padding:18px 22px;color:#fff;">
+      <div style="font-size:11px;opacity:.7;margin-bottom:2px;text-transform:uppercase;letter-spacing:.8px;">Admin — ลบข้อมูล</div>
+      <div style="font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;"><i class="ti ti-trash-x"></i>เคียร์ข้อมูลแบบประเมินตามสาขา</div>
+    </div>
+    <div style="padding:20px;">
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;">
+        <i class="ti ti-alert-triangle" style="color:#dc2626;font-size:18px;flex-shrink:0;margin-top:1px;"></i>
+        <div style="font-size:13px;color:#7f1d1d;line-height:1.5;">การลบข้อมูลนี้ <strong>ไม่สามารถกู้คืนได้</strong><br>จะลบข้อมูลแบบประเมินทั้งหมดของสาขาที่เลือก</div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label">เลือกสาขาที่ต้องการเคียร์ข้อมูล</label>
+        <select class="form-control" id="clear-sv-site-sel" onchange="updateClearSurveySiteCount()">
+          <option value="">— เลือกสาขา —</option>
+        </select>
+      </div>
+      <div id="clear-sv-site-preview" style="display:none;background:var(--bg-subtle);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="closeModal('modal-clear-survey-site')" style="flex:1;"><i class="ti ti-x"></i>ยกเลิก</button>
+        <button class="btn btn-danger" id="clear-sv-site-ok-btn" onclick="confirmClearSurveyBySite()" style="flex:2;justify-content:center;" disabled><i class="ti ti-trash"></i>ยืนยันลบข้อมูล</button>
       </div>
     </div>
   </div>

@@ -159,7 +159,7 @@ function canEditReg(reg){
 /* ══════════════════ DB INIT ══════════════════ */
 function setLoading(on){document.getElementById('app-loading').classList.toggle('hidden',!on);}
 async function loadAllData(){
-  const [cR,sR,rR,mR,lR,auR,lvR,asR,qcR,quR]=await Promise.all([
+  const [cR,sR,rR,mR,lR,auR,lvR,asR,qcR,quR,qjR]=await Promise.all([
     _sb.from('categories').select('*').eq('site',currentSite).order('id'),
     _sb.from('sessions').select('*').eq('site',currentSite).order('id'),
     _sb.from('registrations').select('*').order('id'),
@@ -170,6 +170,7 @@ async function loadAllData(){
     _sb.from('sessions').select('id,site,capacity').order('id'),
     _sb.from('courses').select('id,category_id').eq('is_active',true).not('category_id','is',null),
     _sb.from('settings').select('value').eq('key','quiz_base_url').maybeSingle(),
+    _sb.from('course_categories').select('category_id'),
   ]);
   if(cR.error||sR.error||rR.error||mR.error||lR.error||auR.error)throw new Error('โหลดข้อมูลล้มเหลว');
   categories=(cR.data||[]).map(_mCat);
@@ -188,7 +189,11 @@ async function loadAllData(){
   masterIds.venue=ms.filter(m=>m.type==='venue').map(m=>m.id);
   masterIds.dept=ms.filter(m=>m.type==='dept').map(m=>m.id);
   masterIds.prefix=ms.filter(m=>m.type==='prefix').map(m=>m.id);
-  _quizCatIds=new Set((qcR.data||[]).map(q=>q.category_id));
+  // รวม category_id จากทั้งคอลัมน์เก่า (courses.category_id) และ junction table (course_categories)
+  _quizCatIds=new Set([
+    ...(qcR.data||[]).map(q=>q.category_id),
+    ...(qjR.data||[]).map(q=>q.category_id),
+  ].filter(Boolean));
   QUIZ_BASE_URL=(quR.data?.value)||(window.location.origin+'/quiz');
 }
 async function initApp(){
@@ -607,6 +612,25 @@ async function _clearImportType(type,rows=[]){
   } else if(type==='quiz_question'){
     const ids=[...new Set(rows.map(r=>r.value.courseId))];
     for(const cid of ids){
+      // Get question IDs first to cascade-delete answers and choices
+      const {data:qRows,error:qFetchErr}=await _sb.from('questions').select('id').eq('course_id',cid);
+      if(qFetchErr)throw new Error(qFetchErr.message);
+      const qIds=(qRows||[]).map(q=>q.id);
+      if(qIds.length){
+        // Get choice IDs before deleting (needed for choice_id FK in quiz_answers)
+        const {data:choiceRows}=await _sb.from('choices').select('id').in('question_id',qIds);
+        const choiceIds=(choiceRows||[]).map(c=>c.id);
+        // Delete quiz_answers by question_id (FK1)
+        const {error:aErr}=await _sb.from('quiz_answers').delete().in('question_id',qIds);
+        if(aErr)throw new Error(aErr.message);
+        // Delete quiz_answers by choice_id (FK2) for any remaining rows
+        if(choiceIds.length){
+          const {error:a2Err}=await _sb.from('quiz_answers').delete().in('choice_id',choiceIds);
+          if(a2Err)throw new Error(a2Err.message);
+        }
+        const {error:cErr}=await _sb.from('choices').delete().in('question_id',qIds);
+        if(cErr)throw new Error(cErr.message);
+      }
       ({error:err}=await _sb.from('questions').delete().eq('course_id',cid));
       if(err)throw new Error(err.message);
     }
@@ -3710,6 +3734,51 @@ async function confirmClearRegsBySite(){
   closeModal('modal-clear-regs-site');
   renderAdmin();
   showToast(`ลบข้อมูลสาขา "${loc?loc.name:code}" สำเร็จ ${cnt} รายการ`,'success');
+}
+function openClearSurveyBySite(){
+  const sel=document.getElementById('clear-sv-site-sel');
+  sel.innerHTML='<option value="">— เลือกสาขา —</option>'+
+    locations.map(l=>`<option value="${l.code}">${l.name} (${l.code})</option>`).join('');
+  document.getElementById('clear-sv-site-preview').style.display='none';
+  document.getElementById('clear-sv-site-ok-btn').disabled=true;
+  document.getElementById('modal-clear-survey-site').classList.add('open');
+}
+async function updateClearSurveySiteCount(){
+  const code=document.getElementById('clear-sv-site-sel').value;
+  const preview=document.getElementById('clear-sv-site-preview');
+  const btn=document.getElementById('clear-sv-site-ok-btn');
+  if(!code){preview.style.display='none';btn.disabled=true;return;}
+  const loc=locations.find(l=>l.code===code);
+  const{count}=await _sb.from('survey_responses').select('id',{count:'exact',head:true}).eq('site',code);
+  const cnt=count||0;
+  preview.style.display='block';
+  preview.innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:${cnt?'8px':'0'};">
+      <i class="ti ti-building" style="color:#7c3aed;font-size:15px;"></i>
+      <span>สาขา <strong>${loc?loc.name:code}</strong> — <strong style="color:${cnt?'var(--danger)':'var(--text-muted)'};">${cnt} รายการ</strong></span>
+    </div>
+    ${cnt?`<div style="font-size:12px;color:var(--text-muted);padding-left:23px;">
+      <i class="ti ti-clipboard-check"></i> แบบประเมินที่จะถูกลบ ${cnt} รายการ
+    </div>`:'<div style="font-size:12px;color:var(--text-muted);padding-left:23px;">ไม่มีข้อมูลแบบประเมินในสาขานี้</div>'}`;
+  btn.disabled=cnt===0;
+}
+async function confirmClearSurveyBySite(){
+  const code=document.getElementById('clear-sv-site-sel').value;
+  if(!code)return;
+  const loc=locations.find(l=>l.code===code);
+  const{count}=await _sb.from('survey_responses').select('id',{count:'exact',head:true}).eq('site',code);
+  const cnt=count||0;
+  if(!await showConfirm(`ลบข้อมูลแบบประเมิน ${cnt} รายการ?`,`สาขา: ${loc?loc.name:code}`,{okLabel:`ลบ ${cnt} รายการ`,danger:true}))return;
+  const btn=document.getElementById('clear-sv-site-ok-btn');
+  btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i>กำลังลบ...';
+  const{error}=await _sb.from('survey_responses').delete().eq('site',code);
+  btn.disabled=false;btn.innerHTML='<i class="ti ti-trash"></i>ยืนยันลบข้อมูล';
+  if(error){showToast('ลบไม่สำเร็จ: '+error.message,'danger');return;}
+  closeModal('modal-clear-survey-site');
+  // Refresh survey dashboard if on same site
+  const svSiteEl=document.getElementById('svd-site');
+  if(svSiteEl&&svSiteEl.value===code){_svData=[];renderSurveyCharts();}
+  showToast(`ลบข้อมูลแบบประเมินสาขา "${loc?loc.name:code}" สำเร็จ ${cnt} รายการ`,'success');
 }
 function adminAddReg(){
   populateSelect('ar-prefix',prefixes,'คำนำหน้า...');
