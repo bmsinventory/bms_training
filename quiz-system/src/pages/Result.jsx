@@ -9,31 +9,11 @@ import {
 } from '../lib/supabase';
 import { makeCertId, fmtDateTime } from '../lib/utils';
 
-const s = {
-  page:  { fontFamily:"'Anuphan','Sarabun',sans-serif", minHeight:'100vh', background:'#f1f5f9' },
-  wrap:  { maxWidth:680, margin:'0 auto', padding:'28px 16px 48px' },
-  card:  { background:'#fff', borderRadius:14, border:'1px solid #e2e8f0',
-           boxShadow:'0 1px 4px rgba(0,0,0,.07)', padding:'24px', marginBottom:14 },
-
-  btnSuccess:{ display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-               padding:'13px 20px', background:'#059669', color:'#fff',
-               border:'none', borderRadius:10, fontSize:15, fontWeight:700, cursor:'pointer',
-               textDecoration:'none', width:'100%', boxSizing:'border-box' },
-  btnSecondary:{ display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-                  padding:'11px 20px', background:'#fff', color:'#374151',
-                  border:'1.5px solid #e2e8f0', borderRadius:10, fontSize:14, fontWeight:600,
-                  cursor:'pointer', width:'100%', boxSizing:'border-box' },
-  btnGhost:{ display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-             padding:'11px 20px', background:'transparent', color:'#64748b',
-             border:'1.5px solid #e2e8f0', borderRadius:10, fontSize:14, fontWeight:600,
-             cursor:'pointer', width:'100%', boxSizing:'border-box' },
-};
-
 function StatBox({ label, value, color, bg }) {
   return (
-    <div style={{ padding:'14px', borderRadius:10, background:bg, textAlign:'center' }}>
-      <div style={{ fontSize:26, fontWeight:800, color }}>{value}</div>
-      <div style={{ fontSize:12, color, opacity:.75, marginTop:2 }}>{label}</div>
+    <div className="rounded-xl p-3.5 text-center" style={{ background: bg }}>
+      <div className="text-2xl font-extrabold" style={{ color }}>{value}</div>
+      <div className="text-xs mt-0.5 opacity-75" style={{ color }}>{label}</div>
     </div>
   );
 }
@@ -41,8 +21,8 @@ function StatBox({ label, value, color, bg }) {
 function Info({ label, value }) {
   return (
     <div>
-      <span style={{ color:'#94a3b8', fontSize:13 }}>{label}: </span>
-      <span style={{ color:'#1e293b', fontWeight:600, fontSize:14 }}>{value}</span>
+      <span className="text-slate-400 text-sm">{label}: </span>
+      <span className="text-slate-800 font-semibold text-sm">{value}</span>
     </div>
   );
 }
@@ -96,127 +76,116 @@ export default function Result() {
 
   if (loading) return <><Navbar /><InlineLoader text="กำลังโหลดผลสอบ..." /></>;
   if (!attempt) return (
-    <><Navbar /><div style={{ textAlign:'center', padding:'80px 0', color:'#94a3b8' }}>ไม่พบข้อมูล</div></>
+    <><Navbar /><div className="text-center py-20 text-slate-400">ไม่พบข้อมูล</div></>
   );
 
   const isPassed     = attempt.status === 'PASS';
   const wrongAnswers = answers.filter(a => !a.is_correct);
+  const passColor    = isPassed ? '#059669' : '#dc2626';
+  const passBg       = isPassed ? '#ecfdf5' : '#fef2f2';
+  const passText     = isPassed ? '#065f46' : '#991b1b';
 
   return (
-    <div style={s.page}>
+    <div className="min-h-screen bg-slate-100">
       <Navbar siteName={settings.site_name} />
 
-      <div style={s.wrap}>
+      <div className="max-w-2xl mx-auto px-4 py-7 sm:py-10 pb-12">
 
         {/* Result banner card */}
-        <div style={{
-          ...s.card,
-          textAlign:'center',
-          borderTop: `4px solid ${isPassed ? '#059669' : '#dc2626'}`,
-        }}>
-          <div style={{ fontSize:56, marginBottom:10 }}>{isPassed ? '🎉' : '😔'}</div>
-          <div style={{ fontSize:28, fontWeight:800, color: isPassed ? '#059669' : '#dc2626', marginBottom:6 }}>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-3.5 text-center"
+          style={{ borderTop: `4px solid ${passColor}` }}>
+          <div className="text-5xl mb-2.5">{isPassed ? '🎉' : '😔'}</div>
+          <div className="text-2xl sm:text-3xl font-extrabold mb-1.5" style={{ color: passColor }}>
             {isPassed ? 'ผ่านการทดสอบ!' : 'ไม่ผ่านการทดสอบ'}
           </div>
-          <div style={{ fontSize:13, color:'#94a3b8', marginBottom:20 }}>
+          <div className="text-sm text-slate-400 mb-5">
             {attempt.courses?.name || 'แบบทดสอบ'} &nbsp;·&nbsp; {fmtDateTime(attempt.completed_at)}
           </div>
 
           {/* Score circle */}
-          <div style={{ display:'flex', justifyContent:'center', marginBottom:20 }}>
-            <div style={{
-              width:120, height:120, borderRadius:'50%',
-              border: `8px solid ${isPassed ? '#059669' : '#dc2626'}`,
-              background: isPassed ? '#ecfdf5' : '#fef2f2',
-              display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-            }}>
-              <span style={{ fontSize:34, fontWeight:800, color: isPassed ? '#065f46' : '#991b1b' }}>
+          <div className="flex justify-center mb-5">
+            <div className="w-28 h-28 rounded-full flex flex-col items-center justify-center"
+              style={{ border: `8px solid ${passColor}`, background: passBg }}>
+              <span className="text-3xl font-extrabold" style={{ color: passText }}>
                 {Math.round(attempt.percent)}%
               </span>
-              <span style={{ fontSize:11, color:'#94a3b8' }}>คะแนน</span>
+              <span className="text-xs text-slate-400">คะแนน</span>
             </div>
           </div>
 
           {/* Stats grid */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:18 }}>
-            <StatBox label="ถูก"    value={attempt.score}                  color="#065f46" bg="#ecfdf5" />
-            <StatBox label="ผิด"    value={attempt.total - attempt.score}  color="#991b1b" bg="#fef2f2" />
-            <StatBox label="ทั้งหมด" value={attempt.total}                  color="#1e40af" bg="#eff6ff" />
+          <div className="grid grid-cols-3 gap-2.5 mb-4">
+            <StatBox label="ถูก"     value={attempt.score}                 color="#065f46" bg="#ecfdf5" />
+            <StatBox label="ผิด"     value={attempt.total - attempt.score} color="#991b1b" bg="#fef2f2" />
+            <StatBox label="ทั้งหมด" value={attempt.total}                 color="#1e40af" bg="#eff6ff" />
           </div>
 
-          <div style={{
-            display:'inline-flex', alignItems:'center', gap:8,
-            padding:'8px 20px', borderRadius:20, fontSize:16, fontWeight:700,
-            background: isPassed ? '#ecfdf5' : '#fef2f2',
-            color: isPassed ? '#065f46' : '#991b1b',
-          }}>
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-base font-bold"
+            style={{ background: passBg, color: passText }}>
             {isPassed ? '✅ PASS' : '❌ FAIL'}
-            <span style={{ fontSize:12, fontWeight:400 }}>
+            <span className="text-xs font-normal">
               (เกณฑ์ผ่าน {attempt.courses?.pass_percent || 80}%)
             </span>
           </div>
         </div>
 
         {/* Examinee info */}
-        <div style={s.card}>
-          <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:12 }}>ข้อมูลผู้สอบ</div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-3.5">
+          <div className="text-xs font-semibold text-slate-500 mb-3">ข้อมูลผู้สอบ</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <Info label="ชื่อ-สกุล" value={attempt.full_name} />
             <Info label="อีเมล"     value={attempt.email} />
           </div>
         </div>
 
         {/* Actions */}
-        <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:14 }}>
+        <div className="flex flex-col gap-2.5 mb-3.5">
           {isPassed && cert && (
-            <Link to={`/certificate/${attemptId}`} style={s.btnSuccess}>
+            <Link to={`/certificate/${attemptId}`} className="btn btn-success w-full justify-center py-3">
               🏆 ดูและดาวน์โหลดใบรับรอง
             </Link>
           )}
 
           {wrongAnswers.length > 0 && (
-            <button onClick={() => setShowWrong(w => !w)} style={s.btnSecondary}>
+            <button onClick={() => setShowWrong(w => !w)} className="btn btn-secondary w-full justify-center">
               {showWrong ? '▲ ซ่อนเฉลย' : `📖 ดูเฉลยข้อที่ผิด (${wrongAnswers.length} ข้อ)`}
             </button>
           )}
 
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            <button onClick={() => navigate('/')} style={s.btnGhost}>← กลับหน้าหลัก</button>
-            <button onClick={() => navigate(`/register/${attempt.course_id}`)} style={s.btnSecondary}>🔄 สอบใหม่</button>
+          <div className="grid grid-cols-2 gap-2.5">
+            <button onClick={() => navigate('/')} className="btn btn-ghost w-full justify-center">← กลับหน้าหลัก</button>
+            <button onClick={() => navigate(`/register/${attempt.course_id}`)} className="btn btn-secondary w-full justify-center">🔄 สอบใหม่</button>
           </div>
         </div>
 
         {/* Wrong answers review */}
         {showWrong && wrongAnswers.length > 0 && (
           <div>
-            <div style={{ fontSize:15, fontWeight:700, color:'#0f172a', marginBottom:12 }}>
+            <div className="text-sm font-bold text-slate-900 mb-3">
               📖 เฉลยข้อที่ตอบผิด ({wrongAnswers.length} ข้อ)
             </div>
-            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <div className="flex flex-col gap-3">
               {wrongAnswers.map((a, i) => (
-                <div key={a.id} style={{
-                  background:'#fff', borderRadius:12, border:'1px solid #e2e8f0',
-                  borderLeft:'4px solid #dc2626', padding:'16px 18px',
-                  boxShadow:'0 1px 3px rgba(0,0,0,.05)',
-                }}>
-                  <div style={{ fontSize:11, color:'#94a3b8', marginBottom:4 }}>ข้อที่ {i + 1}</div>
-                  <div style={{ fontWeight:600, color:'#0f172a', marginBottom:12, lineHeight:1.5 }}>
+                <div key={a.id}
+                  className="bg-white rounded-xl border border-slate-200 shadow-sm p-4"
+                  style={{ borderLeft: '4px solid #dc2626' }}>
+                  <div className="text-xs text-slate-400 mb-1">ข้อที่ {i + 1}</div>
+                  <div className="font-semibold text-slate-900 mb-3 leading-relaxed">
                     {a.questions?.question}
                   </div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:6, fontSize:13 }}>
-                    <div style={{ display:'flex', gap:8 }}>
-                      <span style={{ color:'#dc2626', fontWeight:700, flexShrink:0 }}>❌ ตอบ:</span>
-                      <span style={{ color:'#991b1b' }}>{a.choices?.choice_text || '(ไม่ได้ตอบ)'}</span>
+                  <div className="flex flex-col gap-1.5 text-sm">
+                    <div className="flex gap-2">
+                      <span className="text-red-600 font-bold shrink-0">❌ ตอบ:</span>
+                      <span className="text-red-800">{a.choices?.choice_text || '(ไม่ได้ตอบ)'}</span>
                     </div>
-                    <div style={{ display:'flex', gap:8 }}>
-                      <span style={{ color:'#059669', fontWeight:700, flexShrink:0 }}>✅ เฉลย:</span>
-                      <span style={{ color:'#065f46', fontWeight:600 }}>
+                    <div className="flex gap-2">
+                      <span className="text-emerald-600 font-bold shrink-0">✅ เฉลย:</span>
+                      <span className="text-emerald-800 font-semibold">
                         {a.correct_choice_text || 'ดูคำอธิบาย'}
                       </span>
                     </div>
                     {a.questions?.explanation && (
-                      <div style={{ marginTop:6, padding:'10px 14px', background:'#eff6ff',
-                                    borderRadius:8, color:'#1e40af', fontSize:12 }}>
+                      <div className="mt-1.5 px-3.5 py-2.5 bg-blue-50 rounded-lg text-blue-700 text-xs">
                         💡 {a.questions.explanation}
                       </div>
                     )}

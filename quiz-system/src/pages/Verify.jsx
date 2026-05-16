@@ -6,32 +6,11 @@ import { useToast } from '../contexts/ToastContext';
 import { getCertificate, getSettings } from '../lib/supabase';
 import { fmtDate } from '../lib/utils';
 
-const s = {
-  page:  { fontFamily:"'Anuphan','Sarabun',sans-serif", minHeight:'100vh', background:'#f1f5f9' },
-  wrap:  { maxWidth:520, margin:'0 auto', padding:'28px 16px 48px' },
-  hero:  { textAlign:'center', marginBottom:28 },
-  card:  { background:'#fff', borderRadius:14, border:'1px solid #e2e8f0',
-           boxShadow:'0 1px 4px rgba(0,0,0,.07)', padding:'20px', marginBottom:14 },
-  input: { flex:1, padding:'10px 14px', border:'1px solid #e2e8f0', borderRadius:9,
-           fontFamily:'monospace', fontSize:14, color:'#0f172a',
-           background:'#fff', outline:'none', textTransform:'uppercase' },
-  btn:   { padding:'10px 20px', background:'#2563eb', color:'#fff', border:'none',
-           borderRadius:9, fontSize:14, fontWeight:600, cursor:'pointer' },
-  btnDis:{ padding:'10px 20px', background:'#93c5fd', color:'#fff', border:'none',
-           borderRadius:9, fontSize:14, fontWeight:600, cursor:'not-allowed' },
-  label: { fontSize:12, fontWeight:600, color:'#334155', marginBottom:6, display:'block' },
-  row:   { display:'flex', gap:10, alignItems:'center', marginBottom:8, fontSize:13 },
-  rowLbl:{ color:'#94a3b8', width:140, flexShrink:0 },
-  rowVal:{ color:'#1e293b', fontWeight:500 },
-};
-
 function Row({ label, value, highlight }) {
   return (
-    <div style={s.row}>
-      <span style={s.rowLbl}>{label}:</span>
-      <span style={{ ...s.rowVal, ...(highlight ? { fontSize:15, fontWeight:700 } : {}) }}>
-        {value}
-      </span>
+    <div className="flex gap-2.5 items-center mb-2 text-sm">
+      <span className="text-slate-400 w-36 shrink-0">{label}:</span>
+      <span className={`text-slate-800 ${highlight ? 'text-base font-bold' : 'font-medium'}`}>{value}</span>
     </div>
   );
 }
@@ -70,22 +49,23 @@ export default function Verify() {
   const canSearch = !loading && input.trim();
 
   return (
-    <div style={s.page}>
+    <div className="min-h-screen bg-slate-100">
       <Navbar siteName={settings.site_name} />
 
-      <div style={s.wrap}>
-        <div style={s.hero}>
-          <div style={{ fontSize:44, marginBottom:10 }}>🛡️</div>
-          <div style={{ fontSize:22, fontWeight:800, color:'#0f172a', marginBottom:4 }}>ตรวจสอบใบรับรอง</div>
-          <div style={{ fontSize:14, color:'#64748b' }}>กรอก Cert ID เพื่อตรวจสอบความถูกต้องของใบรับรอง</div>
+      <div className="max-w-lg mx-auto px-4 py-7 pb-12">
+        {/* Hero */}
+        <div className="text-center mb-7">
+          <div className="text-5xl mb-2.5">🛡️</div>
+          <div className="text-2xl font-extrabold text-slate-900 mb-1">ตรวจสอบใบรับรอง</div>
+          <div className="text-sm text-slate-500">กรอก Cert ID เพื่อตรวจสอบความถูกต้องของใบรับรอง</div>
         </div>
 
         {/* Search */}
-        <div style={s.card}>
-          <label style={s.label}>Cert ID</label>
-          <div style={{ display:'flex', gap:10 }}>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-3.5">
+          <label className="form-label">Cert ID</label>
+          <div className="flex gap-2.5">
             <input
-              style={s.input}
+              className="form-input flex-1 font-mono uppercase"
               placeholder="เช่น BMS-2024-001234"
               value={input}
               onChange={e => setInput(e.target.value.toUpperCase())}
@@ -94,7 +74,7 @@ export default function Verify() {
             <button
               onClick={() => handleSearch()}
               disabled={!canSearch}
-              style={canSearch ? s.btn : s.btnDis}
+              className="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? '⏳' : '🔍 ตรวจสอบ'}
             </button>
@@ -105,10 +85,11 @@ export default function Verify() {
 
         {/* Not found */}
         {searched && notFound && !loading && (
-          <div style={{ ...s.card, borderLeft:'4px solid #dc2626', textAlign:'center' }}>
-            <div style={{ fontSize:36, marginBottom:8 }}>❌</div>
-            <div style={{ fontWeight:700, color:'#dc2626', fontSize:16, marginBottom:4 }}>ไม่พบใบรับรอง</div>
-            <div style={{ fontSize:13, color:'#64748b' }}>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 text-center"
+            style={{ borderLeft: '4px solid #dc2626' }}>
+            <div className="text-4xl mb-2">❌</div>
+            <div className="font-bold text-red-600 text-base mb-1">ไม่พบใบรับรอง</div>
+            <div className="text-sm text-slate-500">
               Cert ID ที่ค้นหาไม่มีในระบบ หรืออาจถูกยกเลิกแล้ว
             </div>
           </div>
@@ -116,26 +97,21 @@ export default function Verify() {
 
         {/* Found */}
         {cert && !loading && (
-          <div style={{ ...s.card, borderLeft:'4px solid #059669' }}>
-            <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16 }}>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5"
+            style={{ borderLeft: '4px solid #059669' }}>
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-                  <span style={{ fontSize:22 }}>✅</span>
-                  <span style={{ fontWeight:700, color:'#059669', fontSize:16 }}>ใบรับรองถูกต้อง</span>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xl">✅</span>
+                  <span className="font-bold text-emerald-600 text-base">ใบรับรองถูกต้อง</span>
                 </div>
-                <div style={{ fontSize:12, color:'#94a3b8' }}>
-                  Cert ID: <span style={{ fontFamily:'monospace', fontWeight:600 }}>{cert.cert_id}</span>
+                <div className="text-xs text-slate-400">
+                  Cert ID: <span className="font-mono font-semibold">{cert.cert_id}</span>
                 </div>
               </div>
               {cert.pdf_url && (
-                <a
-                  href={cert.pdf_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ padding:'6px 14px', background:'#eff6ff', color:'#2563eb',
-                           border:'1px solid #bfdbfe', borderRadius:8, fontSize:12,
-                           fontWeight:600, textDecoration:'none' }}
-                >
+                <a href={cert.pdf_url} target="_blank" rel="noopener noreferrer"
+                  className="btn btn-sm btn-info">
                   ⬇️ PDF
                 </a>
               )}
@@ -147,9 +123,7 @@ export default function Verify() {
             <Row label="วันที่ออกใบรับรอง"   value={fmtDate(cert.issued_at)} />
             <Row label="อีเมล"               value={cert.email} />
 
-            <div style={{ marginTop:14, padding:'10px 14px', background:'#ecfdf5',
-                          borderRadius:9, display:'flex', alignItems:'center', gap:8,
-                          fontSize:13, color:'#065f46' }}>
+            <div className="mt-3.5 px-3.5 py-2.5 bg-emerald-50 rounded-xl flex items-center gap-2 text-sm text-emerald-800">
               <span>🔒</span>
               <span>ใบรับรองนี้ออกโดย <strong>{settings.org_name || settings.site_name}</strong> และได้รับการยืนยันในระบบ</span>
             </div>

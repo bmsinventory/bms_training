@@ -2,32 +2,63 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { InlineLoader } from '../../components/Loading';
 import { useToast } from '../../contexts/ToastContext';
+import Modal from '../../components/ui/Modal';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { supabase } from '../../lib/supabase';
+import { fmtDateTime } from '../../lib/utils';
 
 const EMPTY_Q = { question: '', explanation: '', is_active: true };
-const EMPTY_C = { choice_text: '', is_correct: false };
 
-function ConfirmDialog({ open, title, desc, onOk, onCancel, loading }) {
-  if (!open) return null;
+function ChoiceRow({ choice, index, onRadio, onText }) {
+  const letter = String.fromCharCode(65 + index);
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:10000,
-                  display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ background:'#fff', borderRadius:14, padding:'28px 28px 22px', maxWidth:380, width:'90%',
-                    boxShadow:'0 20px 60px rgba(0,0,0,.2)', fontFamily:"'Anuphan','Sarabun',sans-serif" }}>
-        <div style={{ fontSize:16, fontWeight:700, color:'#0f172a', marginBottom:8 }}>{title}</div>
-        {desc && <div style={{ fontSize:13, color:'#64748b', marginBottom:20, lineHeight:1.6 }}>{desc}</div>}
-        <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
-          <button onClick={onCancel} disabled={loading}
-            style={{ background:'transparent', border:'1px solid #e2e8f0', borderRadius:8,
-                     padding:'7px 16px', fontSize:13, cursor:'pointer', color:'#64748b', fontFamily:'inherit' }}>
-            ยกเลิก
+    <div className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl transition-colors ${choice.is_correct ? 'border-2 border-emerald-500 bg-emerald-50' : 'border border-slate-200'}`}>
+      <input type="radio" name="correct" checked={choice.is_correct} onChange={onRadio}
+        className="w-4 h-4 cursor-pointer shrink-0 accent-emerald-600" />
+      <span className="text-xs font-bold text-slate-500 w-5 shrink-0">{letter}.</span>
+      <input className="flex-1 bg-transparent border-none outline-none text-sm text-slate-900"
+        style={{ fontFamily: 'inherit' }}
+        placeholder={`ตัวเลือก ${letter}`}
+        value={choice.choice_text}
+        onChange={e => onText(e.target.value)}
+      />
+      {choice.is_correct && <span className="text-xs font-bold text-emerald-600 shrink-0">✅ ถูก</span>}
+    </div>
+  );
+}
+
+function QuestionCard({ q, idx, onEdit, onToggle, onDelete }) {
+  const sortedChoices = [...(q.choices || [])].sort((a, b) => a.sort_order - b.sort_order);
+  return (
+    <div className={`bg-white rounded-xl border border-slate-200 p-4 ${!q.is_active ? 'opacity-50' : ''}`}>
+      <div className="flex justify-between items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-2.5">
+            <span className="text-xs text-slate-400 font-mono mt-0.5 shrink-0">{idx + 1}.</span>
+            <div className="flex-1 min-w-0">
+              <p className="m-0 font-semibold text-slate-900 text-sm">{q.question}</p>
+              {sortedChoices.length > 0 && (
+                <div className="mt-2.5 flex flex-col gap-1">
+                  {sortedChoices.map(c => (
+                    <div key={c.id} className={`flex items-center gap-2 text-sm ${c.is_correct ? 'text-emerald-700 font-semibold' : 'text-slate-500'}`}>
+                      <span>{c.is_correct ? '✅' : '○'}</span>
+                      <span>{c.choice_text}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {q.explanation && (
+                <p className="mt-2 text-xs text-blue-600 italic m-0">💡 {q.explanation}</p>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-1.5 shrink-0">
+          <button onClick={onEdit} className="btn btn-sm btn-ghost" title="แก้ไข">✏️</button>
+          <button onClick={onToggle} className="btn btn-sm btn-ghost" title={q.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}>
+            {q.is_active ? '🔴' : '🟢'}
           </button>
-          <button onClick={onOk} disabled={loading}
-            style={{ background:'#dc2626', color:'#fff', border:'none', borderRadius:8,
-                     padding:'7px 18px', fontSize:13, fontWeight:600, fontFamily:'inherit',
-                     cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-            {loading ? '⏳ กำลังลบ...' : '🗑️ ยืนยันลบ'}
-          </button>
+          <button onClick={onDelete} className="btn btn-sm btn-danger" title="ลบ">🗑️</button>
         </div>
       </div>
     </div>
@@ -38,15 +69,23 @@ export default function Questions() {
   const { courseId } = useParams();
   const toast = useToast();
 
-  const [course, setCourse]       = useState(null);
-  const [questions, setQs]        = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [modal, setModal]         = useState(null);
-  const [form, setForm]           = useState(EMPTY_Q);
-  const [choices, setChoices]     = useState([EMPTY_C, EMPTY_C, EMPTY_C, EMPTY_C]);
-  const [saving, setSaving]       = useState(false);
+  const [course, setCourse]           = useState(null);
+  const [questions, setQs]            = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [modal, setModal]             = useState(null);
+  const [form, setForm]               = useState(EMPTY_Q);
+  const [choices, setChoices]         = useState([{}, {}, {}, {}].map(() => ({ choice_text: '', is_correct: false })));
+  const [saving, setSaving]           = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting]   = useState(false);
+  const [deleting, setDeleting]       = useState(false);
+
+  const [activeTab,    setActiveTab]   = useState('questions');
+  const [attempts,     setAttempts]    = useState([]);
+  const [attLoading,   setAttLoading]  = useState(false);
+  const [attFilter,    setAttFilter]   = useState('');
+  const [delAttempt,   setDelAttempt]  = useState(null);
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const [clearing,     setClearing]    = useState(false);
 
   async function load() {
     setLoading(true);
@@ -63,12 +102,7 @@ export default function Questions() {
 
   function openAdd() {
     setForm(EMPTY_Q);
-    setChoices([
-      { choice_text: '', is_correct: false },
-      { choice_text: '', is_correct: false },
-      { choice_text: '', is_correct: false },
-      { choice_text: '', is_correct: false },
-    ]);
+    setChoices([{}, {}, {}, {}].map(() => ({ choice_text: '', is_correct: false })));
     setModal('add');
   }
 
@@ -81,11 +115,10 @@ export default function Questions() {
 
   function setF(k, v) { setForm(p => ({ ...p, [k]: v })); }
   function setC(i, k, v) {
-    const next = choices.map((c, idx) => {
+    setChoices(choices.map((c, idx) => {
       if (idx !== i) return k === 'is_correct' ? { ...c, is_correct: false } : c;
       return { ...c, [k]: v };
-    });
-    setChoices(next);
+    }));
   }
 
   async function handleSave() {
@@ -104,7 +137,6 @@ export default function Questions() {
           explanation: form.explanation.trim(),
           is_active: form.is_active,
         }).select().single();
-
         await supabase.from('choices').insert(
           validChoices.map((c, i) => ({
             question_id: q.id,
@@ -121,8 +153,6 @@ export default function Questions() {
           is_active:   form.is_active,
           updated_at:  new Date().toISOString(),
         }).eq('id', modal.id);
-
-        // ลบตัวเลือกเก่าแล้วสร้างใหม่
         await supabase.from('choices').delete().eq('question_id', modal.id);
         await supabase.from('choices').insert(
           validChoices.map((c, i) => ({
@@ -162,260 +192,269 @@ export default function Questions() {
     load();
   }
 
-  return (
-    <div style={{ fontFamily: "'Anuphan','Sarabun',sans-serif", color: '#0f172a' }}>
+  async function loadAttempts() {
+    setAttLoading(true);
+    try {
+      let q = supabase.from('quiz_attempts')
+        .select('*, certificates(cert_id)')
+        .eq('course_id', courseId)
+        .order('created_at', { ascending: false });
+      if (attFilter) q = q.eq('status', attFilter);
+      const { data } = await q.limit(500);
+      setAttempts(data || []);
+    } finally { setAttLoading(false); }
+  }
 
+  useEffect(() => {
+    if (activeTab === 'history') loadAttempts();
+  }, [activeTab, attFilter]);
+
+  async function clearAllAttempts() {
+    setClearing(true);
+    try {
+      const { data: all } = await supabase.from('quiz_attempts')
+        .select('id').eq('course_id', courseId);
+      const ids = (all || []).map(a => a.id);
+      if (ids.length) {
+        await supabase.from('quiz_answers').delete().in('attempt_id', ids);
+        await supabase.from('certificates').delete().in('attempt_id', ids);
+        await supabase.from('quiz_attempts').delete().eq('course_id', courseId);
+      }
+      toast.success(`ลบประวัติสอบ ${ids.length} รายการแล้ว`);
+      setAttempts([]);
+    } catch (e) {
+      toast.error('ลบไม่สำเร็จ: ' + e.message);
+    } finally { setClearing(false); setClearConfirm(false); }
+  }
+
+  async function deleteOneAttempt() {
+    if (!delAttempt) return;
+    try {
+      await supabase.from('quiz_answers').delete().eq('attempt_id', delAttempt.id);
+      await supabase.from('certificates').delete().eq('attempt_id', delAttempt.id);
+      await supabase.from('quiz_attempts').delete().eq('id', delAttempt.id);
+      toast.success('ลบรายการแล้ว');
+      setAttempts(prev => prev.filter(a => a.id !== delAttempt.id));
+    } catch (e) {
+      toast.error('ลบไม่สำเร็จ: ' + e.message);
+    } finally { setDelAttempt(null); }
+  }
+
+  return (
+    <div>
       <ConfirmDialog
         open={!!deleteTarget}
         title="ลบข้อสอบ"
         desc={deleteTarget ? `ลบข้อสอบ "${deleteTarget.question.slice(0, 60)}${deleteTarget.question.length > 60 ? '...' : ''}" — ข้อมูลจะหายถาวร` : ''}
         loading={deleting}
+        okLabel="🗑️ ยืนยันลบ"
         onOk={handleDeleteConfirm}
         onCancel={() => setDeleteTarget(null)}
       />
 
+      {/* Confirm dialogs for history tab */}
+      <ConfirmDialog
+        open={clearConfirm}
+        title="เคียร์ประวัติสอบทั้งหมด"
+        desc={`ลบประวัติสอบทั้งหมด ${attempts.length > 0 ? `(${attempts.length} รายการ)` : ''} ของหลักสูตรนี้\nรวมถึงคำตอบและใบรับรองที่เชื่อมอยู่ ข้อมูลจะหายถาวร`}
+        loading={clearing}
+        okLabel="🗑️ เคียร์ทั้งหมด"
+        onOk={clearAllAttempts}
+        onCancel={() => setClearConfirm(false)}
+      />
+      <ConfirmDialog
+        open={!!delAttempt}
+        title="ลบประวัติสอบ"
+        desc={delAttempt ? `ลบรายการของ "${delAttempt.full_name}" (${delAttempt.email})\nข้อมูลจะหายถาวร` : ''}
+        okLabel="🗑️ ยืนยันลบ"
+        onOk={deleteOneAttempt}
+        onCancel={() => setDelAttempt(null)}
+      />
+
       {/* Page header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>
-            <Link to="/admin/courses" style={{ color: '#64748b', textDecoration: 'none' }}>← หลักสูตร</Link>
+          <div className="text-xs text-slate-500 mb-1">
+            <Link to="/admin/courses" className="text-slate-500 no-underline">← หลักสูตร</Link>
           </div>
-          <h1 style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', margin: 0 }}>
-            📝 {course?.name || 'ข้อสอบ'}
-          </h1>
-          <p style={{ fontSize: 13, color: '#64748b', marginTop: 2, marginBottom: 0 }}>
-            จัดการข้อสอบในหลักสูตรนี้ ({questions.length} ข้อ)
+          <h1 className="text-lg font-bold text-slate-900 m-0">📝 {course?.name || 'ข้อสอบ'}</h1>
+          <p className="text-sm text-slate-500 mt-0.5 mb-0">
+            จัดการข้อสอบในหลักสูตรนี้
           </p>
         </div>
-        <button onClick={openAdd} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-          + เพิ่มข้อสอบ
+        {activeTab === 'questions' && (
+          <button onClick={openAdd} className="btn btn-primary btn-sm">+ เพิ่มข้อสอบ</button>
+        )}
+        {activeTab === 'history' && attempts.length > 0 && (
+          <button onClick={() => setClearConfirm(true)} className="btn btn-danger btn-sm">
+            🗑️ เคียร์ทั้งหมด
+          </button>
+        )}
+      </div>
+
+      {/* Tab switcher */}
+      <div className="flex gap-1 mb-4 border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab('questions')}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'questions' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          📝 ข้อสอบ ({questions.length} ข้อ)
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'history' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          📊 ประวัติสอบ
         </button>
       </div>
 
-      {/* Question list */}
-      {loading ? <InlineLoader /> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {questions.map((q, idx) => (
-            <QuestionCard
-              key={q.id}
-              q={q}
-              idx={idx}
-              onEdit={() => openEdit(q)}
-              onToggle={() => toggleActive(q)}
-              onDelete={() => setDeleteTarget(q)}
-            />
-          ))}
+      {/* ── Tab: ข้อสอบ ── */}
+      {activeTab === 'questions' && (
+        loading ? <InlineLoader /> : (
+          <div className="flex flex-col gap-3">
+            {questions.map((q, idx) => (
+              <QuestionCard
+                key={q.id} q={q} idx={idx}
+                onEdit={() => openEdit(q)}
+                onToggle={() => toggleActive(q)}
+                onDelete={() => setDeleteTarget(q)}
+              />
+            ))}
+            {questions.length === 0 && (
+              <div className="text-center py-16 text-slate-500">
+                <div className="text-5xl mb-3">📝</div>
+                <p className="text-sm m-0">ยังไม่มีข้อสอบ คลิก "เพิ่มข้อสอบ" เพื่อเริ่มต้น</p>
+              </div>
+            )}
+          </div>
+        )
+      )}
 
-          {questions.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '64px 0', color: '#64748b' }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>📝</div>
-              <p style={{ fontSize: 14, margin: 0 }}>ยังไม่มีข้อสอบ คลิก "เพิ่มข้อสอบ" เพื่อเริ่มต้น</p>
+      {/* ── Tab: ประวัติสอบ ── */}
+      {activeTab === 'history' && (
+        <div>
+          {/* Filter bar */}
+          <div className="flex gap-2 items-center mb-3 flex-wrap">
+            <div className="flex gap-1">
+              {[['', 'ทั้งหมด'], ['PASS', '✅ ผ่าน'], ['FAIL', '❌ ไม่ผ่าน'], ['started', '⏳ ยังไม่เสร็จ']].map(([v, label]) => (
+                <button key={v}
+                  onClick={() => setAttFilter(v)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${attFilter === v ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-slate-400 ml-auto">{attempts.length} รายการ</span>
+          </div>
+
+          {attLoading ? <InlineLoader /> : attempts.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <div className="text-4xl mb-2">📊</div>
+              <p className="text-sm m-0">ไม่พบประวัติสอบ{attFilter ? 'ตามตัวกรองที่เลือก' : ''}</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              {/* Table header */}
+              <div className="grid text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-2.5 bg-slate-50 border-b border-slate-200"
+                style={{ gridTemplateColumns: '1fr 1.2fr 90px 80px 130px 40px' }}>
+                <div>ชื่อ</div>
+                <div>อีเมล</div>
+                <div>คะแนน</div>
+                <div>ผลสอบ</div>
+                <div>วันที่สอบ</div>
+                <div />
+              </div>
+              {/* Rows */}
+              <div className="divide-y divide-slate-100">
+                {attempts.map(a => (
+                  <div key={a.id}
+                    className="grid items-center px-4 py-2.5 hover:bg-slate-50 transition-colors text-sm"
+                    style={{ gridTemplateColumns: '1fr 1.2fr 90px 80px 130px 40px' }}>
+                    <div className="font-medium text-slate-900 truncate pr-2">{a.full_name}</div>
+                    <div className="text-slate-500 text-xs truncate pr-2">{a.email}</div>
+                    <div className="text-slate-700 font-semibold">
+                      {a.score ?? '-'}/{a.total ?? '-'}
+                      {a.percent != null && <span className="text-xs text-slate-400 ml-1">({Math.round(a.percent)}%)</span>}
+                    </div>
+                    <div>
+                      <span className={`badge ${a.status === 'PASS' ? 'badge-pass' : a.status === 'FAIL' ? 'badge-fail' : 'badge-gray'}`}>
+                        {a.status === 'PASS' ? '✅ ผ่าน' : a.status === 'FAIL' ? '❌ ไม่ผ่าน' : '⏳ ยังไม่เสร็จ'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-400">{fmtDateTime(a.completed_at || a.created_at)}</div>
+                    <div>
+                      <button onClick={() => setDelAttempt(a)}
+                        className="btn btn-sm btn-danger p-1.5" title="ลบรายการนี้">
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Modal */}
-      {modal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,.55)', padding: 16 }}>
-          <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,.2)', width: '100%', maxWidth: 680, maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* Add/Edit Modal */}
+      <Modal
+        open={!!modal}
+        onClose={() => setModal(null)}
+        title={modal === 'add' ? '+ เพิ่มข้อสอบใหม่' : '✏️ แก้ไขข้อสอบ'}
+        sub={course?.name}
+        maxWidth={680}
+        footer={
+          <>
+            <button onClick={() => setModal(null)} className="btn btn-secondary btn-sm">ยกเลิก</button>
+            <button onClick={handleSave} disabled={saving} className="btn btn-primary btn-sm disabled:opacity-60">
+              {saving ? 'กำลังบันทึก...' : 'บันทึก'}
+            </button>
+          </>
+        }
+      >
+        <div className="form-group mb-3.5">
+          <label className="form-label">คำถาม *</label>
+          <textarea className="form-input min-h-[90px] resize-y"
+            value={form.question}
+            onChange={e => setF('question', e.target.value)}
+            placeholder="พิมพ์คำถาม..." />
+        </div>
 
-            {/* Modal header gradient */}
-            <div style={{ background: 'linear-gradient(135deg,#1a3a6b,#1a56a0)', padding: '16px 22px', color: '#fff' }}>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>
-                {modal === 'add' ? '+ เพิ่มข้อสอบใหม่' : '✏️ แก้ไขข้อสอบ'}
-              </div>
-              <div style={{ fontSize: 12, opacity: 0.75, marginTop: 2 }}>{course?.name}</div>
-            </div>
+        <div className="form-group mb-3.5">
+          <label className="form-label">คำอธิบายเฉลย</label>
+          <input className="form-input"
+            value={form.explanation}
+            onChange={e => setF('explanation', e.target.value)}
+            placeholder="อธิบายเหตุผลของคำตอบที่ถูก..." />
+        </div>
 
-            {/* Modal body */}
-            <div style={{ padding: '20px 22px', overflowY: 'auto', flex: 1 }}>
-
-              {/* คำถาม */}
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#334155', marginBottom: 5 }}>คำถาม *</label>
-                <textarea
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontFamily: 'inherit', fontSize: 14, color: '#0f172a', background: '#fff', boxSizing: 'border-box', minHeight: 90, resize: 'vertical' }}
-                  value={form.question}
-                  onChange={e => setF('question', e.target.value)}
-                  placeholder="พิมพ์คำถาม..."
-                />
-              </div>
-
-              {/* คำอธิบายเฉลย */}
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#334155', marginBottom: 5 }}>คำอธิบายเฉลย</label>
-                <input
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontFamily: 'inherit', fontSize: 14, color: '#0f172a', background: '#fff', boxSizing: 'border-box' }}
-                  value={form.explanation}
-                  onChange={e => setF('explanation', e.target.value)}
-                  placeholder="อธิบายเหตุผลของคำตอบที่ถูก..."
-                />
-              </div>
-
-              {/* Choices */}
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#334155', marginBottom: 8 }}>
-                  ตัวเลือกคำตอบ{' '}
-                  <span style={{ fontWeight: 400, color: '#64748b' }}>(คลิกวงกลมเพื่อระบุคำตอบที่ถูก)</span>
-                </label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {choices.map((c, i) => (
-                    <ChoiceRow
-                      key={i}
-                      choice={c}
-                      index={i}
-                      onRadio={() => setC(i, 'is_correct', true)}
-                      onText={v => setC(i, 'choice_text', v)}
-                    />
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setChoices(prev => [...prev, { choice_text: '', is_correct: false }])}
-                  style={{ marginTop: 10, background: 'transparent', color: '#2563eb', border: '1px dashed #93c5fd', borderRadius: 7, padding: '5px 14px', fontSize: 12, cursor: 'pointer', width: '100%' }}
-                >
-                  + เพิ่มตัวเลือก
-                </button>
-              </div>
-
-              {/* is_active checkbox */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#334155' }}>
-                <input
-                  type="checkbox"
-                  checked={form.is_active}
-                  onChange={e => setF('is_active', e.target.checked)}
-                  style={{ width: 16, height: 16, accentColor: '#2563eb' }}
-                />
-                เปิดใช้งานข้อนี้
-              </label>
-            </div>
-
-            {/* Modal footer */}
-            <div style={{ padding: '14px 22px', borderTop: '1px solid #e2e8f0', display: 'flex', gap: 10, justifyContent: 'flex-end', background: '#f8fafc' }}>
-              <button
-                onClick={() => setModal(null)}
-                style={{ background: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 7, padding: '7px 20px', fontSize: 13, cursor: 'pointer' }}
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                style={{ background: saving ? '#93c5fd' : '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 22px', fontSize: 13, fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer' }}
-              >
-                {saving ? 'กำลังบันทึก...' : 'บันทึก'}
-              </button>
-            </div>
+        <div className="mb-3.5">
+          <label className="form-label">
+            ตัวเลือกคำตอบ{' '}
+            <span className="font-normal text-slate-500">(คลิกวงกลมเพื่อระบุคำตอบที่ถูก)</span>
+          </label>
+          <div className="flex flex-col gap-2">
+            {choices.map((c, i) => (
+              <ChoiceRow key={i} choice={c} index={i}
+                onRadio={() => setC(i, 'is_correct', true)}
+                onText={v => setC(i, 'choice_text', v)}
+              />
+            ))}
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ---------- sub-components ---------- */
-
-function QuestionCard({ q, idx, onEdit, onToggle, onDelete }) {
-  const sortedChoices = [...(q.choices || [])].sort((a, b) => a.sort_order - b.sort_order);
-  return (
-    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 18, marginBottom: 0, opacity: q.is_active ? 1 : 0.5 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-
-        {/* Left: number + question + choices + explanation */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <span style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace', marginTop: 2, flexShrink: 0 }}>{idx + 1}.</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontWeight: 600, color: '#0f172a', fontSize: 14 }}>{q.question}</p>
-
-              {sortedChoices.length > 0 && (
-                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {sortedChoices.map(c => (
-                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: c.is_correct ? '#059669' : '#64748b', fontWeight: c.is_correct ? 600 : 400 }}>
-                      <span style={{ fontSize: 14 }}>{c.is_correct ? '✅' : '○'}</span>
-                      <span>{c.choice_text}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {q.explanation && (
-                <p style={{ margin: '8px 0 0', fontSize: 12, color: '#2563eb', fontStyle: 'italic' }}>
-                  💡 {q.explanation}
-                </p>
-              )}
-            </div>
-          </div>
+          <button type="button"
+            onClick={() => setChoices(prev => [...prev, { choice_text: '', is_correct: false }])}
+            className="mt-2.5 w-full bg-transparent text-blue-600 border border-dashed border-blue-300 rounded-lg py-1.5 text-xs cursor-pointer hover:bg-blue-50 transition-colors">
+            + เพิ่มตัวเลือก
+          </button>
         </div>
 
-        {/* Right: action buttons */}
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          <ActionBtn onClick={onEdit} title="แก้ไข">✏️</ActionBtn>
-          <ActionBtn onClick={onToggle} title={q.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}>
-            {q.is_active ? '🔴' : '🟢'}
-          </ActionBtn>
-          <ActionBtn onClick={onDelete} title="ลบ" danger>🗑️</ActionBtn>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ActionBtn({ onClick, title, children, danger }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      style={{
-        background: hovered ? (danger ? '#fef2f2' : '#f8fafc') : 'transparent',
-        color: danger ? '#dc2626' : '#64748b',
-        border: danger ? '1px solid #fecaca' : '1px solid #e2e8f0',
-        borderRadius: 7,
-        padding: '5px 10px',
-        fontSize: 13,
-        cursor: 'pointer',
-        transition: 'background .12s',
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ChoiceRow({ choice, index, onRadio, onText }) {
-  const letter = String.fromCharCode(65 + index);
-  return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '10px 14px',
-      borderRadius: 10,
-      border: choice.is_correct ? '2px solid #059669' : '1px solid #e2e8f0',
-      background: choice.is_correct ? '#f0fdf4' : '#fff',
-      transition: 'border .15s, background .15s',
-    }}>
-      <input
-        type="radio"
-        name="correct"
-        checked={choice.is_correct}
-        onChange={onRadio}
-        style={{ width: 16, height: 16, accentColor: '#059669', cursor: 'pointer', flexShrink: 0 }}
-      />
-      <span style={{ fontSize: 13, fontWeight: 700, color: '#64748b', width: 20, flexShrink: 0 }}>{letter}.</span>
-      <input
-        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: '#0f172a', fontFamily: 'inherit' }}
-        placeholder={`ตัวเลือก ${letter}`}
-        value={choice.choice_text}
-        onChange={e => onText(e.target.value)}
-      />
-      {choice.is_correct && (
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#059669', flexShrink: 0 }}>✅ ถูก</span>
-      )}
+        <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-700">
+          <input type="checkbox" className="w-4 h-4"
+            checked={form.is_active}
+            onChange={e => setF('is_active', e.target.checked)} />
+          เปิดใช้งานข้อนี้
+        </label>
+      </Modal>
     </div>
   );
 }

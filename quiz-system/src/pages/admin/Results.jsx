@@ -2,49 +2,23 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { InlineLoader } from '../../components/Loading';
 import { useToast } from '../../contexts/ToastContext';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { getAllAttempts, getCourses, getLocations, supabase } from '../../lib/supabase';
 import { fmtDateTime, exportToExcel } from '../../lib/utils';
 
-const Stat = ({ label, value, color, sub }) => (
-  <div style={{ background:'#fff', borderRadius:10, border:'1px solid #e2e8f0', padding:'10px 16px' }}>
-    <div style={{ fontSize:11, color:'#64748b', marginBottom:3 }}>{label}</div>
-    <div style={{ fontSize:22, fontWeight:700, color }}>{value}</div>
-    {sub && <div style={{ fontSize:11, color:'#94a3b8', marginTop:1 }}>{sub}</div>}
-  </div>
-);
-
-/* ── Confirm dialog ── */
-function ConfirmDialog({ open, title, desc, danger, onOk, onCancel, loading }) {
-  if (!open) return null;
+function Stat({ label, value, color, sub }) {
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:9999,
-                  display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ background:'#fff', borderRadius:14, padding:'28px 28px 22px', maxWidth:380, width:'90%',
-                    boxShadow:'0 20px 60px rgba(0,0,0,.2)' }}>
-        <div style={{ fontSize:16, fontWeight:700, color:'#0f172a', marginBottom:8 }}>{title}</div>
-        {desc && <div style={{ fontSize:13, color:'#64748b', marginBottom:20, lineHeight:1.6 }}>{desc}</div>}
-        <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
-          <button onClick={onCancel} disabled={loading}
-            style={{ background:'transparent', border:'1px solid #e2e8f0', borderRadius:8,
-                     padding:'7px 16px', fontSize:13, cursor:'pointer', color:'#64748b' }}>
-            ยกเลิก
-          </button>
-          <button onClick={onOk} disabled={loading}
-            style={{ background: danger ? '#dc2626' : '#2563eb', color:'#fff', border:'none',
-                     borderRadius:8, padding:'7px 18px', fontSize:13, fontWeight:600,
-                     cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-            {loading ? '⏳ กำลังลบ...' : 'ยืนยันลบ'}
-          </button>
-        </div>
-      </div>
+    <div className="bg-white rounded-xl border border-slate-200 px-4 py-2.5">
+      <div className="text-xs text-slate-500 mb-0.5">{label}</div>
+      <div className="text-xl font-bold" style={{ color }}>{value}</div>
+      {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
     </div>
   );
 }
 
-/* ── Clear by site modal ── */
 function ClearBySiteModal({ open, locations, onClose, onDone, toast }) {
   const [site, setSite]       = useState('');
-  const [preview, setPreview] = useState(null); // { count, courseIds }
+  const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [preloading, setPreloading] = useState(false);
 
@@ -58,14 +32,11 @@ function ClearBySiteModal({ open, locations, onClose, onDone, toast }) {
     if (!code) return;
     setPreloading(true);
     try {
-      // Get category IDs for this site
       const { data: cats } = await supabase.from('categories').select('id').eq('site', code);
       const catIds = (cats || []).map(c => c.id);
       if (!catIds.length) { setPreview({ count: 0, courseIds: [] }); return; }
 
-      // Get course IDs via junction table
       const { data: links } = await supabase.from('course_categories').select('course_id').in('category_id', catIds);
-      // fallback: old category_id column
       const { data: directCourses } = await supabase.from('courses').select('id').in('category_id', catIds);
       const courseIdSet = new Set([
         ...(links || []).map(l => l.course_id),
@@ -74,7 +45,6 @@ function ClearBySiteModal({ open, locations, onClose, onDone, toast }) {
       const courseIds = [...courseIdSet];
       if (!courseIds.length) { setPreview({ count: 0, courseIds: [] }); return; }
 
-      // Count attempts
       const { count } = await supabase.from('quiz_attempts')
         .select('id', { count: 'exact', head: true })
         .in('course_id', courseIds)
@@ -88,7 +58,6 @@ function ClearBySiteModal({ open, locations, onClose, onDone, toast }) {
     if (!preview?.courseIds?.length) return;
     setLoading(true);
     try {
-      // Get attempt IDs for these courses
       const { data: attempts } = await supabase.from('quiz_attempts')
         .select('id').in('course_id', preview.courseIds).neq('status', 'started');
       const attemptIds = (attempts || []).map(a => a.id);
@@ -111,50 +80,39 @@ function ClearBySiteModal({ open, locations, onClose, onDone, toast }) {
 
   if (!open) return null;
   const loc = locations.find(l => l.code === site);
-  return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:9999,
-                  display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ background:'#fff', borderRadius:14, padding:'24px', maxWidth:420, width:'92%',
-                    boxShadow:'0 20px 60px rgba(0,0,0,.2)' }}>
-        <div style={{ fontSize:15, fontWeight:700, color:'#0f172a', marginBottom:4 }}>🗑️ เคียร์ผลสอบตามสาขา</div>
-        <div style={{ fontSize:12, color:'#64748b', marginBottom:18 }}>ลบผลสอบทั้งหมดที่เชื่อมกับหลักสูตรของสาขาที่เลือก</div>
 
-        <select value={site} onChange={e => handleSiteChange(e.target.value)}
-          style={{ width:'100%', padding:'8px 11px', border:'1px solid #e2e8f0', borderRadius:8,
-                   fontFamily:'inherit', fontSize:13, color:'#0f172a', background:'#fff', marginBottom:14 }}>
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45">
+      <div className="bg-white rounded-2xl p-6 max-w-sm w-[92%] shadow-2xl">
+        <div className="text-base font-bold text-slate-900 mb-1">🗑️ เคียร์ผลสอบตามสาขา</div>
+        <div className="text-xs text-slate-500 mb-4">ลบผลสอบทั้งหมดที่เชื่อมกับหลักสูตรของสาขาที่เลือก</div>
+
+        <select className="form-input mb-3.5"
+          value={site} onChange={e => handleSiteChange(e.target.value)}>
           <option value="">— เลือกสาขา —</option>
           {locations.map(l => <option key={l.code} value={l.code}>{l.name} ({l.code})</option>)}
         </select>
 
-        {preloading && <div style={{ fontSize:13, color:'#64748b', textAlign:'center', padding:'8px 0' }}>⏳ กำลังตรวจสอบ...</div>}
+        {preloading && <div className="text-sm text-slate-500 text-center py-2">⏳ กำลังตรวจสอบ...</div>}
 
         {preview && !preloading && (
-          <div style={{ background: preview.count ? '#fef2f2' : '#f0fdf4',
-                        border: `1px solid ${preview.count ? '#fecaca' : '#bbf7d0'}`,
-                        borderRadius:9, padding:'12px 14px', marginBottom:16, fontSize:13 }}>
-            <div style={{ fontWeight:600, color: preview.count ? '#991b1b' : '#065f46', marginBottom:4 }}>
+          <div className={`rounded-xl px-3.5 py-3 mb-4 text-sm border ${preview.count ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+            <div className={`font-semibold mb-1 ${preview.count ? 'text-red-800' : 'text-emerald-700'}`}>
               {preview.count ? `⚠️ พบ ${preview.count} รายการที่จะถูกลบ` : '✅ ไม่มีผลสอบในสาขานี้'}
             </div>
             {preview.count > 0 && (
-              <div style={{ color:'#7f1d1d', fontSize:12 }}>
+              <div className="text-red-900 text-xs">
                 สาขา: <strong>{loc?.name || site}</strong> · ข้อมูลที่ลบจะไม่สามารถกู้คืนได้
               </div>
             )}
           </div>
         )}
 
-        <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
-          <button onClick={onClose} disabled={loading}
-            style={{ background:'transparent', border:'1px solid #e2e8f0', borderRadius:8,
-                     padding:'7px 16px', fontSize:13, cursor:'pointer', color:'#64748b' }}>
-            ยกเลิก
-          </button>
+        <div className="flex gap-2.5 justify-end">
+          <button onClick={onClose} disabled={loading} className="btn btn-secondary btn-sm">ยกเลิก</button>
           <button onClick={handleClear}
             disabled={loading || !preview?.count}
-            style={{ background:'#dc2626', color:'#fff', border:'none', borderRadius:8,
-                     padding:'7px 18px', fontSize:13, fontWeight:600,
-                     cursor: (loading || !preview?.count) ? 'not-allowed' : 'pointer',
-                     opacity: (loading || !preview?.count) ? 0.5 : 1 }}>
+            className="btn btn-danger btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
             {loading ? '⏳ กำลังลบ...' : `🗑️ ลบ ${preview?.count || 0} รายการ`}
           </button>
         </div>
@@ -170,16 +128,10 @@ export default function Results() {
   const [locations, setLocations] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [filter,    setFilter]    = useState({ courseId:'', status:'', search:'', from:'', to:'' });
-
-  // Delete single
-  const [deleteTarget, setDeleteTarget] = useState(null); // attempt object
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting,     setDeleting]     = useState(false);
-
-  // Revoke cert confirm
-  const [revokeTarget, setRevokeTarget] = useState(null); // attempt object
+  const [revokeTarget, setRevokeTarget] = useState(null);
   const [revoking,     setRevoking]     = useState(false);
-
-  // Clear by site modal
   const [showClearModal, setShowClearModal] = useState(false);
 
   async function load() {
@@ -230,15 +182,11 @@ export default function Results() {
     try {
       const { error: e1 } = await supabase.from('quiz_answers').delete().eq('attempt_id', deleteTarget.id);
       if (e1) throw new Error('ลบ quiz_answers ไม่สำเร็จ: ' + e1.message);
-
       const { error: e2 } = await supabase.from('certificates').delete().eq('attempt_id', deleteTarget.id);
       if (e2) throw new Error('ลบ certificates ไม่สำเร็จ: ' + e2.message);
-
-      const { error: e3, count } = await supabase
-        .from('quiz_attempts').delete({ count: 'exact' }).eq('id', deleteTarget.id);
+      const { error: e3, count } = await supabase.from('quiz_attempts').delete({ count: 'exact' }).eq('id', deleteTarget.id);
       if (e3) throw new Error('ลบ quiz_attempts ไม่สำเร็จ: ' + e3.message);
       if (count === 0) throw new Error('ไม่มีสิทธิ์ลบข้อมูล — กรุณาตรวจสอบ RLS policy ใน Supabase (quiz_attempts)');
-
       toast.success(`ลบผลสอบของ ${deleteTarget.full_name} สำเร็จ`);
       setAttempts(prev => prev.filter(a => a.id !== deleteTarget.id));
       setDeleteTarget(null);
@@ -254,35 +202,14 @@ export default function Results() {
     ? (attempts.reduce((s, a) => s + (a.percent || 0), 0) / attempts.length).toFixed(1)
     : 0;
 
-  /* ── styles ── */
-  const s = {
-    page:     { fontFamily:"'Anuphan','Sarabun',sans-serif", fontSize:14 },
-    grid4:    { display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:14 },
-    card:     { background:'#fff', borderRadius:12, border:'1px solid #e2e8f0', marginBottom:14, overflow:'hidden' },
-    filterWrap:{ background:'#fff', borderRadius:12, border:'1px solid #e2e8f0', padding:'12px 16px', marginBottom:14 },
-    cardHd:   { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 18px', borderBottom:'1px solid #f1f5f9' },
-    cardTitle:{ fontSize:14, fontWeight:600, color:'#2563eb', display:'flex', alignItems:'center', gap:8 },
-    th:       { textAlign:'left', padding:'9px 12px', fontSize:12, fontWeight:600, color:'#64748b', background:'#f8fafc', borderBottom:'1px solid #e2e8f0', whiteSpace:'nowrap' },
-    td:       { padding:'9px 12px', fontSize:13, borderBottom:'1px solid #f1f5f9', color:'#0f172a', verticalAlign:'middle' },
-    badgePass:{ display:'inline-flex', alignItems:'center', padding:'2px 9px', borderRadius:20, fontSize:11, fontWeight:600, background:'#ecfdf5', color:'#065f46' },
-    badgeFail:{ display:'inline-flex', alignItems:'center', padding:'2px 9px', borderRadius:20, fontSize:11, fontWeight:600, background:'#fef2f2', color:'#991b1b' },
-    btnGhost: { background:'transparent', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:7, padding:'4px 10px', fontSize:12, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:4 },
-    btnDanger:{ background:'transparent', color:'#dc2626', border:'1px solid #fecaca', borderRadius:7, padding:'4px 10px', fontSize:12, cursor:'pointer' },
-    btnExport:{ background:'transparent', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:8, padding:'6px 14px', fontSize:13, fontWeight:500, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6 },
-    btnClear: { background:'transparent', color:'#dc2626', border:'1px solid #fecaca', borderRadius:8, padding:'6px 14px', fontSize:13, fontWeight:500, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6 },
-    input:    { width:'100%', padding:'7px 11px', border:'1px solid #e2e8f0', borderRadius:8, fontFamily:'inherit', fontSize:13, color:'#0f172a', background:'#fff', boxSizing:'border-box' },
-  };
-
   return (
-    <div style={s.page}>
-
-      {/* Modals */}
+    <div>
       <ConfirmDialog
         open={!!deleteTarget}
         title="ลบผลสอบ"
         desc={deleteTarget ? `ลบผลสอบของ "${deleteTarget.full_name}" (${deleteTarget.courses?.name || ''}) — ข้อมูลจะหายถาวร` : ''}
-        danger
         loading={deleting}
+        okLabel="ยืนยันลบ"
         onOk={handleDeleteAttempt}
         onCancel={() => setDeleteTarget(null)}
       />
@@ -290,8 +217,8 @@ export default function Results() {
         open={!!revokeTarget}
         title="ยกเลิกใบรับรอง"
         desc={revokeTarget ? `ยกเลิกใบรับรอง ${revokeTarget.certificates?.[0]?.cert_id} ของ "${revokeTarget.full_name}"?` : ''}
-        danger
         loading={revoking}
+        okLabel="ยืนยันยกเลิก"
         onOk={handleRevokeCertConfirm}
         onCancel={() => setRevokeTarget(null)}
       />
@@ -304,103 +231,94 @@ export default function Results() {
       />
 
       {/* Stats */}
-      <div style={s.grid4}>
-        <Stat label="ผลสอบทั้งหมด"  value={attempts.length} color="#2563eb" />
-        <Stat label="ผ่าน"           value={passCount}       color="#059669" sub={`อัตรา ${passRate}%`} />
-        <Stat label="ไม่ผ่าน"        value={failCount}       color="#dc2626" />
-        <Stat label="คะแนนเฉลี่ย"    value={`${avgPercent}%`} color="#d97706" />
+      <div className="grid grid-cols-4 gap-2.5 mb-3.5">
+        <Stat label="ผลสอบทั้งหมด" value={attempts.length} color="#2563eb" />
+        <Stat label="ผ่าน"         value={passCount}       color="#059669" sub={`อัตรา ${passRate}%`} />
+        <Stat label="ไม่ผ่าน"      value={failCount}       color="#dc2626" />
+        <Stat label="คะแนนเฉลี่ย"  value={`${avgPercent}%`} color="#d97706" />
       </div>
 
       {/* Filters */}
-      <div style={s.filterWrap}>
-        <div style={{ display:'grid', gridTemplateColumns:'2fr 1.5fr 1fr 1fr 1fr', gap:8 }}>
-          <input style={s.input} placeholder="🔍 ค้นหาชื่อ / อีเมล..."
+      <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 mb-3.5">
+        <div className="grid gap-2" style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr' }}>
+          <input className="form-input" placeholder="🔍 ค้นหาชื่อ / อีเมล..."
             value={filter.search} onChange={e => setF('search', e.target.value)} />
-          <select style={s.input} value={filter.courseId} onChange={e => setF('courseId', e.target.value)}>
+          <select className="form-input" value={filter.courseId} onChange={e => setF('courseId', e.target.value)}>
             <option value="">ทุกหลักสูตร</option>
             {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <select style={s.input} value={filter.status} onChange={e => setF('status', e.target.value)}>
+          <select className="form-input" value={filter.status} onChange={e => setF('status', e.target.value)}>
             <option value="">ทุกผลลัพธ์</option>
             <option value="PASS">✅ PASS</option>
             <option value="FAIL">❌ FAIL</option>
           </select>
-          <input type="date" style={s.input} value={filter.from} onChange={e => setF('from', e.target.value)} title="จากวันที่" />
-          <input type="date" style={s.input} value={filter.to}   onChange={e => setF('to',   e.target.value)} title="ถึงวันที่" />
+          <input type="date" className="form-input" value={filter.from} onChange={e => setF('from', e.target.value)} title="จากวันที่" />
+          <input type="date" className="form-input" value={filter.to}   onChange={e => setF('to',   e.target.value)} title="ถึงวันที่" />
         </div>
       </div>
 
       {/* Table card */}
-      <div style={s.card}>
-        <div style={s.cardHd}>
-          <div style={s.cardTitle}>
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+          <div className="text-sm font-semibold text-blue-600 flex items-center gap-2">
             <span>📋</span> ผลสอบทั้งหมด
-            <span style={{ fontSize:12, fontWeight:400, color:'#94a3b8' }}>{attempts.length} รายการ</span>
+            <span className="text-xs font-normal text-slate-400">{attempts.length} รายการ</span>
           </div>
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={() => setShowClearModal(true)} style={s.btnClear}>🗑️ เคียร์ตามสาขา</button>
-            <button onClick={handleExport} style={s.btnExport}>⬇️ Export Excel</button>
+          <div className="flex gap-2">
+            <button onClick={() => setShowClearModal(true)} className="btn btn-sm btn-danger">🗑️ เคียร์ตามสาขา</button>
+            <button onClick={handleExport} className="btn btn-sm btn-ghost">⬇️ Export Excel</button>
           </div>
         </div>
 
         {loading ? <InlineLoader /> : (
-          <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th style={{ ...s.th, width:36 }}>#</th>
-                  <th style={s.th}>ชื่อ-สกุล</th>
-                  <th style={s.th}>หลักสูตร</th>
-                  <th style={{ ...s.th, textAlign:'center' }}>คะแนน</th>
-                  <th style={{ ...s.th, textAlign:'center' }}>ผล</th>
-                  <th style={s.th}>Cert ID</th>
-                  <th style={s.th}>วันที่สอบ</th>
-                  <th style={s.th}>จัดการ</th>
+                  {['#', 'ชื่อ-สกุล', 'หลักสูตร', 'คะแนน', 'ผล', 'Cert ID', 'วันที่สอบ', 'จัดการ'].map((h, i) => (
+                    <th key={h} className={`px-3 py-2.5 text-xs font-semibold text-slate-500 bg-slate-50 border-b border-slate-200 whitespace-nowrap ${[3,4].includes(i) ? 'text-center' : 'text-left'}`}>{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {attempts.map((a, i) => {
                   const cert = a.certificates?.[0];
                   return (
-                    <tr key={a.id}
-                      onMouseEnter={e => e.currentTarget.querySelectorAll('td').forEach(td => td.style.background='#f8fafc')}
-                      onMouseLeave={e => e.currentTarget.querySelectorAll('td').forEach(td => td.style.background='')}>
-                      <td style={{ ...s.td, color:'#94a3b8', fontSize:12 }}>{i + 1}</td>
-                      <td style={s.td}>
-                        <div style={{ fontWeight:600 }}>{a.full_name}</div>
-                        <div style={{ fontSize:11, color:'#94a3b8' }}>{a.email}</div>
-                        {a.department && <div style={{ fontSize:11, color:'#94a3b8' }}>{a.department}</div>}
+                    <tr key={a.id} className="hover:bg-slate-50">
+                      <td className="px-3 py-2.5 text-xs text-slate-400 border-b border-slate-100">{i + 1}</td>
+                      <td className="px-3 py-2.5 border-b border-slate-100">
+                        <div className="font-semibold text-sm">{a.full_name}</div>
+                        <div className="text-xs text-slate-400">{a.email}</div>
+                        {a.department && <div className="text-xs text-slate-400">{a.department}</div>}
                       </td>
-                      <td style={s.td}>
-                        <div style={{ fontSize:12, color:'#475569', maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                          {a.courses?.name}
-                        </div>
+                      <td className="px-3 py-2.5 border-b border-slate-100">
+                        <div className="text-xs text-slate-500 max-w-[160px] truncate">{a.courses?.name}</div>
                       </td>
-                      <td style={{ ...s.td, textAlign:'center' }}>
-                        <div style={{ fontWeight:700, fontFamily:'monospace' }}>{a.score}/{a.total}</div>
-                        <div style={{ fontSize:11, color:'#94a3b8' }}>{Math.round(a.percent)}%</div>
+                      <td className="px-3 py-2.5 border-b border-slate-100 text-center">
+                        <div className="font-bold font-mono text-sm">{a.score}/{a.total}</div>
+                        <div className="text-xs text-slate-400">{Math.round(a.percent)}%</div>
                       </td>
-                      <td style={{ ...s.td, textAlign:'center' }}>
-                        <span style={a.status === 'PASS' ? s.badgePass : s.badgeFail}>{a.status}</span>
+                      <td className="px-3 py-2.5 border-b border-slate-100 text-center">
+                        <span className={a.status === 'PASS' ? 'badge badge-pass' : 'badge badge-fail'}>{a.status}</span>
                       </td>
-                      <td style={s.td}>
+                      <td className="px-3 py-2.5 border-b border-slate-100">
                         {cert
-                          ? <span style={{ fontFamily:'monospace', fontSize:12, color:'#475569' }}>{cert.cert_id}</span>
-                          : <span style={{ color:'#e2e8f0' }}>—</span>}
+                          ? <span className="font-mono text-xs text-slate-500">{cert.cert_id}</span>
+                          : <span className="text-slate-200">—</span>}
                       </td>
-                      <td style={{ ...s.td, fontSize:12, color:'#64748b', whiteSpace:'nowrap' }}>
+                      <td className="px-3 py-2.5 border-b border-slate-100 text-xs text-slate-500 whitespace-nowrap">
                         {fmtDateTime(a.completed_at)}
                       </td>
-                      <td style={s.td}>
-                        <div style={{ display:'flex', gap:5 }}>
-                          <Link to={`/result/${a.id}`} target="_blank" style={{ ...s.btnGhost, textDecoration:'none' }} title="ดูผลสอบ">👁 ดู</Link>
+                      <td className="px-3 py-2.5 border-b border-slate-100">
+                        <div className="flex gap-1.5">
+                          <Link to={`/result/${a.id}`} target="_blank" className="btn btn-sm btn-ghost no-underline" title="ดูผลสอบ">👁 ดู</Link>
                           {cert && !cert.is_revoked && (
-                            <button onClick={() => setRevokeTarget(a)} style={s.btnDanger} title="ยกเลิกใบรับรอง">🚫</button>
+                            <button onClick={() => setRevokeTarget(a)} className="btn btn-sm btn-danger" title="ยกเลิกใบรับรอง">🚫</button>
                           )}
                           {cert?.is_revoked && (
-                            <span style={{ fontSize:11, color:'#dc2626', padding:'4px 8px' }}>ยกเลิกแล้ว</span>
+                            <span className="text-xs text-red-600 px-2 py-1">ยกเลิกแล้ว</span>
                           )}
-                          <button onClick={() => setDeleteTarget(a)} style={s.btnDanger} title="ลบผลสอบ">🗑</button>
+                          <button onClick={() => setDeleteTarget(a)} className="btn btn-sm btn-danger" title="ลบผลสอบ">🗑</button>
                         </div>
                       </td>
                     </tr>
@@ -410,12 +328,12 @@ export default function Results() {
             </table>
 
             {attempts.length === 0 && (
-              <div style={{ textAlign:'center', padding:'48px 0', color:'#94a3b8' }}>
-                <div style={{ fontSize:40, marginBottom:10 }}>📋</div>
+              <div className="text-center py-12 text-slate-400">
+                <div className="text-4xl mb-2.5">📋</div>
                 <p>ไม่พบผลสอบที่ตรงกับเงื่อนไข</p>
                 {(filter.search || filter.courseId || filter.status || filter.from || filter.to) && (
                   <button onClick={() => setFilter({ courseId:'', status:'', search:'', from:'', to:'' })}
-                    style={{ marginTop:12, background:'transparent', border:'1px solid #e2e8f0', borderRadius:8, padding:'6px 16px', fontSize:13, cursor:'pointer', color:'#64748b' }}>
+                    className="mt-3 btn btn-ghost btn-sm">
                     ล้างตัวกรอง
                   </button>
                 )}

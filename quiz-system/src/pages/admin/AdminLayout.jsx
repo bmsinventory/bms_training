@@ -17,8 +17,8 @@ export default function AdminLayout() {
   if (!user) return null;
 
   return (
-    <div style={{ background:'#f1f5f9', minHeight:'100vh' }}>
-      <div style={{ padding:'16px' }}>
+    <div className="min-h-screen bg-slate-100">
+      <div className="p-4">
         <Outlet />
       </div>
     </div>

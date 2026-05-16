@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { InlineLoader } from '../../components/Loading';
 import { useToast } from '../../contexts/ToastContext';
+import Modal from '../../components/ui/Modal';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import {
   supabase, getTrainingCategories, getSettings,
   getCourseCategoryIds, setCourseCategories,
@@ -13,75 +15,11 @@ const EMPTY = {
   is_active: true, categoryIds: [],
 };
 
-const s = {
-  page:      { fontFamily:"'Anuphan','Sarabun',sans-serif", fontSize:14 },
-  statsGrid: { display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:16 },
-  statBox:   { background:'#fff', borderRadius:10, border:'1px solid #e2e8f0', padding:'10px 16px' },
-  statLbl:   { fontSize:11, color:'#64748b', marginBottom:3 },
-  statVal:   { fontSize:22, fontWeight:700 },
-
-  toolbar:   { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 },
-  secTitle:  { fontSize:14, fontWeight:600, color:'#2563eb', display:'flex', alignItems:'center', gap:8 },
-  btnPri:    { background:'#2563eb', color:'#fff', border:'none', borderRadius:8, padding:'7px 16px',
-               fontSize:13, fontWeight:500, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6 },
-
-  grid:      { display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:14 },
-
-  card:      (active) => ({
-    background:'#fff', borderRadius:12, border:'1px solid #e2e8f0',
-    boxShadow:'0 1px 3px rgba(0,0,0,.06)', display:'flex', flexDirection:'column',
-    opacity: active ? 1 : 0.6, overflow:'hidden',
-  }),
-  cardTop:   { padding:'14px 16px 10px', flex:1 },
-  cardFoot:  { padding:'10px 14px', borderTop:'1px solid #f1f5f9',
-               display:'flex', gap:5, flexWrap:'wrap', alignItems:'center' },
-
-  badge:     (active) => ({
-    display:'inline-flex', alignItems:'center', padding:'2px 9px',
-    borderRadius:20, fontSize:11, fontWeight:600,
-    background: active ? '#ecfdf5' : '#f1f5f9',
-    color:      active ? '#065f46' : '#475569',
-  }),
-  chip:      { display:'inline-flex', alignItems:'center', padding:'2px 8px',
-               borderRadius:8, fontSize:11, fontWeight:500,
-               background:'#f1f5f9', color:'#475569' },
-  chipBlue:  { display:'inline-flex', alignItems:'center', gap:4, padding:'2px 8px',
-               borderRadius:8, fontSize:11, fontWeight:500,
-               background:'#eff6ff', color:'#1d4ed8' },
-
-  btnSm:     { background:'transparent', color:'#64748b', border:'1px solid #e2e8f0',
-               borderRadius:7, padding:'4px 9px', fontSize:12, fontWeight:500,
-               cursor:'pointer', display:'inline-flex', alignItems:'center', gap:3 },
-  btnSmPri:  { background:'#2563eb', color:'#fff', border:'none',
-               borderRadius:7, padding:'4px 9px', fontSize:12, fontWeight:500,
-               cursor:'pointer', display:'inline-flex', alignItems:'center', gap:3, textDecoration:'none' },
-  btnSmDanger:{ background:'transparent', color:'#dc2626', border:'1px solid #fecaca',
-               borderRadius:7, padding:'4px 9px', fontSize:12, cursor:'pointer' },
-
-  empty:     { textAlign:'center', padding:'56px 0', color:'#94a3b8' },
-
-  /* modal */
-  overlay:   { position:'fixed', inset:0, zIndex:999, display:'flex', alignItems:'center',
-               justifyContent:'center', background:'rgba(15,23,42,.55)', padding:16 },
-  modal:     { background:'#fff', borderRadius:16, boxShadow:'0 20px 60px rgba(0,0,0,.2)',
-               width:'100%', maxWidth:520, maxHeight:'90vh', overflow:'hidden', display:'flex', flexDirection:'column' },
-  mHead:     { background:'linear-gradient(135deg,#1a3a6b,#1a56a0)', padding:'16px 22px', color:'#fff' },
-  mBody:     { overflowY:'auto', flex:1, padding:22 },
-  mFoot:     { padding:'12px 22px', borderTop:'1px solid #f1f5f9', display:'flex', gap:8, justifyContent:'flex-end' },
-
-  input:     { width:'100%', padding:'8px 12px', border:'1px solid #e2e8f0', borderRadius:8,
-               fontFamily:"inherit", fontSize:14, color:'#0f172a', background:'#fff', boxSizing:'border-box' },
-  label:     { display:'block', fontSize:13, fontWeight:500, color:'#334155', marginBottom:5 },
-  fGroup:    { marginBottom:14 },
-  btnCancel: { background:'transparent', color:'#64748b', border:'1px solid #e2e8f0',
-               borderRadius:8, padding:'7px 18px', fontSize:13, fontWeight:500, cursor:'pointer' },
-};
-
 function Stat({ label, value, color }) {
   return (
-    <div style={s.statBox}>
-      <div style={s.statLbl}>{label}</div>
-      <div style={{ ...s.statVal, color }}>{value}</div>
+    <div className="bg-white rounded-xl border border-slate-200 px-4 py-2.5">
+      <div className="text-xs text-slate-500 mb-0.5">{label}</div>
+      <div className="text-xl font-bold" style={{ color }}>{value}</div>
     </div>
   );
 }
@@ -96,8 +34,7 @@ export default function Courses() {
   const [modal, setModal]               = useState(null);
   const [form, setForm]                 = useState(EMPTY);
   const [saving, setSaving]             = useState(false);
-  const [blockInfo, setBlockInfo]       = useState(null); // { course, count }
-  const [confirmDlg, setConfirmDlg]     = useState(null); // { message, onOk }
+  const [confirmDlg, setConfirmDlg]     = useState(null);
 
   async function load() {
     setLoading(true);
@@ -137,9 +74,6 @@ export default function Courses() {
     if (!locGroups[key]) { locGroups[key] = { loc: cat.location, cats: [] }; locOrder.push(key); }
     locGroups[key].cats.push(cat);
   });
-
-  function askConfirm(message, onOk) { setConfirmDlg({ message, onOk }); }
-  function closeConfirm() { setConfirmDlg(null); }
 
   function openAdd()   { setForm(EMPTY); setModal('add'); }
   async function openEdit(c) {
@@ -185,39 +119,40 @@ export default function Courses() {
   }
 
   async function handleDelete(c) {
-    // ตรวจสอบก่อนว่ามีประวัติการสอบหรือไม่
     const { data: attempts } = await supabase
-      .from('quiz_attempts').select('id').eq('course_id', c.id).limit(200);
-    const attemptCount = attempts?.length ?? 0;
+      .from('quiz_attempts').select('id').eq('course_id', c.id).limit(500);
+    const attemptIds   = (attempts || []).map(a => a.id);
+    const attemptCount = attemptIds.length;
+
+    const doCascadeDelete = async () => {
+      try {
+        if (attemptIds.length > 0) {
+          await supabase.from('quiz_answers').delete().in('attempt_id', attemptIds);
+          await supabase.from('certificates').delete().in('attempt_id', attemptIds);
+          await supabase.from('quiz_attempts').delete().eq('course_id', c.id);
+        }
+        await supabase.from('course_categories').delete().eq('course_id', c.id);
+        const { error } = await supabase.from('courses').delete().eq('id', c.id);
+        if (error) throw error;
+        toast.success('ลบสำเร็จ'); load();
+      } catch (e) {
+        toast.error('ลบไม่สำเร็จ: ' + (e?.message || e));
+      }
+    };
 
     if (attemptCount > 0) {
-      // มีข้อมูล → แสดง block popup ทันที
-      setBlockInfo({ course: c, count: attemptCount });
+      setConfirmDlg({
+        message: `หลักสูตร "${c.name}" มีประวัติสอบ ${attemptCount} รายการ\nการลบจะลบข้อมูลทั้งหมด (ประวัติ + คำตอบ + ใบรับรอง) ด้วย\n\nยืนยันลบถาวรหรือไม่?`,
+        danger: true,
+        onOk: doCascadeDelete,
+      });
       return;
     }
 
-    // ไม่มีข้อมูล → ถามยืนยันก่อนลบ
-    askConfirm(
-      `ลบหลักสูตร "${c.name}" จะลบข้อสอบทั้งหมดด้วย ยืนยัน?`,
-      async () => {
-        try {
-          await supabase.from('course_categories').delete().eq('course_id', c.id);
-          const { error } = await supabase.from('courses').delete().eq('id', c.id);
-          if (error) {
-            if (error.code === '23503') {
-              // fallback: FK ยังมีอยู่ (race condition)
-              const { data: d2 } = await supabase.from('quiz_attempts').select('id').eq('course_id', c.id).limit(200);
-              setBlockInfo({ course: c, count: d2?.length ?? '?' });
-              return;
-            }
-            throw error;
-          }
-          toast.success('ลบสำเร็จ'); load();
-        } catch (e) {
-          toast.error('ลบไม่สำเร็จ: ' + (e?.message || e));
-        }
-      }
-    );
+    setConfirmDlg({
+      message: `ลบหลักสูตร "${c.name}" จะลบข้อสอบทั้งหมดด้วย ยืนยัน?`,
+      onOk: doCascadeDelete,
+    });
   }
 
   const quizBaseUrl   = settings.quiz_base_url || window.location.href.split('#')[0].replace(/\/+$/, '');
@@ -234,96 +169,82 @@ export default function Courses() {
   }
 
   return (
-    <div style={s.page}>
+    <div>
 
       {/* Stats */}
-      <div style={s.statsGrid}>
+      <div className="grid grid-cols-3 gap-2.5 mb-4">
         <Stat label="หลักสูตรทั้งหมด" value={courses.length} color="#2563eb" />
         <Stat label="เปิดใช้งาน"      value={activeCount}   color="#059669" />
         <Stat label="ปิดใช้งาน"       value={inactiveCount} color="#94a3b8" />
       </div>
 
       {/* Toolbar */}
-      <div style={s.toolbar}>
-        <div style={s.secTitle}><span>📚</span> จัดการหลักสูตรแบบทดสอบ</div>
-        <button onClick={openAdd} style={s.btnPri}><span>+</span> เพิ่มหลักสูตร</button>
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-sm font-semibold text-blue-600 flex items-center gap-2">
+          <span>📚</span> จัดการหลักสูตรแบบทดสอบ
+        </div>
+        <button onClick={openAdd} className="btn btn-primary btn-sm">+ เพิ่มหลักสูตร</button>
       </div>
 
       {/* Cards */}
       {loading ? <InlineLoader /> : courses.length === 0 ? (
-        <div style={s.empty}>
-          <div style={{ fontSize:48, marginBottom:10 }}>📚</div>
+        <div className="text-center py-14 text-slate-400">
+          <div className="text-5xl mb-2.5">📚</div>
           <p>ยังไม่มีหลักสูตร คลิก "เพิ่มหลักสูตร" เพื่อเริ่มต้น</p>
         </div>
       ) : (
-        <div style={s.grid}>
+        <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))' }}>
           {courses.map(c => {
             const linkedCats = getLinkedCats(c.id);
             return (
-              <div key={c.id} style={s.card(c.is_active)}>
-                <div style={s.cardTop}>
-
+              <div key={c.id} className={`bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden ${!c.is_active ? 'opacity-60' : ''}`}>
+                <div className="p-3.5 flex-1">
                   {/* Title row */}
-                  <div style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:6 }}>
-                    <span style={{ ...s.badge(c.is_active), flexShrink:0, marginTop:2 }}>
+                  <div className="flex items-start gap-2 mb-1.5">
+                    <span className={`badge shrink-0 mt-0.5 ${c.is_active ? 'badge-pass' : 'badge-gray'}`}>
                       {c.is_active ? 'เปิด' : 'ปิด'}
                     </span>
-                    <div style={{ fontWeight:700, fontSize:15, color:'#0f172a', lineHeight:1.4 }}>
-                      {c.name}
-                    </div>
+                    <div className="font-bold text-slate-900 leading-snug">{c.name}</div>
                   </div>
 
-                  {/* Description */}
                   {c.description && (
-                    <div style={{ fontSize:12, color:'#64748b', lineHeight:1.6, marginBottom:10,
-                                  display:'-webkit-box', WebkitLineClamp:3,
-                                  WebkitBoxOrient:'vertical', overflow:'hidden' }}>
-                      {c.description}
-                    </div>
+                    <div className="text-xs text-slate-500 leading-relaxed mb-2.5 line-clamp-3">{c.description}</div>
                   )}
 
-                  {/* Stats chips */}
-                  <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:10 }}>
-                    <span style={s.chip}>📝 {c.questions_count} ข้อ</span>
-                    <span style={{ ...s.chip, background:'#fffbeb', color:'#92400e' }}>🎯 ผ่าน {c.pass_percent}%</span>
-                    {c.time_limit_min > 0 && (
-                      <span style={s.chip}>⏱ {c.time_limit_min} นาที</span>
-                    )}
-                    {c.max_attempts > 0 && (
-                      <span style={s.chip}>🔁 {c.max_attempts} ครั้ง</span>
-                    )}
+                  <div className="flex gap-1.5 flex-wrap mb-2.5">
+                    <span className="badge badge-info">📝 {c.questions_count} ข้อ</span>
+                    <span className="badge" style={{ background: '#fffbeb', color: '#92400e' }}>🎯 ผ่าน {c.pass_percent}%</span>
+                    {c.time_limit_min > 0 && <span className="badge badge-gray">⏱ {c.time_limit_min} นาที</span>}
+                    {c.max_attempts > 0 && <span className="badge badge-gray">🔁 {c.max_attempts} ครั้ง</span>}
                   </div>
 
-                  {/* Linked categories */}
                   {linkedCats.length > 0 ? (
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                    <div className="flex flex-wrap gap-1">
                       {linkedCats.map(cat => (
-                        <span key={cat.id} style={s.chipBlue}>
+                        <span key={cat.id} className="badge" style={{ background: '#eff6ff', color: '#1d4ed8' }}>
                           {cat.location?.code && (
-                            <span style={{ fontFamily:'monospace', fontWeight:700, fontSize:10 }}>
-                              {cat.location.code}
-                            </span>
+                            <span className="font-mono font-bold text-blue-600 mr-1 text-xs">{cat.location.code}</span>
                           )}
                           {cat.name}
                         </span>
                       ))}
                     </div>
                   ) : (
-                    <span style={{ fontSize:11, color:'#cbd5e1' }}>ไม่ได้เชื่อมหลักสูตรอบรม</span>
+                    <span className="text-xs text-slate-300">ไม่ได้เชื่อมหลักสูตรอบรม</span>
                   )}
                 </div>
 
-                {/* Action footer */}
-                <div style={s.cardFoot}>
-                  <Link to={`/admin/questions/${c.id}`} style={s.btnSmPri}>📝 ข้อสอบ</Link>
-                  <button onClick={() => openEdit(c)}    style={s.btnSm}>✏️ แก้ไข</button>
-                  <button onClick={() => toggleActive(c)} style={s.btnSm}>
+                {/* Footer */}
+                <div className="px-3.5 py-2.5 border-t border-slate-100 flex gap-1.5 flex-wrap items-center">
+                  <Link to={`/admin/questions/${c.id}`} className="btn btn-sm btn-primary">📝 ข้อสอบ</Link>
+                  <button onClick={() => openEdit(c)} className="btn btn-sm btn-ghost">✏️ แก้ไข</button>
+                  <button onClick={() => toggleActive(c)} className="btn btn-sm btn-ghost">
                     {c.is_active ? '🔴 ปิด' : '🟢 เปิด'}
                   </button>
-                  <a href={quizLink(c)} target="_blank" rel="noopener noreferrer" style={{ ...s.btnSm, textDecoration:'none' }}>
+                  <a href={quizLink(c)} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-ghost no-underline">
                     🔗 เปิด
                   </a>
-                  <button onClick={() => handleDelete(c)} style={{ ...s.btnSmDanger, marginLeft:'auto' }}>🗑️</button>
+                  <button onClick={() => handleDelete(c)} className="btn btn-sm btn-danger ml-auto">🗑️</button>
                 </div>
               </div>
             );
@@ -331,193 +252,126 @@ export default function Courses() {
         </div>
       )}
 
-      {/* Confirm dialog */}
-      {confirmDlg && (
-        <div style={s.overlay}>
-          <div style={{ background:'#fff', borderRadius:16, boxShadow:'0 20px 60px rgba(0,0,0,.2)',
-                        width:'100%', maxWidth:380, overflow:'hidden' }}>
-            <div style={{ padding:'20px 22px 16px' }}>
-              <div style={{ fontWeight:700, fontSize:15, color:'#0f172a', marginBottom:10 }}>ยืนยันการดำเนินการ</div>
-              <p style={{ fontSize:13, color:'#475569', lineHeight:1.7, margin:0 }}>{confirmDlg.message}</p>
-            </div>
-            <div style={{ padding:'12px 22px 18px', display:'flex', gap:8, justifyContent:'flex-end' }}>
-              <button onClick={closeConfirm}
-                style={{ background:'transparent', color:'#64748b', border:'1px solid #e2e8f0',
-                         borderRadius:8, padding:'7px 18px', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-                ยกเลิก
-              </button>
-              <button onClick={() => { closeConfirm(); confirmDlg.onOk(); }}
-                style={{ background:'#dc2626', color:'#fff', border:'none',
-                         borderRadius:8, padding:'7px 20px', fontSize:13, fontWeight:600, cursor:'pointer' }}>
-                ตกลง
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Confirm delete dialog */}
+      <ConfirmDialog
+        open={!!confirmDlg}
+        title="ยืนยันการดำเนินการ"
+        desc={confirmDlg?.message}
+        danger={confirmDlg?.danger ?? true}
+        onOk={() => { const fn = confirmDlg?.onOk; setConfirmDlg(null); fn?.(); }}
+        onCancel={() => setConfirmDlg(null)}
+      />
 
-      {/* Block-delete popup */}
-      {blockInfo && (
-        <div style={s.overlay}>
-          <div style={{ background:'#fff', borderRadius:16, boxShadow:'0 20px 60px rgba(0,0,0,.2)',
-                        width:'100%', maxWidth:400, overflow:'hidden' }}>
-            <div style={{ background:'linear-gradient(135deg,#7f1d1d,#dc2626)', padding:'16px 22px', color:'#fff' }}>
-              <div style={{ fontWeight:700, fontSize:15 }}>⚠️ ไม่สามารถลบหลักสูตรได้</div>
-            </div>
-            <div style={{ padding:'20px 22px' }}>
-              <p style={{ fontWeight:600, color:'#0f172a', marginBottom:8 }}>{blockInfo.course.name}</p>
-              <p style={{ fontSize:13, color:'#475569', lineHeight:1.7, marginBottom:16 }}>
-                มีประวัติการสอบ <strong style={{ color:'#dc2626' }}>{blockInfo.count} รายการ</strong> ที่อ้างอิงหลักสูตรนี้อยู่<br/>
-                ไม่สามารถลบได้ กรุณา <strong>ปิดใช้งาน</strong> แทน
-              </p>
-              <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
-                <button onClick={() => setBlockInfo(null)}
-                  style={{ background:'transparent', color:'#64748b', border:'1px solid #e2e8f0',
-                           borderRadius:8, padding:'7px 18px', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-                  ปิด
-                </button>
-                <button
-                  onClick={async () => {
-                    await supabase.from('courses').update({ is_active: false }).eq('id', blockInfo.course.id);
-                    setBlockInfo(null); load(); toast.success('ปิดใช้งานแล้ว');
-                  }}
-                  style={{ background:'#dc2626', color:'#fff', border:'none',
-                           borderRadius:8, padding:'7px 18px', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-                  🔴 ปิดใช้งานแทน
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal */}
-      {modal && (
-        <div style={s.overlay}>
-          <div style={s.modal}>
-            <div style={s.mHead}>
-              <div style={{ fontWeight:700, fontSize:15 }}>
-                {modal === 'add' ? '➕ เพิ่มหลักสูตรใหม่' : '✏️ แก้ไขหลักสูตร'}
-              </div>
-            </div>
-
-            <div style={s.mBody}>
-              {/* Category links */}
-              <div style={s.fGroup}>
-                <label style={s.label}>
-                  🔗 เชื่อมกับหลักสูตรอบรม
-                  {form.categoryIds.length > 0 && (
-                    <span style={{ marginLeft:8, background:'#eff6ff', color:'#1d4ed8',
-                                   padding:'1px 8px', borderRadius:20, fontSize:11, fontWeight:600 }}>
-                      {form.categoryIds.length} หลักสูตร
-                    </span>
-                  )}
-                </label>
-                <div style={{ border:'1px solid #e2e8f0', borderRadius:8, overflow:'hidden' }}>
-                  {trainingCats.length === 0 ? (
-                    <div style={{ padding:'10px 14px', fontSize:13, color:'#94a3b8' }}>ยังไม่มีหลักสูตรอบรม</div>
-                  ) : (
-                    <div style={{ maxHeight:200, overflowY:'auto' }}>
-                      {locOrder.map(key => {
-                        const { loc, cats } = locGroups[key];
+      {/* Add/Edit Modal */}
+      <Modal
+        open={!!modal}
+        onClose={closeModal}
+        title={modal === 'add' ? '➕ เพิ่มหลักสูตรใหม่' : '✏️ แก้ไขหลักสูตร'}
+        footer={
+          <>
+            <button onClick={closeModal} className="btn btn-secondary btn-sm">ยกเลิก</button>
+            <button onClick={handleSave} disabled={saving} className="btn btn-primary btn-sm disabled:opacity-60">
+              {saving ? '⏳ กำลังบันทึก...' : '💾 บันทึก'}
+            </button>
+          </>
+        }
+      >
+        {/* Category links */}
+        <div className="form-group mb-3.5">
+          <label className="form-label">
+            🔗 เชื่อมกับหลักสูตรอบรม
+            {form.categoryIds.length > 0 && (
+              <span className="ml-2 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+                {form.categoryIds.length} หลักสูตร
+              </span>
+            )}
+          </label>
+          <div className="border border-slate-200 rounded-lg overflow-hidden">
+            {trainingCats.length === 0 ? (
+              <div className="p-3 text-sm text-slate-400">ยังไม่มีหลักสูตรอบรม</div>
+            ) : (
+              <div className="max-h-48 overflow-y-auto">
+                {locOrder.map(key => {
+                  const { loc, cats } = locGroups[key];
+                  return (
+                    <div key={key}>
+                      <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-500">
+                        📍 {loc ? `${loc.name} (${loc.code})` : 'ไม่ระบุสาขา'}
+                      </div>
+                      {cats.map(cat => {
+                        const isChecked = form.categoryIds.includes(String(cat.id));
+                        const isUsed    = !isChecked && usedCatIds.includes(cat.id);
                         return (
-                          <div key={key}>
-                            <div style={{ padding:'5px 12px', background:'#f8fafc',
-                                          borderBottom:'1px solid #f1f5f9',
-                                          fontSize:11, fontWeight:700, color:'#475569' }}>
-                              📍 {loc ? `${loc.name} (${loc.code})` : 'ไม่ระบุสาขา'}
-                            </div>
-                            {cats.map(cat => {
-                              const isChecked = form.categoryIds.includes(String(cat.id));
-                              const isUsed    = !isChecked && usedCatIds.includes(cat.id);
-                              return (
-                                <label key={cat.id} style={{
-                                  display:'flex', alignItems:'center', gap:10,
-                                  padding:'7px 14px', cursor: isUsed ? 'not-allowed' : 'pointer',
-                                  background: isChecked ? '#eff6ff' : 'transparent',
-                                  borderBottom:'1px solid #f8fafc', opacity: isUsed ? 0.45 : 1,
-                                }}>
-                                  <input type="checkbox" style={{ width:15, height:15, flexShrink:0 }}
-                                    checked={isChecked} disabled={isUsed}
-                                    onChange={() => !isUsed && toggleCat(cat.id)} />
-                                  <span style={{ fontSize:13, flex:1, color: isChecked ? '#1d4ed8' : '#0f172a' }}>
-                                    {loc?.code && (
-                                      <span style={{ fontFamily:'monospace', fontWeight:700,
-                                                     color:'#2563eb', marginRight:6, fontSize:12 }}>
-                                        {loc.code}
-                                      </span>
-                                    )}
-                                    {cat.name}
-                                    {isUsed && <span style={{ fontSize:11, color:'#94a3b8', marginLeft:6 }}>(ถูกใช้แล้ว)</span>}
-                                  </span>
-                                </label>
-                              );
-                            })}
-                          </div>
+                          <label key={cat.id}
+                            className={`flex items-center gap-2.5 px-3.5 py-1.5 border-b border-slate-50 ${isUsed ? 'cursor-not-allowed opacity-45' : 'cursor-pointer'} ${isChecked ? 'bg-blue-50' : ''}`}>
+                            <input type="checkbox" className="w-4 h-4 shrink-0"
+                              checked={isChecked} disabled={isUsed}
+                              onChange={() => !isUsed && toggleCat(cat.id)} />
+                            <span className={`text-sm flex-1 ${isChecked ? 'text-blue-700' : 'text-slate-900'}`}>
+                              {loc?.code && (
+                                <span className="font-mono font-bold text-blue-600 mr-1.5 text-xs">{loc.code}</span>
+                              )}
+                              {cat.name}
+                              {isUsed && <span className="text-xs text-slate-400 ml-1.5">(ถูกใช้แล้ว)</span>}
+                            </span>
+                          </label>
                         );
                       })}
                     </div>
-                  )}
-                </div>
-                {form.categoryIds.length === 0 && (
-                  <div style={{ fontSize:11, color:'#94a3b8', marginTop:4 }}>
-                    ไม่เลือก = Standalone (ปรากฏในส่วน "แบบทดสอบอื่นๆ")
-                  </div>
-                )}
+                  );
+                })}
               </div>
-
-              <div style={s.fGroup}>
-                <label style={s.label}>ชื่อหลักสูตร (Quiz) *</label>
-                <input style={s.input} value={form.name}
-                  onChange={e => setF('name', e.target.value)}
-                  placeholder="เช่น ความปลอดภัยในการทำงาน" />
-              </div>
-
-              <div style={s.fGroup}>
-                <label style={s.label}>คำอธิบาย</label>
-                <textarea style={{ ...s.input, minHeight:80, resize:'vertical' }}
-                  value={form.description} onChange={e => setF('description', e.target.value)} />
-              </div>
-
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                <div style={s.fGroup}>
-                  <label style={s.label}>จำนวนข้อที่สุ่ม</label>
-                  <input type="number" min="1" max="100" style={s.input}
-                    value={form.questions_count} onChange={e => setF('questions_count', +e.target.value)} />
-                </div>
-                <div style={s.fGroup}>
-                  <label style={s.label}>เกณฑ์ผ่าน (%)</label>
-                  <input type="number" min="1" max="100" style={s.input}
-                    value={form.pass_percent} onChange={e => setF('pass_percent', +e.target.value)} />
-                </div>
-                <div style={s.fGroup}>
-                  <label style={s.label}>จำกัดครั้ง (0=ไม่จำกัด)</label>
-                  <input type="number" min="0" style={s.input}
-                    value={form.max_attempts} onChange={e => setF('max_attempts', +e.target.value)} />
-                </div>
-                <div style={s.fGroup}>
-                  <label style={s.label}>จำกัดเวลา นาที (0=ไม่จำกัด)</label>
-                  <input type="number" min="0" style={s.input}
-                    value={form.time_limit_min} onChange={e => setF('time_limit_min', +e.target.value)} />
-                </div>
-              </div>
-
-              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, fontWeight:500, color:'#334155' }}>
-                <input type="checkbox" checked={form.is_active}
-                  onChange={e => setF('is_active', e.target.checked)} style={{ width:16, height:16 }} />
-                เปิดใช้งาน
-              </label>
+            )}
+          </div>
+          {form.categoryIds.length === 0 && (
+            <div className="text-xs text-slate-400 mt-1">
+              ไม่เลือก = Standalone (ปรากฏในส่วน "แบบทดสอบอื่นๆ")
             </div>
+          )}
+        </div>
 
-            <div style={s.mFoot}>
-              <button onClick={closeModal} style={s.btnCancel}>ยกเลิก</button>
-              <button onClick={handleSave} disabled={saving} style={{ ...s.btnPri, padding:'7px 20px' }}>
-                {saving ? '⏳ กำลังบันทึก...' : '💾 บันทึก'}
-              </button>
-            </div>
+        <div className="form-group mb-3.5">
+          <label className="form-label">ชื่อหลักสูตร (Quiz) *</label>
+          <input className="form-input" value={form.name}
+            onChange={e => setF('name', e.target.value)}
+            placeholder="เช่น ความปลอดภัยในการทำงาน" />
+        </div>
+
+        <div className="form-group mb-3.5">
+          <label className="form-label">คำอธิบาย</label>
+          <textarea className="form-input min-h-20 resize-y"
+            value={form.description} onChange={e => setF('description', e.target.value)} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-3.5">
+          <div>
+            <label className="form-label">จำนวนข้อที่สุ่ม</label>
+            <input type="number" min="1" max="100" className="form-input"
+              value={form.questions_count} onChange={e => setF('questions_count', +e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label">เกณฑ์ผ่าน (%)</label>
+            <input type="number" min="1" max="100" className="form-input"
+              value={form.pass_percent} onChange={e => setF('pass_percent', +e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label">จำกัดครั้ง (0=ไม่จำกัด)</label>
+            <input type="number" min="0" className="form-input"
+              value={form.max_attempts} onChange={e => setF('max_attempts', +e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label">จำกัดเวลา นาที (0=ไม่จำกัด)</label>
+            <input type="number" min="0" className="form-input"
+              value={form.time_limit_min} onChange={e => setF('time_limit_min', +e.target.value)} />
           </div>
         </div>
-      )}
+
+        <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-700">
+          <input type="checkbox" checked={form.is_active}
+            onChange={e => setF('is_active', e.target.checked)} className="w-4 h-4" />
+          เปิดใช้งาน
+        </label>
+      </Modal>
     </div>
   );
 }

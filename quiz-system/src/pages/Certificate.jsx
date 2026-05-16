@@ -109,91 +109,45 @@ export default function Certificate() {
   if (loading) return <><Navbar /><InlineLoader text="กำลังโหลดใบรับรอง..." /></>;
   if (!cert || !attempt) return null;
 
-  const m = isMobile;
-
   return (
-    <div style={{ fontFamily:"'Anuphan','Sarabun',sans-serif", minHeight:'100vh', background:'#f1f5f9' }}>
+    <div className="min-h-screen bg-slate-100">
       <Navbar siteName={settings.site_name} />
 
-      <div style={{ maxWidth:800, margin:'0 auto', padding: m ? '10px 12px 20px' : '28px 16px 48px' }}>
+      <div className={`max-w-3xl mx-auto ${isMobile ? 'px-3 py-2.5 pb-5' : 'px-4 py-7 pb-12'}`}>
 
         {/* Header */}
-        <div style={{ textAlign:'center', marginBottom: m ? 10 : 28 }}>
-          <div style={{ fontSize: m ? 34 : 44, marginBottom: m ? 4 : 10 }}>🏆</div>
-          <div style={{ fontSize: m ? 17 : 22, fontWeight:800, color:'#0f172a', marginBottom: m ? 2 : 4 }}>
+        <div className={`text-center ${isMobile ? 'mb-2.5' : 'mb-7'}`}>
+          <div className={`${isMobile ? 'text-4xl mb-1' : 'text-5xl mb-2.5'}`}>🏆</div>
+          <div className={`font-extrabold text-slate-900 ${isMobile ? 'text-lg mb-0.5' : 'text-2xl mb-1'}`}>
             ใบรับรองการผ่านการทดสอบ
           </div>
-          <div style={{ fontSize: m ? 11 : 14, color:'#64748b' }}>
+          <div className={`text-slate-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>
             ID:{' '}
-            <span style={{
-              fontFamily:'monospace', fontWeight:700, color:'#2563eb',
-              wordBreak:'break-all', fontSize: m ? 10 : 13,
-            }}>
+            <span className="font-mono font-bold text-blue-600 break-all" style={{ fontSize: isMobile ? 10 : 13 }}>
               {cert.cert_id}
             </span>
           </div>
         </div>
 
         {/* Certificate preview */}
-        <div style={{
-          background:'#fff', borderRadius: m ? 10 : 14,
-          border:'1px solid #e2e8f0',
-          boxShadow:'0 1px 4px rgba(0,0,0,.07)',
-          marginBottom: m ? 10 : 16,
-          overflow:'hidden', padding:0,
-          display:'flex', justifyContent:'center',
-        }}>
+        <div className={`bg-white border border-slate-200 shadow-sm overflow-hidden flex justify-center ${isMobile ? 'rounded-xl mb-2.5' : 'rounded-2xl mb-4'}`}>
           <CertPreviewCard cert={cert} settings={settings} scale={previewScale} />
         </div>
 
-        {/* Score chip on mobile */}
-        {m && (
-          <div style={{
-            display:'flex', gap:8, justifyContent:'center',
-            marginBottom:10, flexWrap:'wrap',
-          }}>
-            <span style={{
-              display:'inline-flex', alignItems:'center', gap:4,
-              padding:'4px 12px', borderRadius:20,
-              fontSize:12, fontWeight:700,
-              background:'#ecfdf5', color:'#065f46',
-            }}>
-              ✅ ผ่านการทดสอบ
-            </span>
-            <span style={{
-              display:'inline-flex', alignItems:'center', gap:4,
-              padding:'4px 12px', borderRadius:20,
-              fontSize:12, fontWeight:700,
-              background:'#eff6ff', color:'#1d4ed8',
-            }}>
-              🎯 {cert.score}/{cert.total} คะแนน ({cert.percent}%)
-            </span>
+        {/* Score chips on mobile */}
+        {isMobile && (
+          <div className="flex gap-2 justify-center flex-wrap mb-2.5">
+            <span className="badge badge-pass">✅ ผ่านการทดสอบ</span>
+            <span className="badge badge-info">🎯 {cert.score}/{cert.total} คะแนน ({cert.percent}%)</span>
           </div>
         )}
 
         {/* Action buttons */}
-        <div style={{
-          display:'flex',
-          flexDirection: m ? 'column' : 'row',
-          gap: m ? 8 : 12,
-          marginBottom: m ? 8 : 16,
-        }}>
+        <div className={`flex gap-2 sm:gap-3 ${isMobile ? 'flex-col mb-2' : 'mb-4'}`}>
           <button
             onClick={handleDownload}
             disabled={generating}
-            style={{
-              flex:1,
-              padding: m ? '11px 16px' : '13px 20px',
-              background: generating ? '#93c5fd' : '#2563eb',
-              color:'#fff', border:'none', borderRadius:10,
-              fontSize: m ? 14 : 15, fontWeight:700,
-              cursor: generating ? 'not-allowed' : 'pointer',
-              display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-              opacity: generating ? 0.7 : 1,
-              transition:'background .15s',
-            }}
-            onMouseEnter={e => { if (!generating) e.currentTarget.style.background = '#1d4ed8'; }}
-            onMouseLeave={e => { if (!generating) e.currentTarget.style.background = '#2563eb'; }}
+            className="btn btn-primary flex-1 justify-center disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {generating ? '⏳ กำลังสร้าง PDF...' : '⬇️ ดาวน์โหลดใบรับรอง PDF'}
           </button>
@@ -201,55 +155,21 @@ export default function Certificate() {
           <button
             onClick={handleSendEmail}
             disabled={sending}
-            style={{
-              flex:1,
-              padding: m ? '11px 16px' : '13px 20px',
-              background:'#fff', color:'#374151',
-              border:'1.5px solid #e2e8f0', borderRadius:10,
-              fontSize: m ? 14 : 15, fontWeight:600,
-              cursor: sending ? 'not-allowed' : 'pointer',
-              display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-              opacity: sending ? 0.7 : 1,
-              transition:'border-color .15s',
-            }}
+            className="btn btn-secondary flex-1 justify-center disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {sending ? '⏳ กำลังส่ง...' : '📧 ส่งใบรับรองทางอีเมล'}
           </button>
         </div>
 
-        {/* Email info */}
-        <div style={{
-          fontSize: m ? 11 : 12, color:'#94a3b8',
-          textAlign:'center', marginBottom: m ? 12 : 16,
-          wordBreak:'break-all',
-        }}>
+        {/* Email hint */}
+        <div className={`text-slate-400 text-center break-all ${isMobile ? 'text-xs mb-3' : 'text-xs mb-4'}`}>
           📧 จะส่งไปยัง {cert.email}
         </div>
 
         {/* Navigation */}
-        <div style={{
-          display:'flex', gap: m ? 8 : 10,
-          justifyContent:'center',
-          flexDirection: m ? 'column' : 'row',
-        }}>
-          <Link to="/" style={{
-            display:'inline-flex', alignItems:'center',
-            justifyContent: m ? 'center' : 'flex-start',
-            gap:6, padding: m ? '10px 16px' : '9px 18px',
-            background:'transparent', color:'#64748b',
-            border:'1.5px solid #e2e8f0', borderRadius:9,
-            fontSize: m ? 13 : 14, fontWeight:600, textDecoration:'none',
-          }}>
-            ← กลับหน้าหลัก
-          </Link>
-          <Link to="/resend" style={{
-            display:'inline-flex', alignItems:'center',
-            justifyContent: m ? 'center' : 'flex-start',
-            gap:6, padding: m ? '10px 16px' : '9px 18px',
-            background:'#eff6ff', color:'#1d4ed8',
-            border:'1px solid #bfdbfe', borderRadius:9,
-            fontSize: m ? 13 : 14, fontWeight:600, textDecoration:'none',
-          }}>
+        <div className={`flex gap-2 sm:gap-2.5 justify-center ${isMobile ? 'flex-col' : ''}`}>
+          <Link to="/" className="btn btn-ghost justify-center">← กลับหน้าหลัก</Link>
+          <Link to="/resend" className="btn btn-info justify-center">
             📧 ส่งใบรับรองใหม่ / แก้ไขอีเมล
           </Link>
         </div>

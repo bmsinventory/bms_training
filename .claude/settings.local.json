@@ -43,7 +43,8 @@
     "additionalDirectories": [
       "d:\\ส่วนตัว\\พัฒนาโปรแกรม\\inv - bms_training\\quiz-system\\src",
       "d:\\��ǹ���\\�Ѳ�������\\inv - bms_training\\quiz-system\\dist",
-      "d:\\��ǹ���\\�Ѳ�������\\inv - bms_training\\quiz"
+      "d:\\��ǹ���\\�Ѳ�������\\inv - bms_training\\quiz",
+      "d:\\��ǹ���\\�Ѳ�������\\inv - bms_training\\quiz-system\\src\\components"
     ]
   }
 }

@@ -7,36 +7,6 @@ import { isValidEmail } from '../lib/utils';
 import { generateCertPDF } from '../lib/certificate';
 import { sendCertEmail } from '../lib/email';
 
-const s = {
-  page:  { fontFamily:"'Anuphan','Sarabun',sans-serif", minHeight:'100vh', background:'#f1f5f9' },
-  wrap:  { maxWidth:480, margin:'0 auto', padding:'28px 16px 48px' },
-  hero:  { textAlign:'center', marginBottom:28 },
-  card:  { background:'#fff', borderRadius:14, border:'1px solid #e2e8f0',
-           boxShadow:'0 1px 4px rgba(0,0,0,.07)', padding:'22px' },
-  fGroup:{ marginBottom:16 },
-  label: { display:'block', fontSize:13, fontWeight:600, color:'#334155', marginBottom:5 },
-  input: { width:'100%', padding:'10px 13px', border:'1px solid #e2e8f0', borderRadius:9,
-           fontFamily:"'Anuphan','Sarabun',sans-serif", fontSize:14, color:'#0f172a',
-           background:'#fff', boxSizing:'border-box', outline:'none' },
-  hint:  { fontSize:12, color:'#94a3b8', marginTop:4 },
-  warn:  { fontSize:12, color:'#b45309', marginTop:4 },
-  info:  { background:'#f8fafc', borderRadius:9, padding:'12px 14px', marginBottom:16, fontSize:13 },
-  infoLbl:{ color:'#94a3b8' },
-  infoVal:{ color:'#0f172a', fontWeight:600 },
-  btnPrimary:{ width:'100%', padding:'12px', background:'#2563eb', color:'#fff',
-               border:'none', borderRadius:10, fontSize:15, fontWeight:700,
-               cursor:'pointer', display:'flex', alignItems:'center',
-               justifyContent:'center', gap:8 },
-  btnDis:{ width:'100%', padding:'12px', background:'#93c5fd', color:'#fff',
-           border:'none', borderRadius:10, fontSize:15, fontWeight:700,
-           cursor:'not-allowed', display:'flex', alignItems:'center',
-           justifyContent:'center', gap:8 },
-  btnSecondary:{ flex:1, padding:'11px', background:'#fff', color:'#374151',
-                  border:'1.5px solid #e2e8f0', borderRadius:10, fontSize:14,
-                  fontWeight:600, cursor:'pointer', display:'flex',
-                  alignItems:'center', justifyContent:'center', gap:6 },
-};
-
 export default function ResendCert() {
   const toast = useToast();
 
@@ -104,90 +74,82 @@ export default function ResendCert() {
   }
 
   return (
-    <div style={s.page}>
+    <div className="min-h-screen bg-slate-100">
       <Navbar />
-      <div style={s.wrap}>
+      <div className="max-w-sm mx-auto px-4 py-7 pb-12">
 
-        <div style={s.hero}>
-          <div style={{ fontSize:44, marginBottom:10 }}>📧</div>
-          <div style={{ fontSize:22, fontWeight:800, color:'#0f172a', marginBottom:4 }}>ขอส่งใบรับรองใหม่</div>
-          <div style={{ fontSize:14, color:'#64748b' }}>แก้ไขอีเมลและส่งใบรับรองซ้ำ</div>
+        {/* Hero */}
+        <div className="text-center mb-7">
+          <div className="text-5xl mb-2.5">📧</div>
+          <div className="text-2xl font-extrabold text-slate-900 mb-1">ขอส่งใบรับรองใหม่</div>
+          <div className="text-sm text-slate-500">แก้ไขอีเมลและส่งใบรับรองซ้ำ</div>
         </div>
 
         {done ? (
-          <div style={{ ...s.card, textAlign:'center' }}>
-            <div style={{ fontSize:44, marginBottom:10 }}>🎉</div>
-            <div style={{ fontWeight:700, color:'#059669', fontSize:20, marginBottom:8 }}>ส่งสำเร็จ!</div>
-            <div style={{ fontSize:14, color:'#64748b', marginBottom:20 }}>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center">
+            <div className="text-5xl mb-2.5">🎉</div>
+            <div className="font-bold text-emerald-600 text-xl mb-2">ส่งสำเร็จ!</div>
+            <div className="text-sm text-slate-500 mb-5">
               ส่งใบรับรองไปยัง <strong>{newEmail}</strong> แล้ว
             </div>
-            <Link to="/" style={{
-              display:'flex', alignItems:'center', justifyContent:'center',
-              padding:'12px', background:'#2563eb', color:'#fff', textDecoration:'none',
-              borderRadius:10, fontSize:15, fontWeight:700,
-            }}>
-              ← กลับหน้าหลัก
-            </Link>
+            <Link to="/" className="btn btn-primary w-full justify-center">← กลับหน้าหลัก</Link>
           </div>
 
         ) : step === 1 ? (
-          <div style={s.card}>
-            <div style={{ fontSize:15, fontWeight:700, color:'#0f172a', marginBottom:16 }}>
-              ขั้นตอน 1: ยืนยัน Cert ID
-            </div>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <div className="text-sm font-bold text-slate-900 mb-4">ขั้นตอน 1: ยืนยัน Cert ID</div>
             <form onSubmit={handleVerifyCert}>
-              <div style={s.fGroup}>
-                <label style={s.label}>Cert ID</label>
+              <div className="form-group mb-4">
+                <label className="form-label">Cert ID</label>
                 <input
-                  style={{ ...s.input, fontFamily:'monospace', textTransform:'uppercase' }}
+                  className="form-input font-mono uppercase"
                   placeholder="เช่น BMS-2024-001234"
                   value={certId}
                   onChange={e => setCertId(e.target.value.toUpperCase())}
                   required
                 />
-                <div style={s.hint}>Cert ID อยู่บนใบรับรองของคุณ</div>
+                <div className="text-xs text-slate-400 mt-1">Cert ID อยู่บนใบรับรองของคุณ</div>
               </div>
-              <button type="submit" disabled={loading} style={loading ? s.btnDis : s.btnPrimary}>
+              <button type="submit" disabled={loading}
+                className="btn btn-primary w-full justify-center disabled:opacity-70 disabled:cursor-not-allowed">
                 {loading ? '⏳ กำลังตรวจสอบ...' : 'ถัดไป →'}
               </button>
             </form>
           </div>
 
         ) : (
-          <div style={s.card}>
-            <div style={{ fontSize:15, fontWeight:700, color:'#0f172a', marginBottom:4 }}>
-              ขั้นตอน 2: ยืนยันและส่งใหม่
-            </div>
-            <div style={{ fontSize:12, color:'#94a3b8', marginBottom:16 }}>
-              Cert ID: <span style={{ fontFamily:'monospace', color:'#2563eb', fontWeight:600 }}>{cert?.cert_id}</span>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <div className="text-sm font-bold text-slate-900 mb-1">ขั้นตอน 2: ยืนยันและส่งใหม่</div>
+            <div className="text-xs text-slate-400 mb-4">
+              Cert ID: <span className="font-mono text-blue-600 font-semibold">{cert?.cert_id}</span>
             </div>
 
-            <div style={s.info}>
-              <div><span style={s.infoLbl}>ชื่อ: </span><span style={s.infoVal}>{cert?.full_name}</span></div>
-              <div style={{ marginTop:4 }}><span style={s.infoLbl}>หลักสูตร: </span><span style={s.infoVal}>{cert?.course_name}</span></div>
+            <div className="bg-slate-50 rounded-xl p-3.5 mb-4 text-sm">
+              <div><span className="text-slate-400">ชื่อ: </span><span className="font-semibold text-slate-900">{cert?.full_name}</span></div>
+              <div className="mt-1"><span className="text-slate-400">หลักสูตร: </span><span className="font-semibold text-slate-900">{cert?.course_name}</span></div>
             </div>
 
             <form onSubmit={handleResend}>
-              <div style={s.fGroup}>
-                <label style={s.label}>อีเมลที่จะส่งใบรับรอง</label>
+              <div className="form-group mb-4">
+                <label className="form-label">อีเมลที่จะส่งใบรับรอง</label>
                 <input
                   type="email"
-                  style={s.input}
+                  className="form-input"
                   value={newEmail}
                   onChange={e => setNewEmail(e.target.value)}
                   required
                 />
                 {newEmail.toLowerCase() !== cert?.email?.toLowerCase() && (
-                  <div style={s.warn}>⚠️ อีเมลแตกต่างจากที่ลงทะเบียนไว้</div>
+                  <div className="text-xs text-amber-600 mt-1">⚠️ อีเมลแตกต่างจากที่ลงทะเบียนไว้</div>
                 )}
               </div>
 
-              <div style={{ display:'flex', gap:10 }}>
-                <button type="button" onClick={() => setStep(1)} style={s.btnSecondary}>
+              <div className="flex gap-2.5">
+                <button type="button" onClick={() => setStep(1)} className="btn btn-secondary flex-1 justify-center">
                   ← ย้อนกลับ
                 </button>
                 <button type="submit" disabled={loading}
-                  style={{ ...s.btnPrimary, flex:1, width:'auto', padding:'11px' }}>
+                  className="btn btn-primary flex-1 justify-center disabled:opacity-70 disabled:cursor-not-allowed">
                   {loading ? '⏳ กำลังส่ง...' : '📧 ส่งใบรับรอง'}
                 </button>
               </div>

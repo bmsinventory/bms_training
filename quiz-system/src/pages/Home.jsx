@@ -2,151 +2,72 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { InlineLoader } from '../components/Loading';
-import {
-  getCourses, getSettings,
-  getTrainingCategories, getCoursesWithCategory,
-} from '../lib/supabase';
+import { getSettings, getTrainingCategories, getCoursesWithCategory } from '../lib/supabase';
 
-const CM = {
-  blue:   { g1: '#1e3a8a', g2: '#2563eb', bg: '#e8f0fb', text: '#1a56a0' },
-  teal:   { g1: '#0f766e', g2: '#0d9488', bg: '#d1fae5', text: '#065f46' },
-  amber:  { g1: '#b45309', g2: '#d97706', bg: '#fef3c7', text: '#92400e' },
-  red:    { g1: '#9f1239', g2: '#e11d48', bg: '#fee2e2', text: '#991b1b' },
-  purple: { g1: '#4c1d95', g2: '#7c3aed', bg: '#ede9fe', text: '#5b21b6' },
-  green:  { g1: '#14532d', g2: '#16a34a', bg: '#dcfce7', text: '#166534' },
+const COLORS = {
+  blue:   { g1: '#1e3a8a', g2: '#2563eb' },
+  teal:   { g1: '#0f766e', g2: '#0d9488' },
+  amber:  { g1: '#b45309', g2: '#d97706' },
+  red:    { g1: '#9f1239', g2: '#e11d48' },
+  purple: { g1: '#4c1d95', g2: '#7c3aed' },
+  green:  { g1: '#14532d', g2: '#16a34a' },
 };
 
-const s = {
-  page:     { fontFamily:"'Anuphan','Sarabun',sans-serif", minHeight:'100vh',
-              background:'linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%)' },
-  inner:    { maxWidth:1024, margin:'0 auto', padding:'0 16px' },
-  hero:     { textAlign:'center', paddingTop:40, paddingBottom:24 },
-  heroTag:  { display:'inline-flex', alignItems:'center', gap:6, background:'#dbeafe',
-              color:'#1e40af', padding:'6px 16px', borderRadius:20, fontSize:13,
-              fontWeight:600, marginBottom:16 },
-  heroTitle:{ fontSize:40, fontWeight:800, color:'#0f172a', marginBottom:10 },
-  heroSub:  { fontSize:16, color:'#64748b', maxWidth:500, margin:'0 auto' },
-
-  section:  { marginBottom:36 },
-  secHd:    { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 },
-  secTitle: { fontSize:18, fontWeight:700, color:'#1e293b', display:'flex', alignItems:'center', gap:8 },
-  secLink:  { fontSize:13, color:'#2563eb', textDecoration:'none' },
-
-  grid3:    { display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:18 },
-
-  catCard:  (hasQuiz) => ({
-    background:'#fff', borderRadius:16, border: hasQuiz ? '1px solid #e2e8f0' : '1px solid #f1f5f9',
-    overflow:'hidden', display:'flex', flexDirection:'column',
-    boxShadow:'0 1px 4px rgba(0,0,0,.06)',
-    cursor: hasQuiz ? 'pointer' : 'default',
-    transition:'box-shadow .2s, border-color .2s',
-  }),
-  catBanner:{ height:112, display:'flex', alignItems:'center', justifyContent:'center',
-              position:'relative', overflow:'hidden' },
-  catBody:  { padding:'14px 16px', flex:1, display:'flex', flexDirection:'column', gap:10 },
-  catName:  { fontWeight:700, color:'#0f172a', fontSize:15, lineHeight:1.4 },
-  catDesc:  { fontSize:13, color:'#64748b', lineHeight:1.5,
-              overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2,
-              WebkitBoxOrient:'vertical' },
-
-  chip:     (bg, color) => ({
-    display:'inline-flex', alignItems:'center', gap:4, padding:'3px 10px',
-    borderRadius:20, fontSize:11, fontWeight:600, background:bg, color,
-  }),
-  chips:    { display:'flex', flexWrap:'wrap', gap:5 },
-
-  btnStart: { width:'100%', padding:'10px', background:'#2563eb', color:'#fff',
-              border:'none', borderRadius:10, fontSize:14, fontWeight:700,
-              cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 },
-  btnNA:    { width:'100%', padding:'10px', background:'transparent', color:'#cbd5e1',
-              border:'2px dashed #e2e8f0', borderRadius:10, fontSize:14, cursor:'not-allowed' },
-
-  quizCard: { background:'#fff', borderRadius:16, border:'1px solid #e2e8f0',
-              boxShadow:'0 1px 4px rgba(0,0,0,.06)', overflow:'hidden',
-              display:'flex', flexDirection:'column', cursor:'pointer', padding:'16px' },
-  quizIcon: { height:112, background:'linear-gradient(135deg,#2563eb,#4f46e5)',
-              borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center',
-              fontSize:40, marginBottom:12 },
-
-  footer:   { borderTop:'1px solid #e2e8f0', background:'#fff', marginTop:8 },
-  ftrInner: { maxWidth:1024, margin:'0 auto', padding:'28px 16px',
-              display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))', gap:12 },
-  filterBar:{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:20 },
-  filterBtn:(active) => ({
-    padding:'7px 18px', borderRadius:20, cursor:'pointer',
-    fontFamily:"'Anuphan','Sarabun',sans-serif", fontSize:13, fontWeight:600,
-    background: active ? '#2563eb' : '#fff',
-    color:      active ? '#fff'    : '#475569',
-    boxShadow:  active ? 'none'    : '0 1px 3px rgba(0,0,0,.08)',
-    border:     active ? 'none'    : '1px solid #e2e8f0',
-    transition: 'all .15s',
-  }),
-
-  ftrBtn:   { display:'flex', flexDirection:'column', alignItems:'center', gap:4,
-              padding:'16px', borderRadius:12, cursor:'pointer', border:'none',
-              background:'transparent', fontFamily:"'Anuphan','Sarabun',sans-serif' ",
-              transition:'background .15s' },
-  ftrIcon:  { fontSize:28, marginBottom:2 },
-  ftrLbl:   { fontSize:14, fontWeight:600, color:'#1e293b' },
-  ftrDesc:  { fontSize:11, color:'#94a3b8' },
-
-  empty:    { textAlign:'center', padding:'64px 0', color:'#94a3b8' },
-};
-
-function CategoryCard({ cat, quiz, onStart, onNoQuiz }) {
-  const cm = CM[cat.color] || CM.blue;
+function CategoryCard({ cat, quiz, onStart }) {
+  const cm = COLORS[cat.color] || COLORS.blue;
   const hasQuiz = !!quiz;
-  const [hovered, setHovered] = useState(false);
-
   return (
     <div
-      style={{ ...s.catCard(hasQuiz), boxShadow: hovered && hasQuiz ? '0 4px 16px rgba(0,0,0,.1)' : '0 1px 4px rgba(0,0,0,.06)',
-               borderColor: hovered && hasQuiz ? '#bfdbfe' : hasQuiz ? '#e2e8f0' : '#f1f5f9' }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={() => hasQuiz ? onStart() : null}
+      className={`bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col transition-all duration-200 ${
+        hasQuiz ? 'cursor-pointer hover:shadow-md hover:border-blue-200' : 'opacity-75'
+      }`}
+      onClick={() => hasQuiz && onStart()}
     >
       {/* Banner */}
-      <div style={{
-        ...s.catBanner,
-        ...(cat.banner_url
-          ? { backgroundImage:`url(${cat.banner_url})`, backgroundSize:'cover', backgroundPosition:'center' }
-          : { background:`linear-gradient(135deg, ${cm.g1}, ${cm.g2})` }),
-      }}>
-        {!cat.banner_url && (
-          <i className={`ti ti-${cat.icon || 'book'}`}
-            style={{ fontSize:72, color:'rgba(255,255,255,.15)', position:'absolute' }} />
-        )}
-        <div style={{ position:'absolute', top:8, right:8 }}>
-          {hasQuiz
-            ? <span style={s.chip('#ecfdf5', '#065f46')}>✅ มีแบบทดสอบ</span>
-            : <span style={s.chip('#f1f5f9', '#64748b')}>⏳ ยังไม่มีแบบทดสอบ</span>
-          }
+      <div
+        className="h-28 flex items-center justify-center relative overflow-hidden"
+        style={cat.banner_url
+          ? { backgroundImage: `url(${cat.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+          : { background: `linear-gradient(135deg,${cm.g1},${cm.g2})` }
+        }
+      >
+        <div className="absolute top-2 right-2">
+          <span className={hasQuiz ? 'badge badge-pass' : 'badge badge-gray'}>
+            {hasQuiz ? '✅ มีแบบทดสอบ' : '⏳ ยังไม่มีแบบทดสอบ'}
+          </span>
         </div>
       </div>
 
-      {/* Content */}
-      <div style={s.catBody}>
+      {/* Body */}
+      <div className="p-4 flex-1 flex flex-col gap-2.5">
         <div>
-          <div style={s.catName}>{cat.name}</div>
-          {cat.description && <div style={{ ...s.catDesc, marginTop:4 }}>{cat.description}</div>}
+          <div className="font-bold text-gray-900 text-sm leading-snug">{cat.name}</div>
+          {cat.description && (
+            <div className="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-2">{cat.description}</div>
+          )}
         </div>
 
         {hasQuiz && (
-          <div style={s.chips}>
-            <span style={s.chip('#eff6ff', '#1d4ed8')}>📝 {quiz.questions_count} ข้อ</span>
-            <span style={s.chip('#fffbeb', '#92400e')}>🎯 ผ่าน {quiz.pass_percent}%</span>
-            {quiz.time_limit_min > 0 && (
-              <span style={s.chip('#f1f5f9', '#475569')}>⏱ {quiz.time_limit_min} นาที</span>
-            )}
+          <div className="flex flex-wrap gap-1.5">
+            <span className="badge badge-info">📝 {quiz.questions_count} ข้อ</span>
+            <span className="badge badge-amber">🎯 ผ่าน {quiz.pass_percent}%</span>
+            {quiz.time_limit_min > 0 && <span className="badge badge-gray">⏱ {quiz.time_limit_min} นาที</span>}
           </div>
         )}
 
-        <div style={{ marginTop:'auto' }}>
-          {hasQuiz
-            ? <button onClick={e => { e.stopPropagation(); onStart(); }} style={s.btnStart}>📝 เริ่มทำแบบทดสอบ →</button>
-            : <button disabled style={s.btnNA}>ยังไม่มีแบบทดสอบ</button>
-          }
+        <div className="mt-auto pt-1">
+          {hasQuiz ? (
+            <button
+              onClick={e => { e.stopPropagation(); onStart(); }}
+              className="btn btn-primary w-full justify-center text-sm py-2.5"
+            >
+              📝 เริ่มทำแบบทดสอบ →
+            </button>
+          ) : (
+            <button disabled className="w-full py-2 rounded-xl border-2 border-dashed border-gray-200 text-gray-400 text-sm cursor-not-allowed bg-transparent">
+              ยังไม่มีแบบทดสอบ
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -154,29 +75,20 @@ function CategoryCard({ cat, quiz, onStart, onNoQuiz }) {
 }
 
 function QuizCard({ course, onClick }) {
-  const [hovered, setHovered] = useState(false);
   return (
-    <div
-      style={{ ...s.quizCard, boxShadow: hovered ? '0 4px 16px rgba(0,0,0,.1)' : '0 1px 4px rgba(0,0,0,.06)',
-               borderColor: hovered ? '#bfdbfe' : '#e2e8f0' }}
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <div style={s.quizIcon}>📋</div>
-      <div style={{ fontWeight:700, color:'#0f172a', fontSize:15, marginBottom:6 }}>{course.name}</div>
-      {course.description && (
-        <div style={{ fontSize:13, color:'#64748b', marginBottom:10, lineHeight:1.5,
-                      overflow:'hidden', display:'-webkit-box',
-                      WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
-          {course.description}
-        </div>
-      )}
-      <div style={{ ...s.chips, marginBottom:12 }}>
-        <span style={s.chip('#eff6ff', '#1d4ed8')}>📝 {course.questions_count} ข้อ</span>
-        <span style={s.chip('#fffbeb', '#92400e')}>🎯 ผ่าน {course.pass_percent}%</span>
+    <div className="card-hover flex flex-col" onClick={onClick}>
+      <div className="h-28 rounded-xl flex items-center justify-center text-4xl mb-3 bg-gradient-to-br from-blue-600 to-indigo-600">
+        📋
       </div>
-      <button style={s.btnStart}>เริ่มทำแบบทดสอบ →</button>
+      <div className="font-bold text-gray-900 text-sm mb-1.5">{course.name}</div>
+      {course.description && (
+        <div className="text-xs text-gray-500 mb-2.5 leading-relaxed line-clamp-2">{course.description}</div>
+      )}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        <span className="badge badge-info">📝 {course.questions_count} ข้อ</span>
+        <span className="badge badge-amber">🎯 ผ่าน {course.pass_percent}%</span>
+      </div>
+      <button className="btn btn-primary w-full justify-center text-sm mt-auto">เริ่มทำแบบทดสอบ →</button>
     </div>
   );
 }
@@ -185,11 +97,11 @@ export default function Home() {
   const [settings, setSettings]     = useState({});
   const [categories, setCategories] = useState([]);
   const [courseMap, setCourseMap]   = useState({});
-  const [standaloneQuiz, setStandalone] = useState([]);
+  const [standalone, setStandalone] = useState([]);
   const [loading, setLoading]       = useState(true);
   const [locGroups, setLocGroups]   = useState({});
   const [locOrder, setLocOrder]     = useState([]);
-  const navigate       = useNavigate();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeSite = searchParams.get('site') || '';
 
@@ -200,26 +112,26 @@ export default function Home() {
           getSettings(), getTrainingCategories(), getCoursesWithCategory(),
         ]);
         setSettings(stg);
-        const map = {};
-        const standalone = [];
+
+        const map = {}, solo = [];
         for (const c of quizCourses) {
           if (c.category_ids?.length) {
-            c.category_ids.forEach(catId => { map[catId] = c; });
+            c.category_ids.forEach(id => { map[id] = c; });
           } else {
-            standalone.push(c);
+            solo.push(c);
           }
         }
-        // Build location groups once
-        const groups = {};
-        const order  = [];
+
+        const groups = {}, order = [];
         cats.forEach(cat => {
           const key = cat.location?.code || '__none__';
           if (!groups[key]) { groups[key] = { loc: cat.location, cats: [] }; order.push(key); }
           groups[key].cats.push(cat);
         });
+
         setCategories(cats);
         setCourseMap(map);
-        setStandalone(standalone);
+        setStandalone(solo);
         setLocGroups(groups);
         setLocOrder(order);
       } catch (err) {
@@ -232,38 +144,55 @@ export default function Home() {
   }, []);
 
   const trainingUrl = settings.training_base_url || '#';
+  const multiLoc    = locOrder.length > 1;
+
+  const visibleKeys = activeSite
+    ? locOrder.filter(k => locGroups[k]?.loc?.code === activeSite)
+    : locOrder;
 
   return (
-    <div style={s.page}>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
       <Navbar siteName={settings.site_name} />
 
-      {/* Hero */}
-      <div style={s.inner}>
-        <div style={s.hero}>
-          <div style={s.heroTag}>📝 ระบบแบบทดสอบออนไลน์</div>
-          <h1 style={s.heroTitle}>{settings.site_name || 'BMS Training'}</h1>
-          <p style={s.heroSub}>เลือกหลักสูตรอบรมที่ต้องการทำแบบทดสอบ รับใบรับรองทันทีเมื่อผ่านเกณฑ์</p>
+      <div className="max-w-4xl mx-auto px-4">
+        {/* Hero */}
+        <div className="text-center pt-10 pb-6">
+          <div className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-800 px-4 py-1.5 rounded-full text-sm font-semibold mb-4">
+            📝 ระบบแบบทดสอบออนไลน์
+          </div>
+          <h1 className="text-4xl font-extrabold text-gray-900 mb-2.5">{settings.site_name || 'BMS Training'}</h1>
+          <p className="text-gray-500 text-base max-w-md mx-auto">
+            เลือกหลักสูตรอบรมที่ต้องการทำแบบทดสอบ รับใบรับรองทันทีเมื่อผ่านเกณฑ์
+          </p>
         </div>
 
-        <div style={{ paddingBottom:48 }}>
+        <div className="pb-12">
           {loading ? (
             <InlineLoader text="กำลังโหลดหลักสูตร..." />
           ) : (
             <>
-              {/* Location filter tabs — show only when multiple locations */}
-              {locOrder.length > 1 && (
-                <div style={s.filterBar}>
-                  <button style={s.filterBtn(!activeSite)} onClick={() => setSearchParams({})}>
+              {/* Location filter tabs */}
+              {multiLoc && (
+                <div className="flex gap-2 flex-wrap mb-5">
+                  <button
+                    onClick={() => setSearchParams({})}
+                    className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
+                      !activeSite ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
                     🌐 ทั้งหมด
                   </button>
                   {locOrder.map(key => {
                     const { loc } = locGroups[key];
                     if (!loc) return null;
+                    const isActive = activeSite === loc.code;
                     return (
                       <button
                         key={key}
-                        style={s.filterBtn(activeSite === loc.code)}
                         onClick={() => setSearchParams({ site: loc.code })}
+                        className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
+                          isActive ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-50'
+                        }`}
                       >
                         🏫 {loc.name}
                       </button>
@@ -272,71 +201,64 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Training categories — grouped by location (สาขา) */}
-              {categories.length > 0 && (() => {
-                const multiLoc = locOrder.length > 1;
-                const visibleKeys = activeSite
-                  ? locOrder.filter(k => locGroups[k]?.loc?.code === activeSite)
-                  : locOrder;
-                return visibleKeys.map((key, idx) => {
-                  const { loc, cats } = locGroups[key];
-                  return (
-                    <div key={key} style={s.section}>
-                      <div style={s.secHd}>
-                        <div style={s.secTitle}>
-                          <span style={{ fontSize:22 }}>🏫</span>
-                          {multiLoc && loc
-                            ? <>{loc.name}<span style={{ fontSize:13, fontWeight:500, color:'#64748b', marginLeft:6 }}>({loc.code})</span></>
-                            : 'หลักสูตรอบรม'
-                          }
-                        </div>
-                        {trainingUrl !== '#' && idx === 0 && (
-                          <a href={trainingUrl} style={s.secLink}>← กลับระบบลงทะเบียน</a>
-                        )}
+              {/* Category sections */}
+              {visibleKeys.map((key, idx) => {
+                const { loc, cats } = locGroups[key];
+                return (
+                  <div key={key} className="mb-9">
+                    <div className="flex items-center justify-between mb-3.5">
+                      <div className="flex items-center gap-2 text-lg font-bold text-gray-800">
+                        <span className="text-2xl">🏫</span>
+                        {multiLoc && loc
+                          ? <>{loc.name}<span className="text-sm font-medium text-gray-400 ml-1.5">({loc.code})</span></>
+                          : 'หลักสูตรอบรม'
+                        }
                       </div>
-                      <div style={s.grid3}>
-                        {cats.map(cat => {
-                          const quiz = courseMap[cat.id];
-                          return (
-                            <CategoryCard
-                              key={cat.id} cat={cat} quiz={quiz}
-                              onStart={() => quiz && navigate(`/register/${quiz.id}`)}
-                              onNoQuiz={() => navigate(`/category/${cat.id}`)}
-                            />
-                          );
-                        })}
-                      </div>
+                      {trainingUrl !== '#' && idx === 0 && (
+                        <a href={trainingUrl} className="text-sm text-blue-600 no-underline hover:underline">
+                          ← กลับระบบลงทะเบียน
+                        </a>
+                      )}
                     </div>
-                  );
-                });
-              })()}
-
-              {/* Standalone quiz courses */}
-              {standaloneQuiz.length > 0 && (
-                <div style={s.section}>
-                  <div style={s.secHd}>
-                    <div style={s.secTitle}><span style={{ fontSize:22 }}>📋</span> แบบทดสอบอื่นๆ</div>
+                    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))' }}>
+                      {cats.map(cat => (
+                        <CategoryCard
+                          key={cat.id}
+                          cat={cat}
+                          quiz={courseMap[cat.id]}
+                          onStart={() => courseMap[cat.id] && navigate(`/register/${courseMap[cat.id].id}`)}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <div style={s.grid3}>
-                    {standaloneQuiz.map(c => (
+                );
+              })}
+
+              {/* Standalone quizzes */}
+              {standalone.length > 0 && (
+                <div className="mb-9">
+                  <div className="flex items-center gap-2 text-lg font-bold text-gray-800 mb-3.5">
+                    <span className="text-2xl">📋</span> แบบทดสอบอื่นๆ
+                  </div>
+                  <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))' }}>
+                    {standalone.map(c => (
                       <QuizCard key={c.id} course={c} onClick={() => navigate(`/register/${c.id}`)} />
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Empty */}
-              {categories.length === 0 && standaloneQuiz.length === 0 && (
-                <div style={s.empty}>
-                  <div style={{ fontSize:56, marginBottom:12 }}>📚</div>
-                  <div style={{ fontSize:16 }}>ยังไม่มีแบบทดสอบ</div>
+              {/* Empty state */}
+              {categories.length === 0 && standalone.length === 0 && (
+                <div className="text-center py-16 text-gray-400">
+                  <div className="text-5xl mb-3">📚</div>
+                  <div className="text-base">ยังไม่มีแบบทดสอบ</div>
                 </div>
               )}
             </>
           )}
         </div>
       </div>
-
     </div>
   );
 }

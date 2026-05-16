@@ -107,22 +107,6 @@ const DEFAULT_STYLE = {
   sig:     { size: 13, color: '#374151', bold: false },
 };
 
-/* ── shared inline style tokens ── */
-const t = {
-  input: { width:'100%', padding:'8px 12px', border:'1px solid #e2e8f0', borderRadius:8,
-           fontFamily:"'Anuphan','Sarabun',sans-serif", fontSize:13, color:'#0f172a',
-           background:'#fff', boxSizing:'border-box', outline:'none' },
-  label: { display:'block', fontSize:13, fontWeight:600, color:'#334155', marginBottom:5 },
-  fGroup: { marginBottom:14 },
-  btnPrimary: { background:'#2563eb', color:'#fff', border:'none', borderRadius:8,
-                padding:'8px 18px', fontSize:13, fontWeight:600, cursor:'pointer' },
-  btnGhost:   { background:'transparent', color:'#64748b', border:'1px solid #e2e8f0',
-                borderRadius:7, padding:'5px 12px', fontSize:12, cursor:'pointer' },
-  btnDanger:  { background:'transparent', color:'#dc2626', border:'1px solid #fecaca',
-                borderRadius:7, padding:'5px 12px', fontSize:12, cursor:'pointer' },
-  btnSm:      { padding:'4px 10px', fontSize:12 },
-};
-
 /* ── Draggable field builder for image mode ── */
 function ImageCertBuilder({ settings, onPosChange, onStyleChange }) {
   const containerRef = useRef(null);
@@ -194,18 +178,18 @@ function ImageCertBuilder({ settings, onPosChange, onStyleChange }) {
       {/* Canvas */}
       <div
         ref={containerRef}
+        className="relative w-full rounded-lg overflow-hidden border-2 border-dashed border-gray-300"
         style={{
-          position: 'relative', width: '100%', paddingBottom: `${(794 / 1123) * 100}%`,
+          paddingBottom: `${(794 / 1123) * 100}%`,
           backgroundImage: settings.cert_bg_image_url ? `url(${settings.cert_bg_image_url})` : 'none',
           backgroundSize: 'cover', backgroundPosition: 'center',
           backgroundColor: settings.cert_bg_image_url ? 'transparent' : '#f3f4f6',
-          border: '2px dashed #d1d5db', borderRadius: 8, overflow: 'hidden',
         }}
       >
         {!settings.cert_bg_image_url && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', gap: 8 }}>
-            <div style={{ fontSize: 32 }}>🖼️</div>
-            <div style={{ fontSize: 14 }}>ใส่ URL รูปภาพ Background ด้านบนก่อน</div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-2">
+            <div className="text-3xl">🖼️</div>
+            <div className="text-sm">ใส่ URL รูปภาพ Background ด้านบนก่อน</div>
           </div>
         )}
         {IMG_FIELDS.map(f => {
@@ -237,23 +221,21 @@ function ImageCertBuilder({ settings, onPosChange, onStyleChange }) {
         })}
       </div>
 
-      <p style={{ fontSize:12, color:'#94a3b8', marginTop:8, marginBottom:16 }}>
+      <p className="text-xs text-slate-400 mt-2 mb-4">
         💡 คลิกเลือก field → ลากไปวางตำแหน่ง · ปรับขนาด/สีที่แผง "ปรับแต่ง" ด้านล่าง
       </p>
 
       {/* Field chips */}
-      <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:16 }}>
+      <div className="flex flex-wrap gap-2 mb-4">
         {IMG_FIELDS.map(f => (
-          <button
-            key={f.key}
-            type="button"
+          <button key={f.key} type="button"
             onClick={() => setActiveField(prev => prev === f.key ? null : f.key)}
             style={{
               border: `2px solid ${activeField === f.key ? f.color : f.color + '50'}`,
               background: activeField === f.key ? f.color + '15' : 'transparent',
-              color: f.color, padding:'3px 12px', borderRadius:20,
-              fontSize:12, fontWeight:600, cursor:'pointer',
+              color: f.color,
             }}
+            className="px-3 py-0.5 rounded-full text-xs font-semibold cursor-pointer"
           >
             {f.label}
           </button>
@@ -262,46 +244,46 @@ function ImageCertBuilder({ settings, onPosChange, onStyleChange }) {
 
       {/* Style panel */}
       {activeField && activeField !== 'qr' && (
-        <div style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:10, padding:16, marginBottom:16 }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-            <div style={{ fontSize:13, fontWeight:700, color:'#1e293b' }}>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-bold text-slate-800">
               ✏️ ปรับแต่ง: <span style={{ color: activeF?.color }}>{activeF?.label}</span>
             </div>
             <button type="button" onClick={() => resetField(activeField)}
-              style={{ background:'none', border:'none', color:'#ef4444', fontSize:12, cursor:'pointer' }}>↩ รีเซ็ต</button>
+              className="bg-none border-none text-red-500 text-xs cursor-pointer">
+              ↩ รีเซ็ต
+            </button>
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
-            <div style={t.fGroup}>
-              <label style={t.label}>ขนาดตัวอักษร (px)</label>
-              <input type="number" style={t.input} min={8} max={120}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="form-label">ขนาดตัวอักษร (px)</label>
+              <input type="number" className="form-input" min={8} max={120}
                 value={gs(activeField).size || 14}
                 onChange={e => updateStyle(activeField, 'size', Number(e.target.value))} />
             </div>
-            <div style={t.fGroup}>
-              <label style={t.label}>สีตัวอักษร</label>
-              <div style={{ display:'flex', gap:8 }}>
+            <div>
+              <label className="form-label">สีตัวอักษร</label>
+              <div className="flex gap-2">
                 <input type="color"
-                  style={{ width:38, height:38, borderRadius:8, border:'1px solid #e2e8f0', padding:2, cursor:'pointer', flexShrink:0 }}
+                  className="w-10 h-9 rounded-lg border border-slate-200 p-0.5 cursor-pointer shrink-0"
                   value={gs(activeField).color || '#111827'}
                   onChange={e => updateStyle(activeField, 'color', e.target.value)} />
-                <input type="text" style={{ ...t.input, fontFamily:'monospace', flex:1 }}
+                <input type="text" className="form-input flex-1 font-mono"
                   value={gs(activeField).color || '#111827'}
                   onChange={e => { if (/^#[0-9a-fA-F]{0,6}$/.test(e.target.value)) updateStyle(activeField, 'color', e.target.value); }} />
               </div>
             </div>
-            <div style={t.fGroup}>
-              <label style={t.label}>น้ำหนัก</label>
-              <button
-                type="button"
+            <div>
+              <label className="form-label">น้ำหนัก</label>
+              <button type="button"
                 onClick={() => updateStyle(activeField, 'bold', !gs(activeField).bold)}
+                className="w-full h-9 rounded-lg text-sm cursor-pointer border-2 transition-colors"
                 style={{
-                  width:'100%', height:38, borderRadius:8, fontSize:13, cursor:'pointer',
-                  border: gs(activeField).bold ? '2px solid #2563eb' : '2px solid #e2e8f0',
+                  borderColor: gs(activeField).bold ? '#2563eb' : '#e2e8f0',
                   background: gs(activeField).bold ? '#eff6ff' : '#fff',
                   color: gs(activeField).bold ? '#1d4ed8' : '#64748b',
                   fontWeight: gs(activeField).bold ? 700 : 400,
-                }}
-              >
+                }}>
                 B {gs(activeField).bold ? 'หนา' : 'ปกติ'}
               </button>
             </div>
@@ -310,15 +292,15 @@ function ImageCertBuilder({ settings, onPosChange, onStyleChange }) {
       )}
 
       {activeField === 'qr' && (
-        <div style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:10, padding:16, marginBottom:16 }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-            <div style={{ fontSize:13, fontWeight:700, color:'#1e293b' }}>✏️ ปรับแต่ง: QR Code</div>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-bold text-slate-800">✏️ ปรับแต่ง: QR Code</div>
             <button type="button" onClick={() => resetField('qr')}
-              style={{ background:'none', border:'none', color:'#ef4444', fontSize:12, cursor:'pointer' }}>↩ รีเซ็ต</button>
+              className="text-red-500 text-xs cursor-pointer bg-none border-none">↩ รีเซ็ต</button>
           </div>
-          <div style={{ ...t.fGroup, maxWidth:200 }}>
-            <label style={t.label}>ขนาด QR (px)</label>
-            <input type="number" style={t.input} min={40} max={200}
+          <div className="max-w-[200px]">
+            <label className="form-label">ขนาด QR (px)</label>
+            <input type="number" className="form-input" min={40} max={200}
               value={gs('qr').size || 72}
               onChange={e => updateStyle('qr', 'size', Number(e.target.value))} />
           </div>
@@ -370,77 +352,45 @@ export default function AdminSettings() {
   const activeTpl      = TEMPLATES.find(t => t.id === activeTemplate) || TEMPLATES[0];
   const previewColor   = settings.cert_primary_color || activeTpl.defaultColor;
 
-  const s = {
-    page:    { fontFamily:"'Anuphan','Sarabun',sans-serif", fontSize:14 },
-    card:    { background:'#fff', borderRadius:12, border:'1px solid #e2e8f0',
-               boxShadow:'0 1px 3px rgba(0,0,0,.07)', marginBottom:14, overflow:'hidden' },
-    cardHd:  { background:'linear-gradient(135deg,#1a3a6b,#1a56a0)', padding:'14px 20px' },
-    cardTitle:{ fontSize:15, fontWeight:700, color:'#fff' },
-    cardSub:  { fontSize:12, color:'rgba(255,255,255,.7)', marginTop:2 },
-    cardBody: { padding:'20px' },
-    sectionHd:{ fontSize:14, fontWeight:700, color:'#1e293b', marginBottom:12,
-                display:'flex', alignItems:'center', gap:8 },
-    grid2:   { display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 },
-    grid3:   { display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 },
-    notice:  { background:'#fffbeb', border:'1px solid #fde68a', borderRadius:9,
-               padding:'12px 14px', fontSize:13, color:'#92400e', marginBottom:16 },
-    noticeBlue:{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:9,
-                  padding:'12px 14px', fontSize:13, color:'#1e40af', marginBottom:16 },
-    divider: { borderTop:'1px solid #f1f5f9', margin:'16px 0' },
-    modeBtn: (active) => ({
-      padding:'8px 16px', borderRadius:8, fontSize:13, fontWeight:600,
-      cursor:'pointer', border:'none',
-      background: active ? '#fff' : 'transparent',
-      color: active ? '#2563eb' : '#64748b',
-      boxShadow: active ? '0 1px 4px rgba(0,0,0,.1)' : 'none',
-    }),
-    tplCard: (active) => ({
-      borderRadius:10, border: active ? '2px solid #2563eb' : '2px solid #e2e8f0',
-      overflow:'hidden', cursor:'pointer', background:'#fff',
-      boxShadow: active ? '0 0 0 3px rgba(37,99,235,.1)' : 'none',
-    }),
-  };
+  function ChangedDot({ k }) {
+    return changed[k] ? <span className="ml-1.5 text-amber-400 text-xs">● แก้ไขแล้ว</span> : null;
+  }
 
   return (
-    <div style={s.page}>
+    <div>
 
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <div style={{ fontSize:16, fontWeight:700, color:'#1e293b' }}>⚙️ ตั้งค่าระบบ</div>
-          <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>กำหนดชื่อระบบ ออกแบบใบรับรอง และการส่งอีเมล</div>
+          <div className="text-base font-bold text-slate-800">⚙️ ตั้งค่าระบบ</div>
+          <div className="text-xs text-slate-500 mt-0.5">กำหนดชื่อระบบ ออกแบบใบรับรอง และการส่งอีเมล</div>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving || !hasChanges}
-          style={{ ...t.btnPrimary, opacity: saving || !hasChanges ? 0.6 : 1,
-                   cursor: saving || !hasChanges ? 'not-allowed' : 'pointer' }}
-        >
+        <button onClick={handleSave} disabled={saving || !hasChanges}
+          className="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
           {saving ? '⏳ กำลังบันทึก...' : '💾 บันทึกการตั้งค่า'}
         </button>
       </div>
 
       {/* ── Section 1: ทั่วไป ── */}
-      <div style={s.card}>
-        <div style={s.cardHd}>
-          <div style={s.cardTitle}>🔧 ทั่วไป</div>
-          <div style={s.cardSub}>ชื่อระบบ องค์กร และ URL สำหรับใบรับรอง</div>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-3.5 overflow-hidden">
+        <div className="px-5 py-3.5" style={{ background: 'linear-gradient(135deg,#1a3a6b,#1a56a0)' }}>
+          <div className="font-bold text-white">🔧 ทั่วไป</div>
+          <div className="text-xs text-white/70 mt-0.5">ชื่อระบบ องค์กร และ URL สำหรับใบรับรอง</div>
         </div>
-        <div style={s.cardBody}>
-          <div style={s.grid2}>
+        <div className="p-5">
+          <div className="grid grid-cols-2 gap-3.5">
             {FIELDS_GENERAL.map(f => (
-              <div key={f.key} style={t.fGroup}>
-                <label style={t.label}>
-                  {f.label}
-                  {changed[f.key] && <span style={{ color:'#f59e0b', marginLeft:6, fontSize:11 }}>● แก้ไขแล้ว</span>}
+              <div key={f.key}>
+                <label className="form-label">
+                  {f.label} <ChangedDot k={f.key} />
                 </label>
-                <input style={t.input} type="text" placeholder={f.placeholder}
+                <input className="form-input" type="text" placeholder={f.placeholder}
                   value={settings[f.key] || ''} onChange={e => handleChange(f.key, e.target.value)} />
               </div>
             ))}
           </div>
           {hasChanges && (
-            <div style={{ ...s.notice, marginBottom:0, marginTop:8 }}>
+            <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3.5 py-2.5 text-sm text-amber-800">
               ⚠️ มีการแก้ไขที่ยังไม่ได้บันทึก — คลิก "บันทึกการตั้งค่า" ด้านบน
             </div>
           )}
@@ -448,21 +398,23 @@ export default function AdminSettings() {
       </div>
 
       {/* ── Section 2: ออกแบบใบรับรอง ── */}
-      <div style={s.card}>
-        <div style={s.cardHd}>
-          <div style={s.cardTitle}>🎨 ออกแบบใบรับรอง</div>
-          <div style={s.cardSub}>เลือกรูปแบบใบรับรองสำหรับ PDF</div>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-3.5 overflow-hidden">
+        <div className="px-5 py-3.5" style={{ background: 'linear-gradient(135deg,#1a3a6b,#1a56a0)' }}>
+          <div className="font-bold text-white">🎨 ออกแบบใบรับรอง</div>
+          <div className="text-xs text-white/70 mt-0.5">เลือกรูปแบบใบรับรองสำหรับ PDF</div>
         </div>
-        <div style={s.cardBody}>
+        <div className="p-5">
 
           {/* Mode toggle */}
-          <div style={{ display:'flex', gap:4, padding:4, background:'#f1f5f9', borderRadius:10, width:'fit-content', marginBottom:20 }}>
-            <button type="button" onClick={() => handleChange('cert_design_mode', 'template')}
-              style={s.modeBtn(!isImageMode)}>
+          <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit mb-5">
+            <button type="button"
+              onClick={() => handleChange('cert_design_mode', 'template')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer border-none transition-all ${!isImageMode ? 'bg-white text-blue-600 shadow' : 'bg-transparent text-slate-500'}`}>
               📄 Template สำเร็จรูป
             </button>
-            <button type="button" onClick={() => handleChange('cert_design_mode', 'image')}
-              style={s.modeBtn(isImageMode)}>
+            <button type="button"
+              onClick={() => handleChange('cert_design_mode', 'image')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer border-none transition-all ${isImageMode ? 'bg-white text-blue-600 shadow' : 'bg-transparent text-slate-500'}`}>
               🖼️ ใช้รูปภาพ Background เอง
             </button>
           </div>
@@ -470,40 +422,38 @@ export default function AdminSettings() {
           {/* ── Template mode ── */}
           {!isImageMode && (
             <>
-              <div style={s.sectionHd}>รูปแบบ (Template)</div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
+              <div className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">รูปแบบ (Template)</div>
+              <div className="grid grid-cols-4 gap-3 mb-5">
                 {TEMPLATES.map(tpl => {
                   const isActive = activeTemplate === tpl.id;
                   const tplColor = settings.cert_primary_color || tpl.defaultColor;
                   return (
-                    <div key={tpl.id} style={s.tplCard(isActive)}
+                    <div key={tpl.id}
+                      className="rounded-xl overflow-hidden cursor-pointer bg-white"
+                      style={{ border: isActive ? '2px solid #2563eb' : '2px solid #e2e8f0', boxShadow: isActive ? '0 0 0 3px rgba(37,99,235,.1)' : 'none' }}
                       onClick={() => handleChange('cert_template', tpl.id)}>
-                      <div style={{ padding:8 }}>{tpl.mini(tplColor)}</div>
-                      <div style={{ padding:'8px 10px', borderTop: isActive ? '1px solid #bfdbfe' : '1px solid #f1f5f9',
-                                    background: isActive ? '#eff6ff' : '#fff' }}>
-                        <div style={{ fontSize:12, fontWeight:700, color: isActive ? '#1d4ed8' : '#374151' }}>
+                      <div className="p-2">{tpl.mini(tplColor)}</div>
+                      <div className={`px-2.5 py-2 border-t ${isActive ? 'border-blue-200 bg-blue-50' : 'border-slate-100 bg-white'}`}>
+                        <div className={`text-xs font-bold ${isActive ? 'text-blue-700' : 'text-slate-700'}`}>
                           {isActive && '✓ '}{tpl.label}
                         </div>
-                        <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>{tpl.desc}</div>
+                        <div className="text-xs text-slate-400 mt-0.5">{tpl.desc}</div>
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              <div style={s.grid2}>
+              <div className="grid grid-cols-2 gap-3.5">
                 {/* Primary color */}
-                <div style={t.fGroup}>
-                  <label style={t.label}>
-                    สีหลัก
-                    {changed.cert_primary_color && <span style={{ color:'#f59e0b', marginLeft:6, fontSize:11 }}>● แก้ไขแล้ว</span>}
-                  </label>
-                  <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <div>
+                  <label className="form-label">สีหลัก <ChangedDot k="cert_primary_color" /></label>
+                  <div className="flex gap-2 items-center">
                     <input type="color"
-                      style={{ width:38, height:38, borderRadius:8, border:'1px solid #e2e8f0', padding:2, cursor:'pointer', flexShrink:0 }}
+                      className="w-10 h-9 rounded-lg border border-slate-200 p-0.5 cursor-pointer shrink-0"
                       value={settings.cert_primary_color || activeTpl.defaultColor}
                       onChange={e => handleChange('cert_primary_color', e.target.value)} />
-                    <input type="text" style={{ ...t.input, fontFamily:'monospace', flex:1 }}
+                    <input type="text" className="form-input flex-1 font-mono"
                       placeholder={activeTpl.defaultColor}
                       value={settings.cert_primary_color || ''}
                       onChange={e => {
@@ -512,67 +462,55 @@ export default function AdminSettings() {
                       }} />
                     {settings.cert_primary_color && (
                       <button type="button" onClick={() => handleChange('cert_primary_color', '')}
-                        style={{ background:'none', border:'none', color:'#94a3b8', fontSize:12, cursor:'pointer', flexShrink:0 }}>✕ รีเซ็ต</button>
+                        className="text-slate-400 text-xs cursor-pointer bg-none border-none shrink-0">✕ รีเซ็ต</button>
                     )}
                   </div>
                 </div>
 
                 {/* Logo URL */}
-                <div style={t.fGroup}>
-                  <label style={t.label}>
-                    URL โลโก้
-                    {changed.cert_logo_url && <span style={{ color:'#f59e0b', marginLeft:6, fontSize:11 }}>● แก้ไขแล้ว</span>}
-                  </label>
-                  <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                    <input type="text" style={{ ...t.input, flex:1 }}
+                <div>
+                  <label className="form-label">URL โลโก้ <ChangedDot k="cert_logo_url" /></label>
+                  <div className="flex gap-2 items-center">
+                    <input type="text" className="form-input flex-1"
                       placeholder="https://...logo.png (เว้นว่าง = ใช้ตัวอักษร)"
                       value={settings.cert_logo_url || ''}
                       onChange={e => handleChange('cert_logo_url', e.target.value)} />
                     {settings.cert_logo_url && (
                       <img src={settings.cert_logo_url} alt="logo"
-                        style={{ width:32, height:32, objectFit:'contain', borderRadius:6, border:'1px solid #e2e8f0', flexShrink:0 }}
+                        className="w-8 h-8 object-contain rounded-lg border border-slate-200 shrink-0"
                         onError={e => e.target.style.display = 'none'} />
                     )}
                   </div>
                 </div>
 
                 {/* Logo text */}
-                <div style={t.fGroup}>
-                  <label style={t.label}>
-                    ตัวอักษรโลโก้
-                    {changed.cert_logo_text && <span style={{ color:'#f59e0b', marginLeft:6, fontSize:11 }}>● แก้ไขแล้ว</span>}
-                  </label>
-                  <input type="text" style={t.input}
+                <div>
+                  <label className="form-label">ตัวอักษรโลโก้ <ChangedDot k="cert_logo_text" /></label>
+                  <input type="text" className="form-input"
                     placeholder={`${(settings.site_name || 'BMS')[0]} (ใช้เมื่อไม่มี URL โลโก้)`}
                     value={settings.cert_logo_text || ''}
                     onChange={e => handleChange('cert_logo_text', e.target.value.slice(0, 3))} maxLength={3} />
                 </div>
 
                 {/* Signature name */}
-                <div style={t.fGroup}>
-                  <label style={t.label}>
-                    ชื่อผู้ลงนาม
-                    {changed.cert_signature_name && <span style={{ color:'#f59e0b', marginLeft:6, fontSize:11 }}>● แก้ไขแล้ว</span>}
-                  </label>
-                  <input type="text" style={t.input} placeholder="ผู้อำนวยการฝึกอบรม"
+                <div>
+                  <label className="form-label">ชื่อผู้ลงนาม <ChangedDot k="cert_signature_name" /></label>
+                  <input type="text" className="form-input" placeholder="ผู้อำนวยการฝึกอบรม"
                     value={settings.cert_signature_name || ''}
                     onChange={e => handleChange('cert_signature_name', e.target.value)} />
                 </div>
 
                 {/* Signature image */}
-                <div style={{ ...t.fGroup, gridColumn:'1 / -1' }}>
-                  <label style={t.label}>
-                    URL รูปลายมือชื่อ (ไม่บังคับ)
-                    {changed.cert_signature_url && <span style={{ color:'#f59e0b', marginLeft:6, fontSize:11 }}>● แก้ไขแล้ว</span>}
-                  </label>
-                  <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                    <input type="text" style={{ ...t.input, flex:1 }}
+                <div className="col-span-2">
+                  <label className="form-label">URL รูปลายมือชื่อ (ไม่บังคับ) <ChangedDot k="cert_signature_url" /></label>
+                  <div className="flex gap-2 items-center">
+                    <input type="text" className="form-input flex-1"
                       placeholder="https://...signature.png (เว้นว่าง = ไม่แสดงรูปลายมือชื่อ)"
                       value={settings.cert_signature_url || ''}
                       onChange={e => handleChange('cert_signature_url', e.target.value)} />
                     {settings.cert_signature_url && (
                       <img src={settings.cert_signature_url} alt="sig"
-                        style={{ height:32, maxWidth:80, objectFit:'contain', borderRadius:6, border:'1px solid #e2e8f0', flexShrink:0 }}
+                        className="h-8 max-w-[80px] object-contain rounded-lg border border-slate-200 shrink-0"
                         onError={e => e.target.style.display = 'none'} />
                     )}
                   </div>
@@ -584,22 +522,19 @@ export default function AdminSettings() {
           {/* ── Image Background mode ── */}
           {isImageMode && (
             <>
-              <div style={{ ...s.noticeBlue, flexDirection:'column' }}>
-                <div style={{ fontWeight:700, marginBottom:6 }}>🖼️ วิธีใช้ Background รูปภาพ</div>
-                <ol style={{ margin:0, paddingLeft:18, lineHeight:1.8 }}>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3.5 mb-4 text-sm text-blue-800">
+                <div className="font-bold mb-1.5">🖼️ วิธีใช้ Background รูปภาพ</div>
+                <ol className="m-0 pl-5 leading-loose">
                   <li>ออกแบบ certificate template ด้วย Canva / PowerPoint / Photoshop (แนะนำขนาด 1123×794 px แนวนอน)</li>
                   <li>Export เป็น PNG/JPG และอัปโหลดไว้ที่ใดก็ได้ (Google Drive, Cloudinary, Imgbb, GitHub ฯลฯ)</li>
                   <li>วาง URL ในช่องด้านล่าง แล้วลากช่องข้อมูลไปวางตำแหน่งที่ว่างไว้ในภาพ</li>
                 </ol>
               </div>
 
-              <div style={t.fGroup}>
-                <label style={t.label}>
-                  URL รูปภาพ Background
-                  {changed.cert_bg_image_url && <span style={{ color:'#f59e0b', marginLeft:6, fontSize:11 }}>● แก้ไขแล้ว</span>}
-                </label>
-                <div style={{ display:'flex', gap:8 }}>
-                  <input type="text" style={{ ...t.input, flex:1 }}
+              <div className="mb-3.5">
+                <label className="form-label">URL รูปภาพ Background <ChangedDot k="cert_bg_image_url" /></label>
+                <div className="flex gap-2">
+                  <input type="text" className="form-input flex-1"
                     placeholder="https://...certificate-template.png"
                     value={settings.cert_bg_image_url || ''}
                     onChange={e => {
@@ -612,29 +547,29 @@ export default function AdminSettings() {
                     }} />
                   {settings.cert_bg_image_url && (
                     <button type="button" onClick={() => handleChange('cert_bg_image_url', '')}
-                      style={{ ...t.btnDanger, ...t.btnSm }}>✕ ลบ</button>
+                      className="btn btn-danger btn-sm">✕ ลบ</button>
                   )}
                 </div>
-                <div style={{ fontSize:11, color:'#94a3b8', marginTop:4 }}>รองรับ PNG, JPG — วาง GitHub blob URL ได้เลย ระบบแปลงเป็น raw URL ให้อัตโนมัติ</div>
+                <div className="text-xs text-slate-400 mt-1">รองรับ PNG, JPG — วาง GitHub blob URL ได้เลย ระบบแปลงเป็น raw URL ให้อัตโนมัติ</div>
               </div>
 
-              <div style={{ ...s.grid2, marginBottom:16 }}>
-                <div style={t.fGroup}>
-                  <label style={t.label}>ชื่อผู้ลงนาม</label>
-                  <input type="text" style={t.input} placeholder="ผู้อำนวยการฝึกอบรม"
+              <div className="grid grid-cols-2 gap-3.5 mb-4">
+                <div>
+                  <label className="form-label">ชื่อผู้ลงนาม</label>
+                  <input type="text" className="form-input" placeholder="ผู้อำนวยการฝึกอบรม"
                     value={settings.cert_signature_name || ''}
                     onChange={e => handleChange('cert_signature_name', e.target.value)} />
                 </div>
-                <div style={t.fGroup}>
-                  <label style={t.label}>URL รูปลายมือชื่อ (ไม่บังคับ)</label>
-                  <input type="text" style={t.input} placeholder="https://...signature.png"
+                <div>
+                  <label className="form-label">URL รูปลายมือชื่อ (ไม่บังคับ)</label>
+                  <input type="text" className="form-input" placeholder="https://...signature.png"
                     value={settings.cert_signature_url || ''}
                     onChange={e => handleChange('cert_signature_url', e.target.value)} />
                 </div>
               </div>
 
-              <div style={t.label}>ลากวางตำแหน่งข้อมูลบนภาพ</div>
-              <div style={{ marginTop:8 }}>
+              <label className="form-label">ลากวางตำแหน่งข้อมูลบนภาพ</label>
+              <div className="mt-2">
                 <ImageCertBuilder
                   settings={settings}
                   onPosChange={v => handleChange('cert_field_positions', v)}
@@ -645,50 +580,49 @@ export default function AdminSettings() {
           )}
 
           {/* Preview */}
-          <div style={s.divider} />
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-            <div style={{ fontSize:13, fontWeight:600, color:'#374151' }}>ตัวอย่าง PDF</div>
-            <button type="button" onClick={() => setShowPreview(p => !p)}
-              style={{ ...t.btnGhost, fontSize:12 }}>
+          <div className="border-t border-slate-100 my-4" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-semibold text-slate-700">ตัวอย่าง PDF</div>
+            <button type="button" onClick={() => setShowPreview(p => !p)} className="btn btn-ghost btn-sm">
               {showPreview ? '▲ ซ่อน' : '▼ แสดงตัวอย่าง PDF'}
             </button>
           </div>
           {showPreview && (
-            <div style={{ display:'flex', justifyContent:'center', overflowX:'auto', padding:'8px 0' }}>
+            <div className="flex justify-center overflow-x-auto py-2">
               <CertPreviewCard cert={PREVIEW_CERT} settings={settings} scale={0.43} />
             </div>
           )}
           {!showPreview && (
-            <p style={{ fontSize:12, color:'#94a3b8' }}>คลิก "แสดงตัวอย่าง PDF" เพื่อดูผลลัพธ์ที่จะออกมาเป็น PDF จริง</p>
+            <p className="text-xs text-slate-400">คลิก "แสดงตัวอย่าง PDF" เพื่อดูผลลัพธ์ที่จะออกมาเป็น PDF จริง</p>
           )}
         </div>
       </div>
 
       {/* ── Section 3: EmailJS ── */}
-      <div style={s.card}>
-        <div style={s.cardHd}>
-          <div style={s.cardTitle}>📧 ตั้งค่าส่งอีเมลใบรับรอง (EmailJS)</div>
-          <div style={s.cardSub}>ใช้ Gmail ส่งได้เลย ไม่ต้อง domain พิเศษ ฟรี 200 อีเมล/เดือน</div>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-3.5 overflow-hidden">
+        <div className="px-5 py-3.5" style={{ background: 'linear-gradient(135deg,#1a3a6b,#1a56a0)' }}>
+          <div className="font-bold text-white">📧 ตั้งค่าส่งอีเมลใบรับรอง (EmailJS)</div>
+          <div className="text-xs text-white/70 mt-0.5">ใช้ Gmail ส่งได้เลย ไม่ต้อง domain พิเศษ ฟรี 200 อีเมล/เดือน</div>
         </div>
-        <div style={s.cardBody}>
+        <div className="p-5">
 
-          <div style={s.noticeBlue}>
-            <div style={{ fontWeight:700, marginBottom:8 }}>📋 วิธีตั้งค่า (ทำครั้งเดียว ~5 นาที)</div>
-            <ol style={{ margin:0, paddingLeft:18, lineHeight:1.9 }}>
-              <li>ไปที่ <a href="https://www.emailjs.com" target="_blank" rel="noopener noreferrer" style={{ fontWeight:700, color:'#1d4ed8' }}>emailjs.com</a> → สมัครฟรีด้วย Google</li>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3.5 mb-4 text-sm text-blue-800">
+            <div className="font-bold mb-2">📋 วิธีตั้งค่า (ทำครั้งเดียว ~5 นาที)</div>
+            <ol className="m-0 pl-5 leading-loose">
+              <li>ไปที่ <a href="https://www.emailjs.com" target="_blank" rel="noopener noreferrer" className="font-bold text-blue-700">emailjs.com</a> → สมัครฟรีด้วย Google</li>
               <li><strong>Add New Service</strong> → เลือก <strong>Gmail</strong> → เชื่อม Google account → คัดลอก <strong>Service ID</strong></li>
               <li><strong>Email Templates</strong> → <strong>Create New Template</strong> → คัดลอก <strong>Template ID</strong></li>
-              <li>ในหน้า Template: <strong>To Email:</strong> <code style={{ background:'#dbeafe', padding:'1px 5px', borderRadius:4 }}>{'{{to_email}}'}</code> · <strong>Subject:</strong> <code style={{ background:'#dbeafe', padding:'1px 5px', borderRadius:4 }}>{'ใบรับรอง – {{course_name}}'}</code></li>
+              <li>ในหน้า Template: <strong>To Email:</strong> <code className="bg-blue-100 px-1 py-0.5 rounded">{`{{to_email}}`}</code> · <strong>Subject:</strong> <code className="bg-blue-100 px-1 py-0.5 rounded">{`ใบรับรอง – {{course_name}}`}</code></li>
               <li>ไปที่ <strong>Account → General → Public Key</strong> → คัดลอก <strong>Public Key</strong></li>
             </ol>
           </div>
 
-          <details style={{ marginBottom:16 }}>
-            <summary style={{ cursor:'pointer', fontSize:13, fontWeight:600, color:'#374151', userSelect:'none', padding:'8px 0' }}>
+          <details className="mb-4">
+            <summary className="cursor-pointer text-sm font-semibold text-slate-700 select-none py-2">
               📄 คลิกเพื่อดู HTML Template สำหรับ EmailJS
             </summary>
-            <div style={{ marginTop:8, position:'relative' }}>
-              <pre style={{ background:'#1e293b', color:'#e2e8f0', fontSize:11, borderRadius:10, padding:16, overflowX:'auto', maxHeight:200, lineHeight:1.6, margin:0 }}>{`<div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+            <div className="mt-2 relative">
+              <pre className="bg-slate-800 text-slate-200 text-xs rounded-xl p-4 overflow-x-auto max-h-48 leading-relaxed m-0">{`<div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
   <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb);padding:24px;text-align:center;">
     <div style="color:#fff;font-size:18px;font-weight:700;">{{site_name}}</div>
     <div style="color:rgba(255,255,255,0.8);font-size:12px;">CERTIFICATE OF ACHIEVEMENT</div>
@@ -716,34 +650,29 @@ export default function AdminSettings() {
 </div>`}</pre>
               <button
                 onClick={() => { navigator.clipboard.writeText(document.querySelector('pre').textContent).then(() => alert('คัดลอกแล้ว!')); }}
-                style={{ position:'absolute', top:8, right:8, background:'#475569', color:'#fff', border:'none', borderRadius:6, padding:'4px 10px', fontSize:12, cursor:'pointer' }}>
+                className="absolute top-2 right-2 bg-slate-600 text-white border-none rounded px-2.5 py-1 text-xs cursor-pointer">
                 📋 คัดลอก
               </button>
             </div>
           </details>
 
-          <div style={s.grid3}>
+          <div className="grid grid-cols-3 gap-3.5">
             {FIELDS_EMAIL.map(f => (
-              <div key={f.key} style={t.fGroup}>
-                <label style={t.label}>
-                  {f.label}
-                  {changed[f.key] && <span style={{ color:'#f59e0b', marginLeft:6, fontSize:11 }}>● แก้ไขแล้ว</span>}
-                </label>
-                <input type={f.type || 'text'} style={t.input} placeholder={f.placeholder}
+              <div key={f.key}>
+                <label className="form-label">{f.label} <ChangedDot k={f.key} /></label>
+                <input type={f.type || 'text'} className="form-input" placeholder={f.placeholder}
                   value={settings[f.key] || ''} onChange={e => handleChange(f.key, e.target.value)} />
               </div>
             ))}
           </div>
 
           {settings.emailjs_service_id && settings.emailjs_template_id && settings.emailjs_public_key && (
-            <div style={{ background:'#ecfdf5', border:'1px solid #a7f3d0', borderRadius:9,
-                           padding:'10px 14px', fontSize:13, color:'#065f46', display:'flex', alignItems:'center', gap:8 }}>
+            <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-xl px-3.5 py-2.5 text-sm text-emerald-800 flex items-center gap-2">
               ✅ ตั้งค่า EmailJS ครบแล้ว พร้อมส่งอีเมล
             </div>
           )}
         </div>
       </div>
-
 
     </div>
   );

@@ -36,44 +36,29 @@ export default function CategoryRedirect() {
   const trainingUrl = settings.training_base_url || '/';
 
   return (
-    <div style={{ fontFamily:"'Anuphan','Sarabun',sans-serif", minHeight:'100vh', background:'#f1f5f9' }}>
+    <div className="min-h-screen bg-slate-100">
       <Navbar siteName={settings.site_name} />
-      <div style={{ maxWidth:540, margin:'0 auto', padding:'64px 16px', textAlign:'center' }}>
-        <div style={{ fontSize:56, marginBottom:14 }}>📋</div>
-        <h2 style={{ fontSize:22, fontWeight:700, color:'#1e293b', marginBottom:8 }}>
+      <div className="max-w-lg mx-auto px-4 py-16 text-center">
+        <div className="text-5xl mb-3.5">📋</div>
+        <h2 className="text-xl font-bold text-slate-800 mb-2">
           ยังไม่มีแบบทดสอบสำหรับหลักสูตรนี้
         </h2>
-        <p style={{ color:'#64748b', fontSize:14, lineHeight:1.7, marginBottom:24 }}>
-          หลักสูตร ID: <span style={{ fontFamily:'monospace', fontWeight:600, color:'#2563eb' }}>{catId}</span>
+        <p className="text-slate-500 text-sm leading-relaxed mb-6">
+          หลักสูตร ID: <span className="font-mono font-semibold text-blue-600">{catId}</span>
           <br />ยังไม่ได้เชื่อมกับแบบทดสอบ กรุณาติดต่อผู้ดูแลระบบ
         </p>
 
-        <div style={{ display:'flex', gap:12, justifyContent:'center', marginBottom:24 }}>
-          <Link to="/" style={{
-            padding:'10px 22px', background:'#2563eb', color:'#fff',
-            border:'none', borderRadius:10, fontSize:14, fontWeight:600,
-            textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6,
-          }}>
-            📝 ดูแบบทดสอบทั้งหมด
-          </Link>
-          <a href={trainingUrl} style={{
-            padding:'10px 22px', background:'#fff', color:'#374151',
-            border:'1.5px solid #e2e8f0', borderRadius:10, fontSize:14, fontWeight:600,
-            textDecoration:'none', display:'inline-flex', alignItems:'center', gap:6,
-          }}>
-            ← กลับระบบลงทะเบียน
-          </a>
+        <div className="flex gap-3 justify-center mb-6">
+          <Link to="/" className="btn btn-primary">📝 ดูแบบทดสอบทั้งหมด</Link>
+          <a href={trainingUrl} className="btn btn-secondary">← กลับระบบลงทะเบียน</a>
         </div>
 
-        <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:12,
-                      padding:'14px 18px', textAlign:'left', fontSize:13, color:'#1e40af' }}>
-          <div style={{ fontWeight:700, marginBottom:6 }}>👤 สำหรับ Admin</div>
-          <p style={{ margin:0, lineHeight:1.7 }}>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3.5 text-left text-sm text-blue-800">
+          <div className="font-bold mb-1.5">👤 สำหรับ Admin</div>
+          <p className="m-0 leading-relaxed">
             ไปที่ BMS Training Admin → แบบทดสอบ → จัดการหลักสูตร
             แล้วเลือก "ประเภทอบรม" ให้ตรงกับ Category ID&nbsp;
-            <code style={{ background:'#dbeafe', padding:'1px 6px', borderRadius:4, fontFamily:'monospace' }}>
-              {catId}
-            </code>
+            <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">{catId}</code>
           </p>
         </div>
       </div>
