@@ -23,7 +23,11 @@ function AttemptCard({ attempt }) {
       </div>
 
       <div className="text-xs text-slate-500 mb-2">
-        📚 {attempt.courses?.name || '-'} &nbsp;·&nbsp; 🕐 {fmtDateTime(attempt.completed_at || attempt.created_at)}
+        📚 {attempt.courses?.name || '-'}
+        {attempt.location?.name && (
+          <>&nbsp;·&nbsp; 🏫 {attempt.location.code ? `${attempt.location.code} ` : ''}{attempt.location.name}</>
+        )}
+        &nbsp;·&nbsp; 🕐 {fmtDateTime(attempt.completed_at || attempt.created_at)}
       </div>
 
       {attempt.status !== 'started' && (

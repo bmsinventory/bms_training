@@ -83,8 +83,11 @@ export default function Questions() {
   const [attempts,     setAttempts]    = useState([]);
   const [attLoading,   setAttLoading]  = useState(false);
   const [attFilter,    setAttFilter]   = useState('');
+  const [locFilter,    setLocFilter]   = useState(null);
+  const [locations,    setLocations]   = useState([]);
   const [delAttempt,   setDelAttempt]  = useState(null);
   const [clearConfirm, setClearConfirm] = useState(false);
+  const [clearByLocConfirm, setClearByLocConfirm] = useState(false);
   const [clearing,     setClearing]    = useState(false);
 
   async function load() {
@@ -99,6 +102,11 @@ export default function Questions() {
   }
 
   useEffect(() => { load(); }, [courseId]);
+
+  useEffect(() => {
+    supabase.from('locations').select('id,code,name').order('id')
+      .then(({ data }) => setLocations(data || []));
+  }, []);
 
   function openAdd() {
     setForm(EMPTY_Q);
@@ -196,10 +204,11 @@ export default function Questions() {
     setAttLoading(true);
     try {
       let q = supabase.from('quiz_attempts')
-        .select('*, certificates(cert_id)')
+        .select('*, certificates(cert_id), location:location_id(id, name, code)')
         .eq('course_id', courseId)
         .order('created_at', { ascending: false });
       if (attFilter) q = q.eq('status', attFilter);
+      if (locFilter !== null) q = q.eq('location_id', locFilter);
       const { data } = await q.limit(500);
       setAttempts(data || []);
     } finally { setAttLoading(false); }
@@ -207,7 +216,7 @@ export default function Questions() {
 
   useEffect(() => {
     if (activeTab === 'history') loadAttempts();
-  }, [activeTab, attFilter]);
+  }, [activeTab, attFilter, locFilter]);
 
   async function clearAllAttempts() {
     setClearing(true);
@@ -225,6 +234,26 @@ export default function Questions() {
     } catch (e) {
       toast.error('ลบไม่สำเร็จ: ' + e.message);
     } finally { setClearing(false); setClearConfirm(false); }
+  }
+
+  async function clearByLocation() {
+    if (locFilter === null) return;
+    setClearing(true);
+    try {
+      const { data: all } = await supabase.from('quiz_attempts')
+        .select('id').eq('course_id', courseId).eq('location_id', locFilter);
+      const ids = (all || []).map(a => a.id);
+      if (ids.length) {
+        await supabase.from('quiz_answers').delete().in('attempt_id', ids);
+        await supabase.from('certificates').delete().in('attempt_id', ids);
+        await supabase.from('quiz_attempts').delete().in('id', ids);
+      }
+      const locName = locations.find(l => l.id === locFilter)?.name || 'สาขานี้';
+      toast.success(`ลบประวัติสอบ ${ids.length} รายการของ${locName}แล้ว`);
+      setAttempts([]);
+    } catch (e) {
+      toast.error('ลบไม่สำเร็จ: ' + e.message);
+    } finally { setClearing(false); setClearByLocConfirm(false); }
   }
 
   async function deleteOneAttempt() {
@@ -263,6 +292,15 @@ export default function Questions() {
         onCancel={() => setClearConfirm(false)}
       />
       <ConfirmDialog
+        open={clearByLocConfirm}
+        title={`เคียร์ประวัติสอบ — ${locations.find(l => l.id === locFilter)?.name || 'สาขานี้'}`}
+        desc={`ลบประวัติสอบ ${attempts.length} รายการของสาขานี้\nรวมถึงคำตอบและใบรับรองที่เชื่อมอยู่ ข้อมูลจะหายถาวร`}
+        loading={clearing}
+        okLabel="🗑️ เคียร์ตามสาขา"
+        onOk={clearByLocation}
+        onCancel={() => setClearByLocConfirm(false)}
+      />
+      <ConfirmDialog
         open={!!delAttempt}
         title="ลบประวัติสอบ"
         desc={delAttempt ? `ลบรายการของ "${delAttempt.full_name}" (${delAttempt.email})\nข้อมูลจะหายถาวร` : ''}
@@ -285,7 +323,12 @@ export default function Questions() {
         {activeTab === 'questions' && (
           <button onClick={openAdd} className="btn btn-primary btn-sm">+ เพิ่มข้อสอบ</button>
         )}
-        {activeTab === 'history' && attempts.length > 0 && (
+        {activeTab === 'history' && attempts.length > 0 && locFilter !== null && (
+          <button onClick={() => setClearByLocConfirm(true)} className="btn btn-danger btn-sm">
+            🗑️ เคียร์สาขา {locations.find(l => l.id === locFilter)?.name || ''}
+          </button>
+        )}
+        {activeTab === 'history' && attempts.length > 0 && locFilter === null && (
           <button onClick={() => setClearConfirm(true)} className="btn btn-danger btn-sm">
             🗑️ เคียร์ทั้งหมด
           </button>
@@ -334,17 +377,35 @@ export default function Questions() {
       {activeTab === 'history' && (
         <div>
           {/* Filter bar */}
-          <div className="flex gap-2 items-center mb-3 flex-wrap">
-            <div className="flex gap-1">
-              {[['', 'ทั้งหมด'], ['PASS', '✅ ผ่าน'], ['FAIL', '❌ ไม่ผ่าน'], ['started', '⏳ ยังไม่เสร็จ']].map(([v, label]) => (
-                <button key={v}
-                  onClick={() => setAttFilter(v)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${attFilter === v ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                  {label}
-                </button>
-              ))}
+          <div className="flex flex-col gap-2 mb-3">
+            <div className="flex gap-2 items-center flex-wrap">
+              <div className="flex gap-1 flex-wrap">
+                {[['', 'ทั้งหมด'], ['PASS', '✅ ผ่าน'], ['FAIL', '❌ ไม่ผ่าน'], ['started', '⏳ ยังไม่เสร็จ']].map(([v, label]) => (
+                  <button key={v}
+                    onClick={() => setAttFilter(v)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${attFilter === v ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs text-slate-400 ml-auto">{attempts.length} รายการ</span>
             </div>
-            <span className="text-xs text-slate-400 ml-auto">{attempts.length} รายการ</span>
+            {locations.length > 0 && (
+              <div className="flex gap-1 flex-wrap">
+                <button
+                  onClick={() => setLocFilter(null)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${locFilter === null ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                  🌐 ทุกสาขา
+                </button>
+                {locations.map(loc => (
+                  <button key={loc.id}
+                    onClick={() => setLocFilter(loc.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${locFilter === loc.id ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                    🏫 {loc.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {attLoading ? <InlineLoader /> : attempts.length === 0 ? (
@@ -356,11 +417,12 @@ export default function Questions() {
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               {/* Table header */}
               <div className="grid text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-2.5 bg-slate-50 border-b border-slate-200"
-                style={{ gridTemplateColumns: '1fr 1.2fr 90px 80px 130px 40px' }}>
+                style={{ gridTemplateColumns: '1fr 1fr 80px 72px 90px 110px 40px' }}>
                 <div>ชื่อ</div>
                 <div>อีเมล</div>
                 <div>คะแนน</div>
                 <div>ผลสอบ</div>
+                <div>สาขา</div>
                 <div>วันที่สอบ</div>
                 <div />
               </div>
@@ -369,7 +431,7 @@ export default function Questions() {
                 {attempts.map(a => (
                   <div key={a.id}
                     className="grid items-center px-4 py-2.5 hover:bg-slate-50 transition-colors text-sm"
-                    style={{ gridTemplateColumns: '1fr 1.2fr 90px 80px 130px 40px' }}>
+                    style={{ gridTemplateColumns: '1fr 1fr 80px 72px 90px 110px 40px' }}>
                     <div className="font-medium text-slate-900 truncate pr-2">{a.full_name}</div>
                     <div className="text-slate-500 text-xs truncate pr-2">{a.email}</div>
                     <div className="text-slate-700 font-semibold">
@@ -380,6 +442,9 @@ export default function Questions() {
                       <span className={`badge ${a.status === 'PASS' ? 'badge-pass' : a.status === 'FAIL' ? 'badge-fail' : 'badge-gray'}`}>
                         {a.status === 'PASS' ? '✅ ผ่าน' : a.status === 'FAIL' ? '❌ ไม่ผ่าน' : '⏳ ยังไม่เสร็จ'}
                       </span>
+                    </div>
+                    <div className="text-xs text-slate-500 truncate pr-1">
+                      {a.location ? a.location.name : <span className="text-slate-300">—</span>}
                     </div>
                     <div className="text-xs text-slate-400">{fmtDateTime(a.completed_at || a.created_at)}</div>
                     <div>

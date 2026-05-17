@@ -226,7 +226,7 @@ export default function Home() {
                           key={cat.id}
                           cat={cat}
                           quiz={courseMap[cat.id]}
-                          onStart={() => courseMap[cat.id] && navigate(`/register/${courseMap[cat.id].id}`)}
+                          onStart={() => courseMap[cat.id] && navigate(`/register/${courseMap[cat.id].id}`, { state: { locationId: cat.location?.id ?? null, locationName: cat.location?.name ?? null } })}
                         />
                       ))}
                     </div>

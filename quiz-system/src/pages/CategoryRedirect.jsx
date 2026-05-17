@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Loading from '../components/Loading';
-import { getCourseByCategory, getSettings } from '../lib/supabase';
+import { getCourseByCategory, getSettings, getCategory } from '../lib/supabase';
 
 export default function CategoryRedirect() {
   const { catId }   = useParams();
@@ -13,13 +13,17 @@ export default function CategoryRedirect() {
   useEffect(() => {
     async function resolve() {
       try {
-        const [course, stg] = await Promise.all([
+        const [course, cat, stg] = await Promise.all([
           getCourseByCategory(catId),
+          getCategory(catId),
           getSettings(),
         ]);
         setSettings(stg);
         if (course) {
-          navigate(`/register/${course.id}`, { replace: true });
+          navigate(`/register/${course.id}`, {
+            replace: true,
+            state: { locationId: cat?.location?.id ?? null, locationName: cat?.location?.name ?? null },
+          });
         } else {
           setNotFound(true);
         }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation as useRouteLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { InlineLoader } from '../components/Loading';
 import { useToast } from '../contexts/ToastContext';
@@ -10,6 +10,7 @@ export default function Register() {
   const { courseId } = useParams();
   const navigate     = useNavigate();
   const toast        = useToast();
+  const { state: routeState } = useRouteLocation();
 
   const [course, setCourse]     = useState(null);
   const [settings, setSettings] = useState({});
@@ -52,12 +53,15 @@ export default function Register() {
           return;
         }
       }
+      console.log('[Register] routeState:', routeState);
       const attempt = await createAttempt({
-        course_id: courseId,
-        full_name: form.fullName.trim(),
-        email:     form.email.trim().toLowerCase(),
-        status:    'started',
+        course_id:   courseId,
+        full_name:   form.fullName.trim(),
+        email:       form.email.trim().toLowerCase(),
+        status:      'started',
+        ...(routeState?.locationId ? { location_id: routeState.locationId } : {}),
       });
+      console.log('[Register] attempt created:', attempt);
       navigate(`/quiz/${attempt.id}`, {
         state: { course, form: { ...form, fullName: form.fullName.trim() } },
       });

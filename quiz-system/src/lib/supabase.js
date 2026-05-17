@@ -154,7 +154,7 @@ export async function searchAttempts(query) {
   const q = query.trim();
   const { data, error } = await supabase
     .from('quiz_attempts')
-    .select('*, courses(name), certificates(cert_id, pdf_url, issued_at)')
+    .select('*, courses(name), certificates(cert_id, pdf_url, issued_at), location:location_id(id, name, code)')
     .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
     .in('status', ['PASS', 'FAIL'])
     .order('created_at', { ascending: false })
@@ -164,17 +164,18 @@ export async function searchAttempts(query) {
 }
 
 // ─── Admin: all attempts ────────────────────────────────────
-export async function getAllAttempts({ courseId, status, search, from, to } = {}) {
+export async function getAllAttempts({ courseId, status, search, from, to, locationId } = {}) {
   let q = supabase
     .from('quiz_attempts')
-    .select('*, courses(name), certificates(cert_id)')
+    .select('*, courses(name), certificates(cert_id), location:location_id(id, name, code)')
     .order('created_at', { ascending: false });
 
-  if (courseId) q = q.eq('course_id', courseId);
-  if (status)   q = q.eq('status', status);
-  if (search)   q = q.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
-  if (from)     q = q.gte('created_at', from);
-  if (to)       q = q.lte('created_at', to);
+  if (courseId)   q = q.eq('course_id', courseId);
+  if (status)     q = q.eq('status', status);
+  if (search)     q = q.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+  if (from)       q = q.gte('created_at', from);
+  if (to)         q = q.lte('created_at', to);
+  if (locationId) q = q.eq('location_id', locationId);
 
   const { data, error } = await q.limit(500);
   if (error) throw error;
@@ -227,6 +228,15 @@ export async function logEmail(payload) {
 export async function getLocations() {
   const { data } = await supabase.from('locations').select('id,code,name').order('id');
   return data || [];
+}
+
+export async function getCategory(id) {
+  const { data: cat } = await supabase
+    .from('categories').select('id,name,site').eq('id', Number(id)).single();
+  if (!cat) return null;
+  const { data: loc } = await supabase
+    .from('locations').select('id,code,name').eq('code', cat.site).maybeSingle();
+  return { ...cat, location: loc || null };
 }
 
 // ─── Training categories with location info ────────────────

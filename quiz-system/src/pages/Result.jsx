@@ -154,7 +154,7 @@ export default function Result() {
 
           <div className="grid grid-cols-2 gap-2.5">
             <button onClick={() => navigate('/')} className="btn btn-ghost w-full justify-center">← กลับหน้าหลัก</button>
-            <button onClick={() => navigate(`/register/${attempt.course_id}`)} className="btn btn-secondary w-full justify-center">🔄 สอบใหม่</button>
+            <button onClick={() => navigate(`/register/${attempt.course_id}`, { state: { locationId: attempt.location_id ?? null } })} className="btn btn-secondary w-full justify-center">🔄 สอบใหม่</button>
           </div>
         </div>
 
