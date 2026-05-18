@@ -17,6 +17,7 @@ import Courses        from './pages/admin/Courses';
 import Questions      from './pages/admin/Questions';
 import Results        from './pages/admin/Results';
 import AdminSettings  from './pages/admin/Settings';
+import Documents      from './pages/admin/Documents';
 
 export default function App() {
   return (
@@ -41,6 +42,7 @@ export default function App() {
               <Route path="questions/:courseId" element={<Questions />} />
               <Route path="results"         element={<Results />} />
               <Route path="settings"        element={<AdminSettings />} />
+              <Route path="documents"       element={<Documents />} />
             </Route>
           </Routes>
         </ToastProvider>

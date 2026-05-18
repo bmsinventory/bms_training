@@ -11,7 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=8">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -319,6 +319,7 @@
     <button class="admin-tab" onclick="switchAdminTab('loginverify')"><i class="ti ti-shield-check"></i> ตรวจสอบสิทธิ์</button>
     <button class="admin-tab" onclick="switchAdminTab('survey')"><i class="ti ti-chart-radar"></i> ผลประเมิน</button>
     <button class="admin-tab" onclick="switchAdminTab('quiz')"><i class="ti ti-pencil-check"></i> แบบทดสอบ</button>
+    <button class="admin-tab" onclick="switchAdminTab('print')"><i class="ti ti-printer"></i> พิมพ์เอกสาร</button>
   </div>
 
   <!-- Sessions -->
@@ -611,6 +612,93 @@
       </div>
     </div>
     <iframe id="quiz-admin-frame" src="" style="width:100%;height:750px;border:none;border-radius:var(--radius);background:#f9fafb;display:block;box-shadow:var(--shadow);"></iframe>
+  </div>
+
+  <!-- Print Documents -->
+  <div class="admin-section" id="asec-print" style="height:calc(100vh - 70px);flex-direction:column;overflow:hidden;padding:0;">
+    <div style="display:grid;grid-template-columns:270px 1fr;gap:0;align-items:stretch;flex:1;min-height:0;overflow:hidden;">
+
+      <!-- Config column -->
+      <div style="overflow-y:auto;height:100%;border-right:1px solid var(--border);padding:12px;">
+        <!-- Title card -->
+        <div class="card" style="margin-bottom:12px;padding:14px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:10px;">หัวข้อเอกสาร</div>
+          <div class="form-group">
+            <label class="form-label" style="font-size:12px;">เลือกจากรายการ</label>
+            <select class="form-control" id="print-title-sel" onchange="onPrintTitleSel()" style="font-size:13px;"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size:12px;">หรือพิมพ์หัวข้อเอง</label>
+            <textarea class="form-control" id="print-title-txt" rows="3" placeholder="พิมพ์หัวข้อที่ต้องการ..." style="font-size:13px;resize:none;" oninput="updatePrintPreview()"></textarea>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="width:100%;gap:6px;margin-top:4px;" onclick="openDocTitleModal()">
+            <i class="ti ti-edit"></i>จัดการหัวข้อ (เพิ่ม / แก้ไข / ลบ)
+          </button>
+        </div>
+
+        <!-- Doc info card -->
+        <div class="card" style="margin-bottom:12px;padding:14px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:10px;">ข้อมูลเอกสาร</div>
+          <div class="form-group">
+            <label class="form-label" style="font-size:12px;">สถานพยาบาล</label>
+            <select class="form-control" id="print-loc-sel" onchange="onPrintLocSel()" style="font-size:13px;"><option value="">— เลือกสาขา —</option></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size:12px;">วันที่</label>
+            <input type="date" class="form-control" id="print-date" onchange="updatePrintPreview()" style="font-size:13px;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size:12px;">จำนวนแถว (5–100)</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="number" class="form-control" id="print-rows" value="25" min="5" max="100" oninput="updatePrintPreview()" style="font-size:13px;width:90px;">
+              <span style="font-size:12px;color:var(--text-muted);">แถว</span>
+            </div>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:4px;">
+            <input type="checkbox" id="print-officer" onchange="onPrintOfficerToggle()">
+            <span>แสดงช่อง "เจ้าหน้าที่"</span>
+          </label>
+          <div id="print-officer-sel-wrap" style="display:none;margin-top:8px;">
+            <label class="form-label" style="font-size:12px;">ชื่อเจ้าหน้าที่</label>
+            <div id="print-officer-loading" style="display:none;font-size:12px;color:var(--text-muted);padding:4px 0;">⏳ กำลังโหลดรายชื่อ...</div>
+            <select class="form-control" id="print-officer-sel" onchange="updatePrintPreview()" style="font-size:13px;"></select>
+          </div>
+        </div>
+
+        <!-- Signatories card -->
+        <div class="card" style="padding:14px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:10px;">ผู้ลงนาม</div>
+          <div style="background:#EFF6FF;border-radius:8px;padding:10px;margin-bottom:10px;">
+            <div style="font-size:11px;font-weight:700;color:#1d4ed8;margin-bottom:8px;">ซ้าย — BMS</div>
+            <div class="form-group"><input class="form-control" id="print-lname" placeholder="ชื่อ-นามสกุล" oninput="updatePrintPreview()" style="font-size:13px;"></div>
+            <div class="form-group"><input class="form-control" id="print-lpos" placeholder="ตำแหน่ง" oninput="updatePrintPreview()" style="font-size:13px;"></div>
+            <div style="font-size:11px;color:#93c5fd;margin-top:2px;">บริษัท บางกอก เมดิคอล ซอฟต์แวร์ จำกัด</div>
+          </div>
+          <div style="background:#F8FAFC;border-radius:8px;padding:10px;margin-bottom:10px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">ขวา — สถานพยาบาล</div>
+            <div class="form-group"><input class="form-control" id="print-rname" placeholder="ชื่อ-นามสกุล" oninput="updatePrintPreview()" style="font-size:13px;"></div>
+            <div class="form-group"><input class="form-control" id="print-rpos" placeholder="ตำแหน่ง" oninput="updatePrintPreview()" style="font-size:13px;"></div>
+            <div class="form-group"><input class="form-control" id="print-rinst" placeholder="ชื่อหน่วยงาน / โรงพยาบาล" oninput="updatePrintPreview()" style="font-size:13px;"></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="width:100%;gap:6px;" onclick="savePrintSignatories()">
+            <i class="ti ti-device-floppy"></i>บันทึกเป็นค่าเริ่มต้น
+          </button>
+        </div>
+      </div>
+
+      <!-- Preview column -->
+      <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:#e8ecf0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--border);background:#fff;flex-shrink:0;">
+          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">ตัวอย่างเอกสาร</span>
+          <button class="btn btn-primary btn-sm" onclick="doPrint()" style="gap:6px;">
+            <i class="ti ti-printer"></i>พิมพ์เอกสาร
+          </button>
+        </div>
+        <div style="flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px;" id="print-preview-wrap">
+          <div id="print-preview" style="display:contents;"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Login Verify -->
@@ -1288,6 +1376,22 @@
   </div>
 </div>
 
-<script src="app.js?v=8"></script>
+<!-- Doc Title Management Modal -->
+<div class="modal-overlay" id="modal-doc-titles">
+  <div class="modal modal-wide">
+    <div class="modal-title"><i class="ti ti-clipboard-list"></i>จัดการหัวข้อเอกสาร</div>
+    <div id="doc-title-list" style="max-height:45vh;overflow-y:auto;margin-bottom:12px;"></div>
+    <div style="display:flex;gap:8px;margin-bottom:4px;">
+      <textarea class="form-control" id="doc-new-title" rows="2" placeholder="พิมพ์หัวข้อใหม่..." style="resize:none;font-size:13px;flex:1;"></textarea>
+      <button class="btn btn-primary btn-sm" style="white-space:nowrap;align-self:flex-end;" onclick="addDocTitle()"><i class="ti ti-plus"></i>เพิ่ม</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-doc-titles')"><i class="ti ti-x"></i>ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveDocTitles()"><i class="ti ti-device-floppy"></i>บันทึกทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js?v=9"></script>
 </body>
 </html>

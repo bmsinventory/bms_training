@@ -178,3 +178,11 @@
 .qc-chk { display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 50%; background: var(--c); color: #fff; box-shadow: 0 3px 10px var(--glow); }
 .qc-chk-lg { width: 26px; height: 26px; }
 .qc-chk-sm { width: 22px; height: 22px; }
+
+/* ─── Print styles ─────────────────────────────────── */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+}

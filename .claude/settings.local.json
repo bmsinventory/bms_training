@@ -38,7 +38,15 @@
       "Bash(Copy-Item -Recurse -Force \"quiz-system\\\\dist\\\\*\" \"quiz\\\\\" 2>&1; Write-Output \"Done\")",
       "Bash(xcopy /E /Y \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\quiz-system\\\\dist\\\\*\" \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\quiz\\\\\" 2>&1)",
       "Bash(npx vite *)",
-      "Bash(start cmd *)"
+      "Bash(start cmd *)",
+      "Bash(node --check \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\app.js\")",
+      "Read(//d/ส่วนตัว/พัฒนาโprograms/inv - bms_training/**)",
+      "Bash(node --input-type=module)",
+      "Bash('\\){inTick=false;}continue;}if\\(c===')",
+      "Bash(node -e \"const fs=require\\('fs'\\);const code=fs.readFileSync\\('d:/ส่วนตัว/พัฒนาโปรแกรม/inv - bms_training/app.js','utf8'\\);let braces=0,parens=0,brackets=0,ticks=0,lineNum=1,lastBrace=-1,lastParen=-1,lastBracket=-1,lastTick=-1;let inSingle=false,inDouble=false,inTick=false,escaped=false;for\\(let i=0;i<code.length;i++\\){const c=code[i];if\\(c==='\\\\n'\\)lineNum++;if\\(escaped\\){escaped=false;continue;}if\\(c==='\\\\\\\\\\\\\\\\'\\){escaped=true;continue;}if\\(inSingle\\){if\\(c==='+'\\)inSingle=false;continue;}if\\(inDouble\\){if\\(c==='\\\\\"'\\)inDouble=false;continue;}if\\(inTick\\){if\\(c==='`'\\){inTick=false;}continue;}if\\(c==='`'\\){inTick=true;ticks++;lastTick=lineNum;continue;}if\\(c==='+'\\)inSingle=true;if\\(c==='\\\\\"'\\)inDouble=true;if\\(!inSingle&&!inDouble&&!inTick\\){if\\(c==='{'\\){braces++;lastBrace=lineNum;}if\\(c==='}'\\)braces--;if\\(c==='\\('\\){parens++;lastParen=lineNum;}if\\(c==='\\)'\\)parens--;if\\(c==='['\\){brackets++;lastBracket=lineNum;}if\\(c===']'\\)brackets--;}}console.log\\('braces',braces,'lastAt',lastBrace\\);console.log\\('parens',parens,'lastAt',lastParen\\);console.log\\('brackets',brackets,'lastAt',lastBracket\\);\")",
+      "Bash(node check_syntax.js)",
+      "Bash(node --check app.js)",
+      "Bash(Remove-Item \"d:\\\\ส่วนตัว\\\\พัฒนาโปรแกรม\\\\inv - bms_training\\\\check_syntax.js\")"
     ],
     "additionalDirectories": [
       "d:\\ส่วนตัว\\พัฒนาโปรแกรม\\inv - bms_training\\quiz-system\\src",

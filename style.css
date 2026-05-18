@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&family=Sarabun:ital,wght@0,400;0,600;0,700;1,400&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   /* Brand */
@@ -367,6 +367,7 @@ tr:hover td{background:#f8fafc}
 .admin-tab:hover{background:var(--primary-light);color:var(--primary)}
 .admin-tab.active{background:var(--primary);color:#fff}
 .admin-section{display:none}.admin-section.active{display:block}
+#asec-print.active{display:flex}
 /* ── Desktop wide (≥ 1280px): 4 columns ─────── */
 @media(min-width:1280px){
   .cat-grid{grid-template-columns:repeat(4,1fr)}
@@ -409,4 +410,40 @@ tr:hover td{background:#f8fafc}
   .cat-card:hover{transform:none;box-shadow:var(--shadow-sm);border-color:var(--border)}
   .cat-card:active{transform:scale(.98);box-shadow:var(--shadow-md);border-color:var(--primary-mid)}
   .cat-cta-btn:hover{box-shadow:none}
+}
+
+/* ── Preview panel shared document styles ── */
+.pv-title{font-size:15px;font-weight:700;text-align:center;border:1.5px solid #222;padding:5px 8px;font-family:'Sarabun','TH Sarabun New','Prompt',sans-serif;}
+.pv-info{width:100%;border-collapse:collapse;border:1.5px solid #222;}
+.pv-info td{padding:3px 7px;border:1px solid #999;font-size:13px;font-family:'Sarabun','TH Sarabun New','Prompt',sans-serif;}
+.pv-ph{flex-shrink:0;}
+.pv-tbl{width:100%;border-collapse:collapse;table-layout:fixed;}
+.pv-tbl th{border:1.5px solid #222;padding:4px 5px;text-align:center;font-size:13px;background:#f0f0f0;font-weight:700;font-family:'Sarabun','TH Sarabun New','Prompt',sans-serif;}
+.pv-tbl td{border:1px solid #999;padding:0;font-size:13px;font-family:'Sarabun','TH Sarabun New','Prompt',sans-serif;}
+.pv-phtbl{flex-shrink:0;margin-bottom:-1px;}
+.pv-dtbl{flex-shrink:0;}
+.pv-pf{flex-shrink:0;}
+.pv-sig{display:flex;justify-content:space-between;padding:0 8mm;margin-top:5mm;}
+.sig-blk{text-align:center;width:44%;}
+.sig-line{border-bottom:1px solid #333;width:55mm;margin:0 auto 3px;}
+.sig-lbl{font-size:12.5px;line-height:1.75;font-family:'Sarabun','TH Sarabun New','Prompt',sans-serif;}
+.pg-num{text-align:center;font-size:11px;color:#666;margin-top:2mm;}
+
+@media print{
+  /* When NOT on print-docs tab: hide everything */
+  body:not(.print-docs)>*{display:none!important;}
+
+  /* When on print-docs tab: show only the document preview */
+  body.print-docs>*:not(#page-admin){display:none!important;}
+  body.print-docs #page-admin{display:block!important;}
+  body.print-docs .admin-tabs,
+  body.print-docs .admin-section:not(#asec-print){display:none!important;}
+  body.print-docs #asec-print{display:block!important;height:auto!important;overflow:visible!important;}
+  body.print-docs #asec-print>div{display:block!important;height:auto!important;overflow:visible!important;}
+  body.print-docs #asec-print>div>div:first-child,
+  body.print-docs #asec-print>div>div:last-child>div:first-child{display:none!important;}
+  body.print-docs #asec-print>div>div:last-child{display:block!important;height:auto!important;overflow:visible!important;}
+  body.print-docs #print-preview-wrap{display:block!important;overflow:visible!important;padding:0!important;background:none!important;}
+  body.print-docs #print-preview{display:block!important;}
+  body.print-docs #print-preview>div{box-shadow:none!important;width:auto!important;min-height:0!important;padding:0!important;margin:0!important;zoom:1!important;}
 }

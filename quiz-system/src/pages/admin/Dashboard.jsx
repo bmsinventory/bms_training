@@ -104,10 +104,11 @@ export default function Dashboard() {
       </div>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-3 gap-3.5 mb-4">
-        <QuickActionCard to="/admin/courses"  icon="📚" title="จัดการหลักสูตร" sub="เพิ่ม/แก้ไข/ลบหลักสูตร"  color="#2563eb" />
-        <QuickActionCard to="/admin/results"  icon="📋" title="ดูผลสอบ"        sub="ค้นหา กรอง Export"        color="#059669" />
-        <QuickActionCard to="/admin/settings" icon="⚙️" title="ตั้งค่าระบบ"   sub="Email, ใบรับรอง, ทั่วไป" color="#d97706" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-4">
+        <QuickActionCard to="/admin/courses"   icon="📚" title="จัดการหลักสูตร" sub="เพิ่ม/แก้ไข/ลบหลักสูตร"  color="#2563eb" />
+        <QuickActionCard to="/admin/results"   icon="📋" title="ดูผลสอบ"        sub="ค้นหา กรอง Export"        color="#059669" />
+        <QuickActionCard to="/admin/documents" icon="🖨️" title="พิมพ์เอกสาร"   sub="ใบลงชื่อ Stand by / อบรม"  color="#7c3aed" />
+        <QuickActionCard to="/admin/settings"  icon="⚙️" title="ตั้งค่าระบบ"   sub="Email, ใบรับรอง, ทั่วไป"  color="#d97706" />
       </div>
 
       {/* Recent attempts */}

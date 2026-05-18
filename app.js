@@ -736,6 +736,7 @@ function switchAdminTab(name){
   document.getElementById('asec-'+name).classList.add('active');
   if(name==='survey'){_initSvdSiteSelect();loadSurveyDashboard();}
   if(name==='quiz'){_initQuizAdmin();}
+  if(name==='print'){initPrintSection();}
 }
 
 /* ══════════════════ QUIZ ADMIN EMBED ══════════════════ */
@@ -4022,119 +4023,137 @@ function executePrintForm(){
   const signerOrg=(document.getElementById('pf-signer-org')?.value||hospital).trim();
   const totalRows=Math.max(10,Math.min(60,parseInt(document.getElementById('pf-rows').value||25)));
   const regs=registrations.filter(r=>r.sessionId===sid);
-  // Build table rows
-  let rowsHtml='';
-  for(let i=0;i<totalRows;i++){
-    const r=regs[i];
-    rowsHtml+=`<tr>
-      <td style="text-align:center;padding:4px 6px;">${i+1}</td>
-      <td style="padding:4px 8px;">${r?`${r.prefix||''}${r.fname} ${r.lname}`:''}</td>
-      <td style="padding:4px 8px;">${r?r.position||'':''}</td>
-      <td style="padding:4px 8px;">${r?r.dept||'':''}</td>
-      <td style="padding:4px 8px;"></td>
-    </tr>`;
-  }
-  const dateStr=fmtDate(s.date);
+  const dateStr=_isoToThaiDate(s.date);
   const timeStr=`${s.timeStart||''}–${s.timeEnd||''} น.`;
-  const _logoBase=window.location.href.replace(/[^/]*(\?.*)?$/, '');
-  const html=`<!DOCTYPE html>
-<html lang="th">
-<head>
+  const _logoBase=window.location.href.replace(/[^/]*(\?.*)?$/,'');
+  const PAGE_SIZE=25;
+  const numPages=Math.ceil(totalRows/PAGE_SIZE);
+
+  const COLS=`<colgroup>
+    <col style="width:9mm"><col><col style="width:36mm"><col style="width:36mm"><col style="width:43mm">
+  </colgroup>`;
+  const THEAD=`<thead><tr>
+    <th>ลำดับ</th><th>ชื่อ – นามสกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th>ลายมือชื่อ</th>
+  </tr></thead>`;
+
+  // build header HTML (reused on each page)
+  const pageHeaderHtml=`
+  <div class="page-header">
+    <img style="height:18mm;width:auto;display:block;margin-bottom:2mm;" src="${_logoBase}bms-logo.png" onerror="this.style.display='none';">
+    <div class="doc-title">ใบเซ็นต์ชื่อผู้เข้าร่วมอบรมการใช้งานโปรแกรม ${_esc(program)}</div>
+    <table class="info-tbl">
+      <tr>
+        <td style="width:55%"><span class="lbl">สถานพยาบาล :</span> ${_esc(hospital)}</td>
+        <td><span class="lbl">วันที่ :</span> ${dateStr} เวลา ${timeStr}</td>
+      </tr>
+      <tr>
+        <td><span class="lbl">ระบบงาน :</span> ${_esc(system)}</td>
+        <td><span class="lbl">วิทยากร :</span> ${_esc(s.trainer||'—')}</td>
+      </tr>
+      ${details?`<tr><td colspan="2"><span class="lbl">รายละเอียด :</span> ${_esc(details)}</td></tr>`:''}
+    </table>
+  </div>
+`;
+
+  // build footer HTML per page
+  function pageFooterHtml(pn){
+    return`<div class="page-footer">
+    <div class="sig">
+      <div class="sig-blk">
+        <div class="sig-line"></div>
+        <div class="sig-lbl">(${_esc(bmsName)||'…………………………………………'})</div>
+        <div class="sig-lbl">ตำแหน่ง ${_esc(bmsPos)}</div>
+        <div class="sig-lbl">${_esc(bmsOrg)}</div>
+      </div>
+      <div class="sig-blk">
+        <div class="sig-line"></div>
+        <div class="sig-lbl">(${_esc(signerName)||'…………………………………………'})</div>
+        <div class="sig-lbl">ตำแหน่ง ${_esc(signerPos)||'…………………………………'}</div>
+        <div class="sig-lbl">${_esc(signerOrg)||'…………………………………………'}</div>
+      </div>
+    </div>
+    <div class="pg-num">หน้า ${pn} / ${numPages}</div>
+    ${numPages > 1 ? `<div class="pg-num">หน้า ${pn} / ${numPages}</div>` : ''}
+  </div>`;
+  }
+
+  // build pages HTML
+  let pagesHtml='';
+  for(let p=0;p<numPages;p++){
+    const start=p*PAGE_SIZE;
+    const end=Math.min(start+PAGE_SIZE,totalRows);
+    let tbody='';
+    for(let i=start;i<end;i++){
+      const r=regs[i];
+      tbody+=`<tr>
+        <td style="text-align:center;">${i+1}</td>
+        <td>${r?_esc(`${r.prefix||''}${r.fname||''} ${r.lname||''}`.trim()):''}</td>
+        <td>${r?_esc(r.position||''):''}</td>
+        <td>${r?_esc(r.dept||''):''}</td>
+        <td></td>
+      </tr>`;
+    }
+    pagesHtml+=`<div class="page">
+      ${pageHeaderHtml}
+      <div class="page-content">
+        <table class="doc-tbl">${COLS}${THEAD}<tbody>${tbody}</tbody></table>
+      </div>
+      ${pageFooterHtml(p+1)}
+    </div>`;
+  }
+
+  const html=`<!DOCTYPE html><html lang="th"><head>
 <meta charset="UTF-8">
-<title>ใบเซ็นต์ชื่อ — ${s.name}</title>
+<title>ใบเซ็นต์ชื่อ — ${_esc(s.name)}</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'TH SarabunPSK','Sarabun','Prompt',Arial,sans-serif;font-size:15px;color:#111;padding:14mm 14mm 14mm 14mm;background:#fff;}
-.header-img{display:block;height:72px;width:auto;margin-bottom:8px;}
-.header-fallback{display:flex;gap:14px;align-items:flex-start;margin-bottom:10px;}
-.company-info{font-size:11.5px;line-height:1.7;color:#333;}
-.company-info strong{font-size:13px;color:#111;}
-.form-title{font-size:16px;font-weight:bold;text-align:center;border:1.5px solid #111;padding:7px 10px;margin-bottom:0;}
-.info-tbl{width:100%;border-collapse:collapse;border:1.5px solid #111;margin-bottom:10px;}
-.info-tbl td{padding:5px 9px;border:1px solid #999;font-size:14px;line-height:1.5;}
-.info-tbl .lbl{font-weight:700;white-space:nowrap;}
-.main-tbl{width:100%;border-collapse:collapse;}
-.main-tbl th{border:1.5px solid #111;padding:6px 8px;text-align:center;font-size:14px;background:#f4f4f4;font-weight:bold;}
-.main-tbl td{border:1px solid #888;padding:0;height:22px;}
-.main-tbl td span{display:block;padding:2px 7px;font-size:13.5px;height:100%;line-height:22px;}
-.footer{display:flex;justify-content:space-between;margin-top:28px;page-break-inside:avoid;}
-.footer-blk{text-align:center;width:44%;}
-.footer-line{border-bottom:1px solid #333;width:260px;margin:0 auto 5px;}
-.footer-lbl{font-size:13.5px;line-height:1.8;}
-.no-print{display:block;}
-@media print{
-  body{padding:8mm 10mm;}
-  .no-print{display:none!important;}
-  @page{size:A4 portrait;margin:8mm 10mm;}
+body{font-family:'Sarabun','TH Sarabun New','Prompt',Arial,sans-serif;font-size:13px;color:#111;background:#555;}
+.page{
+  width:210mm; height:297mm; box-sizing:border-box;
+  padding:4mm 7mm 6mm 5.5mm;
+  margin:1cm auto; background:white; box-shadow:0 0 10px rgba(0,0,0,0.5);
+  display:flex; flex-direction:column;
 }
-</style>
-</head>
-<body>
-<!-- Header: full image if available, fallback to SVG + text -->
-<img class="header-img" id="hdr-img"
-  src="${_logoBase}bms-logo.png"
-  alt="BMS Header"
-  onerror="this.style.display='none';document.getElementById('hdr-fallback').style.display='flex';">
-<div class="header-fallback" id="hdr-fallback" style="display:none;">
-  <svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
-    <path d="M40 74 C39 73 5 53 5 29 C5 15 16 5 28 5 C34 5 39 9 40 12 C41 9 46 5 52 5 C64 5 75 15 75 29 C75 53 41 73 40 74Z" fill="#c0392b"/>
-    <path d="M10 48 C20 40 31 38 40 42 C49 46 60 49 70 44" stroke="#1a5899" stroke-width="6" fill="none" stroke-linecap="round"/>
-    <path d="M11 57 C21 49 32 47 41 51 C50 55 61 58 71 53" stroke="#1a5899" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.6"/>
-    <text x="40" y="43" text-anchor="middle" fill="white" font-family="Arial Black,sans-serif" font-weight="900" font-size="17" letter-spacing="1">BMS</text>
-    <text x="59" y="32" fill="white" font-family="Arial,sans-serif" font-size="7">&#174;</text>
-  </svg>
-  <div class="company-info">
-    <strong>บริษัท บางกอก เมดิคอล ซอฟต์แวร์ จำกัด (สำนักงานใหญ่)</strong><br>
-    เลขที่ 2 ชั้น 2 จ.สุขสวัสดิ์ 33 แขวง/เขต ราษฎร์บูรณะ กรุงเทพมหานคร<br>
-    โทรศัพท์ 0-2427-9991 โทรสาร 0-2873-0292<br>
-    เลขที่ประจำตัวผู้เสียภาษี 0105548152334
-  </div>
-</div>
-<div class="form-title">ใบเซ็นต์ชื่อผู้เข้าร่วมอบรมการใช้งานโปรแกรม ${_esc(program)}</div>
-<table class="info-tbl">
-  <tr>
-    <td width="50%"><span class="lbl">สถานพยาบาล :</span> ${_esc(hospital)}</td>
-    <td width="50%"><span class="lbl">วันที่ :</span> ${dateStr} เวลา ${timeStr}</td>
-  </tr>
-  <tr>
-    <td><span class="lbl">ระบบงาน :</span> ${_esc(system)}</td>
-    <td><span class="lbl">วิทยากร :</span> ${_esc(s.trainer||'-')}</td>
-  </tr>
-  <tr>
-    <td colspan="2"><span class="lbl">รายละเอียด :</span> ${_esc(details)}</td>
-  </tr>
-</table>
-<table class="main-tbl">
-  <thead>
-    <tr>
-      <th style="width:50px;">ลำดับ</th>
-      <th style="min-width:180px;">ชื่อ – นามสกุล</th>
-      <th style="min-width:140px;">ตำแหน่ง</th>
-      <th style="min-width:140px;">แผนก</th>
-      <th style="width:140px;">ลายมือชื่อ</th>
-    </tr>
-  </thead>
-  <tbody>${rowsHtml}</tbody>
-</table>
-<div class="footer">
-  <div class="footer-blk">
-    <div class="footer-line"></div>
-    <div class="footer-lbl">(${_esc(bmsName)||'..........................................'})</div>
-    <div class="footer-lbl">ตำแหน่ง ${_esc(bmsPos)}</div>
-    <div class="footer-lbl">${_esc(bmsOrg)}</div>
-  </div>
-  <div class="footer-blk">
-    <div class="footer-line"></div>
-    <div class="footer-lbl">(${_esc(signerName)||'..........................................'})</div>
-    <div class="footer-lbl">ตำแหน่ง ${_esc(signerPos)||'........................................'}</div>
-    <div class="footer-lbl">${_esc(signerOrg)||'........................................'}</div>
-  </div>
-</div>
-<div class="no-print" style="margin-top:20px;text-align:center;">
+.page-header, .page-footer{flex-shrink:0;}
+.page-content{flex-grow:1; display:flex; flex-direction:column; overflow:hidden;}
+.doc-title{font-size:15.5px;font-weight:700;text-align:center;border:1.5px solid #222;padding:5px 8px;}
+.info-tbl{width:100%;border-collapse:collapse;border:1.5px solid #222;}
+.info-tbl td{padding:4px 8px;border:1px solid #999;font-size:13px;}
+.info-tbl .lbl{font-weight:700;}
+.doc-tbl{width:100%;border-collapse:collapse;}
+.doc-tbl th{border:1.5px solid #222;padding:4px 6px;text-align:center;font-size:13px;background:#f0f0f0;font-weight:700;}
+.doc-tbl td{border:1px solid #999;padding:0 5px;font-size:13px;}
+.page-content .doc-tbl{height:100%; display:flex; flex-direction:column;}
+.page-content .doc-tbl tbody{flex-grow:1; display:flex; flex-direction:column;}
+.page-content .doc-tbl tr{display:table; width:100%; table-layout:fixed;}
+.page-content .doc-tbl tbody tr{flex:1;}
+.sig{display:flex;justify-content:space-between;padding:0 8mm;margin-top:6mm;break-inside:avoid;}
+.sig-blk{text-align:center;width:44%;}
+.sig-line{border-bottom:1px solid #333;width:55mm;margin:0 auto 3px;}
+.sig-lbl{font-size:12.5px;line-height:1.75;}
+.pg-num{text-align:center;font-size:11px;color:#555;margin-top:2mm;}
+.no-print{margin-top:16px;text-align:center;}
+@media print{
+  body{background:none;margin:0;}
+  .print-container{padding:0;gap:0;}
+  .page{margin:0;box-shadow:none;page-break-after:always;}
+  .page:last-child{page-break-after:avoid;}
+  .no-print{display:none!important;}
+}
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+</style></head><body>
+<div class="print-container">${pagesHtml}</div>
+<div class="no-print">
   <button onclick="window.print()" style="padding:8px 24px;font-size:14px;cursor:pointer;background:#1a56a0;color:#fff;border:none;border-radius:6px;">🖨 พิมพ์</button>
   <button onclick="window.close()" style="margin-left:10px;padding:8px 18px;font-size:14px;cursor:pointer;background:#f1f5f9;border:1px solid #ccc;border-radius:6px;">ปิด</button>
 </div>
-<script>window.addEventListener('load',function(){window.print();});<\/script>
+<script>
+(document.fonts?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(window.print,300));
+<\/script>
 </body></html>`;
   closeModal('modal-print-form');
   const w=window.open('','_blank','width=900,height=700,scrollbars=yes');
@@ -4142,6 +4161,468 @@ body{font-family:'TH SarabunPSK','Sarabun','Prompt',Arial,sans-serif;font-size:1
   w.document.open();w.document.write(html);w.document.close();
 }
 function _esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+/* ══════════════════ PRINT DOCUMENTS ══════════════════ */
+const _thaiMonths=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const _thaiD=['๐','๑','๒','๓','๔','๕','๖','๗','๘','๙'];
+let _printDocTitles=[];
+let _printDocTitlesLoaded=false;
+let _docTitleEditing=null;
+let _docTitleTemp=[];
+
+function _isoToThaiDate(iso){
+  if(!iso) return '';
+  const [y,m,d]=iso.split('-').map(Number);
+  return `${d} ${_thaiMonths[m-1]} ${y+543}`;
+}
+function _numToThai(n){
+  return String(n).split('').map(d=>_thaiD[+d]||d).join('');
+}
+
+async function initPrintSection(){
+  // Populate location dropdown
+  const locSel=document.getElementById('print-loc-sel');
+  locSel.innerHTML='<option value="">— เลือกสาขา —</option>';
+  locations.forEach(l=>{
+    const o=document.createElement('option');
+    o.value=l.id;
+    o.textContent=l.code?`${l.code} : ${l.name}`:l.name;
+    locSel.appendChild(o);
+  });
+  // Set today's date
+  const today=new Date().toISOString().split('T')[0];
+  const dateEl=document.getElementById('print-date');
+  if(!dateEl.value) dateEl.value=today;
+  // Load settings once
+  if(!_printDocTitlesLoaded){ await _loadPrintSettings(); _printDocTitlesLoaded=true; }
+  _renderPrintTitleDropdown();
+  updatePrintPreview();
+}
+
+function _renderPrintTitleDropdown(){
+  const sel=document.getElementById('print-title-sel');
+  sel.innerHTML='<option value="">— เลือกหัวข้อ —</option>';
+  _printDocTitles.forEach((t,i)=>{
+    const o=document.createElement('option');
+    o.value=i;
+    o.textContent=t.length>56?t.slice(0,56)+'…':t;
+    sel.appendChild(o);
+  });
+}
+
+async function _loadPrintSettings(){
+  const DEFAULT_TITLES=[
+    'ใบลงชื่อ Stand by การใช้งานระบบงาน โปรแกรม BMS-HOSxP XE',
+    'ใบลงชื่อเข้าร่วมประชุมสรุป Flow การใช้งานโปรแกรม BMS-INVENTORY ครั้งที่ ๑/๒',
+    'ใบลงชื่อเข้าร่วมประชุมสรุปปัญหาการใช้งานโปรแกรม BMS-INVENTORY',
+    'ใบลงชื่อเข้าร่วมการจำลองคู่ขนาน SIT (System Integration Testing)',
+    'ใบเซ็นชื่อคีย์ยอดตั้งต้นคลังย่อย โปรแกรม BMS-INVENTORY',
+  ];
+  try{
+    const keys=['doc_titles','doc_left_name','doc_left_pos','doc_right_name','doc_right_pos','doc_right_inst',
+                'doc_font_family','doc_font_size'];
+    const {data}=await _sb.from('settings').select('key,value').in('key',keys);
+    const map=Object.fromEntries((data||[]).map(r=>[r.key,r.value]));
+    if(map.doc_titles){try{_printDocTitles=JSON.parse(map.doc_titles);}catch{}}
+    if(!_printDocTitles.length) _printDocTitles=[...DEFAULT_TITLES];
+    const set=(id,val)=>{if(val){const el=document.getElementById(id);if(el)el.value=val;}};
+    set('print-lname',map.doc_left_name);
+    set('print-lpos', map.doc_left_pos);
+    set('print-rname',map.doc_right_name);
+    set('print-rpos', map.doc_right_pos);
+    set('print-rinst',map.doc_right_inst);
+    set('print-font-family', map.doc_font_family);
+    set('print-font-size', map.doc_font_size);
+  }catch(e){console.error('loadPrintSettings',e);}
+}
+
+async function _savePrintSetting(key,val){
+  await _sb.from('settings').upsert({key,value:val,updated_at:new Date().toISOString()});
+}
+
+function onPrintTitleSel(){
+  const i=parseInt(document.getElementById('print-title-sel').value);
+  if(!isNaN(i)&&_printDocTitles[i]){
+    document.getElementById('print-title-txt').value=_printDocTitles[i];
+    updatePrintPreview();
+  }
+}
+function onPrintLocSel(){
+  const locId=parseInt(document.getElementById('print-loc-sel').value)||null;
+  const loc=locations.find(l=>l.id===locId);
+  if(loc){const el=document.getElementById('print-rinst');if(el&&!el.value)el.value=loc.name;}
+  // Refresh officer dropdown if checkbox is on
+  if(document.getElementById('print-officer').checked) onPrintOfficerToggle();
+  else updatePrintPreview();
+}
+
+async function onPrintOfficerToggle(){
+  const checked=document.getElementById('print-officer').checked;
+  const wrap=document.getElementById('print-officer-sel-wrap');
+  wrap.style.display=checked?'block':'none';
+  if(checked){
+    const locId=parseInt(document.getElementById('print-loc-sel').value)||null;
+    const loc=locations.find(l=>l.id===locId);
+    if(loc?.code){
+      const loadEl=document.getElementById('print-officer-loading');
+      const selEl=document.getElementById('print-officer-sel');
+      loadEl.style.display='block';
+      selEl.style.display='none';
+      const persons=await _loadOfficersForLocation(loc.code);
+      loadEl.style.display='none';
+      selEl.style.display='block';
+      selEl.innerHTML='<option value="">— เลือกเจ้าหน้าที่ —</option>'+
+        persons.map(p=>`<option value="${_esc(p.name)}">${_esc(p.name)}${p.position?' — '+_esc(p.position):''}</option>`).join('');
+    } else {
+      document.getElementById('print-officer-sel').innerHTML='<option value="">— กรุณาเลือกสาขาก่อน —</option>';
+    }
+  }
+  updatePrintPreview();
+}
+
+async function _loadOfficersForLocation(locCode){
+  try{
+    const{data}=await _sb.from('master_items')
+      .select('value')
+      .eq('type','trainer')
+      .eq('site',locCode)
+      .order('sort_order,id');
+    return(data||[]).map(r=>({name:r.value,position:''}));
+  }catch{return[];}
+}
+
+function _getPrintConfig(){
+  const locId=parseInt(document.getElementById('print-loc-sel').value)||null;
+  const loc=locations.find(l=>l.id===locId);
+  const showOfficer=document.getElementById('print-officer').checked;
+  const officerSel=document.getElementById('print-officer-sel');
+  return{
+    title:(document.getElementById('print-title-txt').value||'').trim(),
+    hospital:loc?loc.name:'',
+    date:_isoToThaiDate(document.getElementById('print-date').value),
+    showOfficer,
+    officerName:showOfficer?(officerSel?.value||''):'',
+    rowCount:Math.max(5,Math.min(100,parseInt(document.getElementById('print-rows').value)||25)),
+    leftName:(document.getElementById('print-lname').value||'').trim(),
+    leftPos:(document.getElementById('print-lpos').value||'').trim(),
+    rightName:(document.getElementById('print-rname').value||'').trim(),
+    rightPos:(document.getElementById('print-rpos').value||'').trim(),
+    rightInst:(document.getElementById('print-rinst').value||'').trim(),
+    fontFamily: (document.getElementById('print-font-family')?.value || 'Sarabun').trim(),
+    fontSize: (document.getElementById('print-font-size')?.value || '13px').trim(),
+  };
+}
+
+/* ── สร้างเอกสาร ────────────────────────────────────────────────────── */
+// margins: top 4mm, right 7mm, bottom 6mm, left 5.5mm → content 197.5×287mm
+function _buildDocHTML(cfg,absLogoSrc,forPrint){
+  const logo=absLogoSrc||'bms-logo.png';
+  const PAGE=25;
+  const numPages=Math.ceil(cfg.rowCount/PAGE) || 1;
+  const officerLine=cfg.showOfficer
+    ?`<br><span class="lbl">เจ้าหน้าที่ :</span> ${_esc(cfg.officerName||'')}`:'';
+
+  const COLS=`<colgroup>
+    <col style="width:11mm"><col><col style="width:36mm"><col style="width:36mm"><col style="width:40mm">
+  </colgroup>`;
+  const THEAD=`<thead><tr>
+    <th style="width:11mm">ลำดับ</th><th>ชื่อ – สกุล</th><th style="width:36mm">ตำแหน่ง</th><th style="width:36mm">แผนก</th><th style="width:40mm">ลายมือชื่อ</th>
+  </tr></thead>`;
+
+  function buildRows(from,to,cls){
+    let r='';
+    for(let i=from;i<=to;i++){
+      r+=`<tr class="${cls}"><td style="text-align:center;width:11mm;">${i}</td><td></td><td></td><td></td><td></td></tr>`;
+    }
+    return r;
+  }
+
+  function sigFooter(pageNum,totalPages,prefixCls){
+    const p=prefixCls||'';
+    return`<div class="${p}pf">
+  <div class="${p}sig">
+    <div class="sig-blk">
+      <div class="sig-line"></div>
+      <div class="sig-lbl">(${_esc(cfg.leftName)||'ชื่อ-นามสกุล'})</div>
+      <div class="sig-lbl">ตำแหน่ง ${_esc(cfg.leftPos)||'………………………………'}</div>
+      <div class="sig-lbl">บริษัท บางกอก เมดิคอล ซอฟต์แวร์ จำกัด</div>
+    </div>
+    <div class="sig-blk">
+      <div class="sig-line"></div>
+      <div class="sig-lbl">(${_esc(cfg.rightName)||'ชื่อ-นามสกุล'})</div>
+      <div class="sig-lbl">ตำแหน่ง ${_esc(cfg.rightPos)||'………………………………'}</div>
+      ${cfg.rightInst?`<div class="sig-lbl">${_esc(cfg.rightInst)}</div>`:''}
+    </div>
+  </div>
+  <div class="pg-num">หน้า ${pageNum} / ${totalPages}</div>
+</div>`;
+  }
+
+  if(!forPrint){
+    const WRAP='background:#fff;box-shadow:0 2px 16px rgba(0,0,0,.18);width:210mm;height:297mm;box-sizing:border-box;overflow:hidden;font-family:\'Sarabun\',\'TH Sarabun New\',\'Prompt\',sans-serif;color:#111;display:flex;flex-direction:column;padding:4mm 7mm 6mm 5.5mm;';
+    function pvSheet(from,to,pn){
+      return`<div class="page" style="${WRAP}">
+  <div class="pv-ph">
+    <img src="${logo}" id="pv-logo-${pn}" style="height:18mm;width:auto;display:block;margin-bottom:2mm;"
+      onerror="this.style.display='none';var f=document.getElementById('pv-logofb-${pn}');if(f)f.style.display='flex';">
+    <div id="pv-logofb-${pn}" style="display:none;align-items:center;gap:8px;margin-bottom:4px;">
+      <svg width="44" height="44" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><path d="M40 74 C39 73 5 53 5 29 C5 15 16 5 28 5 C34 5 39 9 40 12 C41 9 46 5 52 5 C64 5 75 15 75 29 C75 53 41 73 40 74Z" fill="#c0392b"/><path d="M10 48 C20 40 31 38 40 42 C49 46 60 49 70 44" stroke="#1a5899" stroke-width="6" fill="none" stroke-linecap="round"/><text x="40" y="43" text-anchor="middle" fill="white" font-family="Arial Black,sans-serif" font-weight="900" font-size="17">BMS</text></svg>
+      <span style="font-size:10px;line-height:1.5;color:#333;font-family:'Sarabun',sans-serif;"><strong style="font-size:11px;">บริษัท บางกอก เมดิคอล ซอฟต์แวร์ จำกัด</strong><br>เลขที่ 2 ชั้น 2 ซ.สุขสวัสดิ์ 33 ราษฎร์บูรณะ กรุงเทพฯ</span>
+    </div>
+    <div class="pv-title">${_esc(cfg.title)||'(กรุณาเลือกหัวข้อเอกสาร)'}</div>
+    <table class="pv-info">
+      <tr>
+        <td style="width:55%">สถานพยาบาล : ${_esc(cfg.hospital)||'—'}</td>
+        <td>วันที่ : ${_esc(cfg.date)||'—'}${officerLine}</td>
+      </tr>
+    </table>
+  </div>
+  <table class="pv-tbl pv-phtbl">${COLS}${THEAD}</table>
+  <table class="pv-tbl pv-dtbl">${COLS}<tbody>${buildRows(from,to,'pv-row')}</tbody></table>
+  <div style="flex:1;"></div>
+  ${sigFooter(pn,numPages,'pv-')}
+</div>`;
+    }
+    let html='';
+    for(let p=0;p<numPages;p++){
+      html+=pvSheet(p*PAGE+1,Math.min((p+1)*PAGE,cfg.rowCount),p+1);
+    }
+    return html;
+  }
+
+  // --- FOR PRINT --- (New refactored code is kept)
+  const officerLinePrint=cfg.showOfficer ? `<br><span class="lbl">เจ้าหน้าที่ :</span> ${_esc(cfg.officerName||'')}`:'';
+  const pageHeaderHtml=`
+  <div class="page-header">
+    <img src="${logo}" style="height:18mm;width:auto;display:block;margin-bottom:2mm;" onerror="this.style.display='none'">
+    <div class="doc-title">${_esc(cfg.title)||'(กรุณาเลือกหัวข้อเอกสาร)'}</div>
+    <table class="info-tbl">
+      <tr>
+        <td style="width:55%;vertical-align:top;"><span class="lbl">สถานพยาบาล :</span> ${_esc(cfg.hospital)||'—'}</td>
+        <td style="vertical-align:top;"><span class="lbl">วันที่ :</span> ${_esc(cfg.date)||'—'}${officerLinePrint}</td>
+      </tr>
+    </table>
+  </div>
+`;
+  let pagesHtml='';
+  for(let p=0;p<numPages;p++){
+    pagesHtml+=`<div class="page">
+      ${pageHeaderHtml}
+      <div class="page-content">
+        <table class="doc-tbl">${COLS}${THEAD}<tbody>${buildRows(p*PAGE+1,Math.min((p+1)*PAGE,cfg.rowCount),'')}</tbody></table>
+      </div>
+      ${sigFooter(p+1,numPages,'')}
+    </div>`;
+  }
+  const style=`
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Sarabun','TH Sarabun New','Prompt',Arial,sans-serif;font-size:13px;color:#111;background:#fff;}
+.page{width:210mm; height:297mm; box-sizing:border-box;padding:4mm 7mm 6mm 5.5mm;background:white; display:flex; flex-direction:column;}
+.page-header, .page-footer{flex-shrink:0;}
+.page-content{flex-grow:1; display:flex; flex-direction:column; overflow:hidden;}
+.doc-title{font-size:15.5px;font-weight:700;text-align:center;border:1.5px solid #222;padding:5px 8px;}
+.info-tbl{width:100%;border-collapse:collapse;border:1.5px solid #222;}
+.info-tbl td{padding:4px 8px;border:1px solid #999;font-size:13px;vertical-align:top;}
+.info-tbl .lbl{font-weight:700;}
+.doc-tbl{width:100%;border-collapse:collapse;}
+.doc-tbl th{border:1.5px solid #222;padding:4px 6px;text-align:center;font-size:13px;background:#f0f0f0;font-weight:700;}
+.doc-tbl td{border:1px solid #999;padding:0 5px;font-size:13px;}
+.page-content .doc-tbl{height:100%; display:flex; flex-direction:column;}
+.page-content .doc-tbl tbody{flex-grow:1; display:flex; flex-direction:column;}
+.page-content .doc-tbl tr{display:table; width:100%; table-layout:fixed;}
+.page-content .doc-tbl tbody tr{flex:1;}
+.sig{display:flex;justify-content:space-between;padding:0 8mm;margin-top:20mm;break-inside:avoid;}
+.sig-blk{text-align:center;width:44%;}
+.sig-line{border-bottom:1px solid #333;width:55mm;margin:0 auto 3px;}
+.sig-lbl{font-size:12.5px;line-height:1.75;}
+.pg-num{text-align:center;font-size:11px;color:#555;margin-top:2mm;}
+.no-print{margin-top:16px;text-align:center;}
+@media print{
+  body{background:none;margin:0;}
+  .page{margin:0;box-shadow:none;page-break-after:always;}
+  .page:last-child{page-break-after:avoid;}
+  .no-print{display:none!important;}
+}
+@page {size: A4 portrait;margin: 0;}
+  `;
+  return `<!DOCTYPE html><html lang="th"><head>
+<meta charset="UTF-8">
+<title>${_esc(cfg.title)||'เอกสาร'}</title>
+<style>${style}</style></head><body>
+<div class="print-container">${pagesHtml}</div>
+<div class="no-print">
+  <button onclick="window.print()" style="padding:8px 24px;font-size:14px;cursor:pointer;background:#1a56a0;color:#fff;border:none;border-radius:6px;margin-right:8px;">🖨 พิมพ์</button>
+  <button onclick="window.close()" style="padding:8px 18px;font-size:14px;cursor:pointer;background:#f1f5f9;border:1px solid #ccc;border-radius:6px;">ปิด</button>
+</div>
+<script>
+(document.fonts?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(window.print,300));
+<\/script>
+</body></html>`;
+}
+
+function updatePrintPreview(){
+  const el=document.getElementById('print-preview');
+  if(!el) return;
+  const cfg=_getPrintConfig();
+  const baseUrl=window.location.href.replace(/[^/]*(\?.*)?$/,'');
+  const absLogo=baseUrl+'bms-logo.png';
+  el.innerHTML=_buildDocHTML(cfg,absLogo,false);
+  requestAnimationFrame(()=>_doPreviewFit(el));
+}
+
+function _scalePrintPreview(){
+  const wrap=document.getElementById('print-preview-wrap');
+  const el=document.getElementById('print-preview');
+  if(!wrap||!el) return;
+  const pages=el.querySelectorAll('.page');
+  if(!pages.length) return;
+  const paperW=Math.round(210*96/25.4);
+  const paperH=Math.round(297*96/25.4);
+  const pad=16;
+  const availW=wrap.clientWidth-pad*2;
+  const availH=wrap.clientHeight-pad*2;
+  const scaleW=availW/paperW;
+  const scaleH=availH/paperH;
+  const n=pages.length;
+  const gap=12;
+  // scale so ALL pages fit both width and height of panel
+  const scaleByH=(availH-(n-1)*gap)/(n*paperH);
+  const scale=Math.min(scaleW,scaleByH);
+  wrap.style.justifyContent=scale===scaleByH ? 'center' : 'flex-start';
+  pages.forEach(p=>{
+    p.style.transform='';
+    p.style.marginBottom='';
+    p.style.zoom=scale;
+  });
+}
+
+function _doPreviewFit(el){
+  const CONTENT_H=Math.round(287*96/25.4); // 287mm content area ~1085px
+  el.querySelectorAll(':scope>div').forEach(function(page){
+    const ph=page.querySelector('.pv-ph');
+    const phtbl=page.querySelector('.pv-phtbl');
+    const pf=page.querySelector('.pv-pf');
+    const rows=page.querySelectorAll('tr.pv-row');
+    if(!rows.length)return;
+    const phH=(ph?ph.offsetHeight:0)+(phtbl?phtbl.offsetHeight:0);
+    const pfH=pf?pf.offsetHeight:0;
+    const avail=CONTENT_H-phH-pfH;
+    const rh=Math.max(16,Math.floor(avail/rows.length));
+    rows.forEach(function(r){r.style.height=rh+'px';});
+  });
+  _scalePrintPreview();
+}
+
+function doPrint(){
+  const cfg=_getPrintConfig();
+  const baseUrl=window.location.href.replace(/[^/]*(\?.*)?$/,'');
+  const absLogo=baseUrl+'bms-logo.png';
+  const w=window.open('','_blank','width=900,height=750,scrollbars=yes');
+  if(!w){showToast('Popup ถูกบล็อก กรุณาอนุญาต popup แล้วลองใหม่','danger');return;}
+  w.document.open();
+  w.document.write(_buildDocHTML(cfg,absLogo,true));
+  w.document.close();
+}
+
+async function savePrintSignatories(){
+  try{
+    await Promise.all([
+      _savePrintSetting('doc_left_name',(document.getElementById('print-lname').value||'').trim()),
+      _savePrintSetting('doc_left_pos', (document.getElementById('print-lpos').value||'').trim()),
+      _savePrintSetting('doc_right_name',(document.getElementById('print-rname').value||'').trim()),
+      _savePrintSetting('doc_right_pos', (document.getElementById('print-rpos').value||'').trim()),
+      _savePrintSetting('doc_right_inst',(document.getElementById('print-rinst').value||'').trim()),
+    ]);
+    showToast('บันทึกผู้ลงนามสำเร็จ','success');
+  }catch(e){showToast('บันทึกไม่สำเร็จ','danger');}
+}
+
+/* ─── Title modal ─────────────────────────────────────────────────────────── */
+function openDocTitleModal(){
+  _docTitleTemp=[..._printDocTitles];
+  _docTitleEditing=null;
+  document.getElementById('doc-new-title').value='';
+  renderDocTitleList();
+  document.getElementById('modal-doc-titles').classList.add('open');
+}
+
+function renderDocTitleList(){
+  const el=document.getElementById('doc-title-list');
+  if(!_docTitleTemp.length){
+    el.innerHTML='<div style="text-align:center;color:var(--text-muted);padding:24px;font-size:13px;">ยังไม่มีหัวข้อ</div>';
+    return;
+  }
+  el.innerHTML=_docTitleTemp.map((t,i)=>{
+    if(_docTitleEditing?.index===i){
+      return`<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;">
+        <textarea class="form-control" id="doc-edit-${i}" rows="2" style="font-size:13px;resize:none;margin-bottom:8px;">${_esc(t)}</textarea>
+        <div style="display:flex;gap:6px;justify-content:flex-end;">
+          <button class="btn btn-ghost btn-sm" onclick="_cancelDocTitleEdit()">ยกเลิก</button>
+          <button class="btn btn-primary btn-sm" onclick="_saveDocTitleEdit(${i})">บันทึก</button>
+        </div>
+      </div>`;
+    }
+    return`<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:flex-start;gap:8px;">
+      <span style="flex:1;font-size:13px;line-height:1.6;color:var(--text);">${_esc(t)}</span>
+      <button class="btn btn-ghost btn-sm" onclick="_startDocTitleEdit(${i})" style="padding:4px 8px;flex-shrink:0;"><i class="ti ti-pencil"></i></button>
+      <button class="btn btn-ghost btn-sm" onclick="_deleteDocTitle(${i})" style="padding:4px 8px;flex-shrink:0;color:var(--danger);"><i class="ti ti-trash"></i></button>
+    </div>`;
+  }).join('');
+}
+
+function _startDocTitleEdit(i){
+  _docTitleEditing={index:i};
+  renderDocTitleList();
+  setTimeout(()=>{const el=document.getElementById(`doc-edit-${i}`);if(el)el.focus();},50);
+}
+function _cancelDocTitleEdit(){_docTitleEditing=null;renderDocTitleList();}
+function _saveDocTitleEdit(i){
+  const el=document.getElementById(`doc-edit-${i}`);
+  if(!el)return;
+  const v=el.value.trim();
+  if(!v)return;
+  _docTitleTemp[i]=v;
+  _docTitleEditing=null;
+  renderDocTitleList();
+}
+function _deleteDocTitle(i){
+  _docTitleTemp.splice(i,1);
+  if(_docTitleEditing?.index===i)_docTitleEditing=null;
+  renderDocTitleList();
+}
+function addDocTitle(){
+  const el=document.getElementById('doc-new-title');
+  const v=el.value.trim();
+  if(!v)return;
+  _docTitleTemp.push(v);
+  el.value='';
+  renderDocTitleList();
+}
+async function saveDocTitles(){
+  try{
+    await _savePrintSetting('doc_titles',JSON.stringify(_docTitleTemp));
+    _printDocTitles=[..._docTitleTemp];
+    _renderPrintTitleDropdown();
+    closeModal('modal-doc-titles');
+    showToast('บันทึกหัวข้อสำเร็จ','success');
+  }catch(e){showToast('บันทึกไม่สำเร็จ','danger');}
+}
+
+// Rescale preview when window resizes
+window.addEventListener('resize',function(){
+  if(document.getElementById('asec-print')?.classList.contains('active'))_scalePrintPreview();
+});
+
+// Print guard: only show preview content when user is on print-docs tab
+window.addEventListener('beforeprint',function(){
+  const onPrint=document.getElementById('page-admin')?.classList.contains('active')
+    &&document.getElementById('asec-print')?.classList.contains('active');
+  if(onPrint)document.body.classList.add('print-docs');
+});
+window.addEventListener('afterprint',function(){
+  document.body.classList.remove('print-docs');
+});
 
 // INIT
 initApp();
