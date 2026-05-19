@@ -3982,10 +3982,13 @@ function openPrintForm(){
   const curFilt=document.getElementById('admin-filter-sess')?.value;
   if(curFilt)sel.value=curFilt;
   onPrintFormSessChange();
-  // Sync hospital → pf-signer-org
-  const hosp=document.getElementById('pf-hospital').value;
-  const sigOrg=document.getElementById('pf-signer-org');
-  if(sigOrg&&!sigOrg.value&&hosp)sigOrg.value=hosp;
+  // Auto-fill hospital fields from current branch
+  const curLoc=locations.find(l=>l.code===currentSite);
+  if(curLoc){
+    document.getElementById('pf-hospital').value=curLoc.name;
+    const sigOrg=document.getElementById('pf-signer-org');
+    if(sigOrg) sigOrg.value=curLoc.name;
+  }
   document.getElementById('modal-print-form').classList.add('open');
 }
 function onPrintFormSessChange(){
@@ -4250,7 +4253,8 @@ function onPrintTitleSel(){
 function onPrintLocSel(){
   const locId=parseInt(document.getElementById('print-loc-sel').value)||null;
   const loc=locations.find(l=>l.id===locId);
-  if(loc){const el=document.getElementById('print-rinst');if(el&&!el.value)el.value=loc.name;}
+  const rinstEl=document.getElementById('print-rinst');
+  if(rinstEl) rinstEl.value=loc?loc.name:'';
   // Refresh officer dropdown if checkbox is on
   if(document.getElementById('print-officer').checked) onPrintOfficerToggle();
   else updatePrintPreview();
