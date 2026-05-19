@@ -6,12 +6,13 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { getAllAttempts, getCourses, getLocations, supabase } from '../../lib/supabase';
 import { fmtDateTime, exportToExcel } from '../../lib/utils';
 
-function Stat({ label, value, color, sub }) {
+function StatCard({ label, value, topColor, valueColor, icon, sub }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 px-4 py-2.5">
-      <div className="text-xs text-slate-500 mb-0.5">{label}</div>
-      <div className="text-xl font-bold" style={{ color }}>{value}</div>
-      {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
+    <div className="bg-white rounded-xl border border-slate-200 p-4" style={{ borderTop: `3px solid ${topColor}` }}>
+      <div className="text-xl mb-1.5">{icon}</div>
+      <div className="font-bold leading-none" style={{ color: valueColor, fontSize: '22px' }}>{value}</div>
+      <div className="text-slate-500 mt-1" style={{ fontSize: '11px' }}>{label}</div>
+      {sub && <div className="mt-0.5 font-semibold" style={{ color: valueColor, fontSize: '11px' }}>{sub}</div>}
     </div>
   );
 }
@@ -35,7 +36,6 @@ function ClearBySiteModal({ open, locations, onClose, onDone, toast }) {
       const locRow = locations.find(l => l.code === code);
       const locId  = locRow?.id ?? null;
       if (!locId) { setPreview({ count: 0, locId: null }); return; }
-
       const { count } = await supabase.from('quiz_attempts')
         .select('id', { count: 'exact', head: true })
         .eq('location_id', locId)
@@ -52,7 +52,6 @@ function ClearBySiteModal({ open, locations, onClose, onDone, toast }) {
       const { data } = await supabase.from('quiz_attempts')
         .select('id').eq('location_id', preview.locId).neq('status', 'started');
       const allIds = (data || []).map(a => a.id);
-
       if (allIds.length) {
         const { error: e1 } = await supabase.from('quiz_answers').delete().in('attempt_id', allIds);
         if (e1) throw new Error('ลบ quiz_answers ไม่สำเร็จ: ' + e1.message);
@@ -78,15 +77,12 @@ function ClearBySiteModal({ open, locations, onClose, onDone, toast }) {
       <div className="bg-white rounded-2xl p-6 max-w-sm w-[92%] shadow-2xl">
         <div className="text-base font-bold text-slate-900 mb-1">🗑️ เคียร์ผลสอบตามสาขา</div>
         <div className="text-xs text-slate-500 mb-4">ลบผลสอบทั้งหมดที่เชื่อมกับสาขาที่เลือก</div>
-
         <select className="form-input mb-3.5"
           value={site} onChange={e => handleSiteChange(e.target.value)}>
           <option value="">— เลือกสาขา —</option>
           {locations.map(l => <option key={l.code} value={l.code}>{l.name} ({l.code})</option>)}
         </select>
-
         {preloading && <div className="text-sm text-slate-500 text-center py-2">⏳ กำลังตรวจสอบ...</div>}
-
         {preview && !preloading && (
           <div className={`rounded-xl px-3.5 py-3 mb-4 text-sm border ${preview.count ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
             <div className={`font-semibold mb-1 ${preview.count ? 'text-red-800' : 'text-emerald-700'}`}>
@@ -99,7 +95,6 @@ function ClearBySiteModal({ open, locations, onClose, onDone, toast }) {
             )}
           </div>
         )}
-
         <div className="flex gap-2.5 justify-end">
           <button onClick={onClose} disabled={loading} className="btn btn-secondary btn-sm">ยกเลิก</button>
           <button onClick={handleClear}
@@ -188,6 +183,7 @@ export default function Results() {
     } finally { setDeleting(false); }
   }
 
+  const hasFilter = filter.search || filter.courseId || filter.status || filter.from || filter.to || filter.locationId;
   const passCount  = attempts.filter(a => a.status === 'PASS').length;
   const failCount  = attempts.filter(a => a.status === 'FAIL').length;
   const passRate   = attempts.length ? Math.round(passCount / attempts.length * 100) : 0;
@@ -196,7 +192,7 @@ export default function Results() {
     : 0;
 
   return (
-    <div>
+    <div className="text-slate-900">
       <ConfirmDialog
         open={!!deleteTarget}
         title="ลบผลสอบ"
@@ -223,18 +219,33 @@ export default function Results() {
         onDone={() => { setShowClearModal(false); load(); }}
       />
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-2.5 mb-3.5">
-        <Stat label="ผลสอบทั้งหมด" value={attempts.length} color="#2563eb" />
-        <Stat label="ผ่าน"         value={passCount}       color="#059669" sub={`อัตรา ${passRate}%`} />
-        <Stat label="ไม่ผ่าน"      value={failCount}       color="#dc2626" />
-        <Stat label="คะแนนเฉลี่ย"  value={`${avgPercent}%`} color="#d97706" />
+      {/* Page header */}
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h1 className="font-bold text-slate-900 m-0" style={{ fontSize: '17px' }}>ผลสอบทั้งหมด</h1>
+          <p className="text-slate-500 mt-0.5 mb-0" style={{ fontSize: '13px' }}>ค้นหา กรอง และจัดการผลสอบ</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setShowClearModal(true)} className="btn btn-danger btn-sm">🗑️ เคียร์ตามสาขา</button>
+          <button onClick={handleExport} className="btn btn-secondary btn-sm">⬇️ Export Excel</button>
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-4 gap-3.5 mb-4">
+        <StatCard label="ผลสอบทั้งหมด" value={attempts.length} topColor="#2563eb" valueColor="#2563eb" icon="📋" />
+        <StatCard label="ผ่าน"          value={passCount}       topColor="#059669" valueColor="#059669" icon="✅" sub={`อัตรา ${passRate}%`} />
+        <StatCard label="ไม่ผ่าน"       value={failCount}       topColor="#dc2626" valueColor="#dc2626" icon="❌" />
+        <StatCard label="คะแนนเฉลี่ย"   value={`${avgPercent}%`} topColor="#d97706" valueColor="#d97706" icon="📊" />
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 mb-3.5">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+        <div className="font-semibold text-blue-600 flex items-center gap-2 mb-3" style={{ fontSize: '13px' }}>
+          🔍 ค้นหาและกรอง
+        </div>
         <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: '2fr 1.5fr 1fr' }}>
-          <input className="form-input" placeholder="🔍 ค้นหาชื่อ / อีเมล..."
+          <input className="form-input" placeholder="ค้นหาชื่อ / อีเมล..."
             value={filter.search} onChange={e => setF('search', e.target.value)} />
           <select className="form-input" value={filter.courseId} onChange={e => setF('courseId', e.target.value)}>
             <option value="">ทุกหลักสูตร</option>
@@ -259,14 +270,16 @@ export default function Results() {
       {/* Table card */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-          <div className="text-sm font-semibold text-blue-600 flex items-center gap-2">
-            <span>📋</span> ผลสอบทั้งหมด
-            <span className="text-xs font-normal text-slate-400">{attempts.length} รายการ</span>
+          <div className="font-semibold text-blue-600 flex items-center gap-2" style={{ fontSize: '13px' }}>
+            <span>📋</span> รายการผลสอบ
+            <span className="font-normal text-slate-400" style={{ fontSize: '12px' }}>{attempts.length} รายการ</span>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setShowClearModal(true)} className="btn btn-sm btn-danger">🗑️ เคียร์ตามสาขา</button>
-            <button onClick={handleExport} className="btn btn-sm btn-ghost">⬇️ Export Excel</button>
-          </div>
+          {hasFilter && (
+            <button onClick={() => setFilter({ courseId:'', status:'', search:'', from:'', to:'', locationId:'' })}
+              className="btn btn-ghost btn-sm text-xs">
+              ล้างตัวกรอง ✕
+            </button>
+          )}
         </div>
 
         {loading ? <InlineLoader /> : (
@@ -284,33 +297,33 @@ export default function Results() {
                   const cert = a.certificates?.[0];
                   return (
                     <tr key={a.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2.5 text-xs text-slate-400 border-b border-slate-100">{i + 1}</td>
-                      <td className="px-3 py-2.5 border-b border-slate-100">
-                        <div className="font-semibold text-sm">{a.full_name}</div>
-                        <div className="text-xs text-slate-400">{a.email}</div>
-                        {a.department && <div className="text-xs text-slate-400">{a.department}</div>}
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-400" style={{ fontSize: '12px' }}>{i + 1}</td>
+                      <td className="px-3 py-2 border-b border-slate-100">
+                        <div className="font-semibold text-slate-800" style={{ fontSize: '13px' }}>{a.full_name}</div>
+                        <div className="text-slate-400" style={{ fontSize: '11px' }}>{a.email}</div>
+                        {a.department && <div className="text-slate-400" style={{ fontSize: '11px' }}>{a.department}</div>}
                       </td>
-                      <td className="px-3 py-2.5 border-b border-slate-100">
-                        <div className="text-xs text-slate-500 max-w-[160px] truncate">{a.courses?.name}</div>
+                      <td className="px-3 py-2 border-b border-slate-100">
+                        <div className="text-slate-500 max-w-[160px] truncate" style={{ fontSize: '12px' }}>{a.courses?.name}</div>
                       </td>
-                      <td className="px-3 py-2.5 border-b border-slate-100 text-center">
-                        <div className="font-bold font-mono text-sm">{a.score}/{a.total}</div>
-                        <div className="text-xs text-slate-400">{Math.round(a.percent)}%</div>
+                      <td className="px-3 py-2 border-b border-slate-100 text-center">
+                        <div className="font-bold font-mono text-slate-800" style={{ fontSize: '13px' }}>{a.score}/{a.total}</div>
+                        <div className="text-slate-400" style={{ fontSize: '11px' }}>{Math.round(a.percent)}%</div>
                       </td>
-                      <td className="px-3 py-2.5 border-b border-slate-100 text-center">
+                      <td className="px-3 py-2 border-b border-slate-100 text-center">
                         <span className={a.status === 'PASS' ? 'badge badge-pass' : 'badge badge-fail'}>{a.status}</span>
                       </td>
-                      <td className="px-3 py-2.5 border-b border-slate-100">
-                        <div className="text-xs text-slate-500 max-w-[110px] truncate">
+                      <td className="px-3 py-2 border-b border-slate-100">
+                        <div className="text-slate-500 max-w-[110px] truncate" style={{ fontSize: '12px' }}>
                           {a.location?.name ?? <span className="text-slate-300">—</span>}
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 border-b border-slate-100">
+                      <td className="px-3 py-2 border-b border-slate-100">
                         {cert
-                          ? <span className="font-mono text-xs text-slate-500">{cert.cert_id}</span>
+                          ? <span className="font-mono text-slate-500" style={{ fontSize: '11px' }}>{cert.cert_id}</span>
                           : <span className="text-slate-200">—</span>}
                       </td>
-                      <td className="px-3 py-2.5 border-b border-slate-100 text-xs text-slate-500 whitespace-nowrap">
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-500 whitespace-nowrap" style={{ fontSize: '12px' }}>
                         {fmtDateTime(a.completed_at)}
                       </td>
                       <td className="px-3 py-2.5 border-b border-slate-100">
@@ -333,9 +346,9 @@ export default function Results() {
 
             {attempts.length === 0 && (
               <div className="text-center py-12 text-slate-400">
-                <div className="text-4xl mb-2.5">📋</div>
-                <p>ไม่พบผลสอบที่ตรงกับเงื่อนไข</p>
-                {(filter.search || filter.courseId || filter.status || filter.from || filter.to) && (
+                <div className="text-3xl mb-2.5">📋</div>
+                <p style={{ fontSize: '13px' }}>ไม่พบผลสอบที่ตรงกับเงื่อนไข</p>
+                {hasFilter && (
                   <button onClick={() => setFilter({ courseId:'', status:'', search:'', from:'', to:'', locationId:'' })}
                     className="mt-3 btn btn-ghost btn-sm">
                     ล้างตัวกรอง

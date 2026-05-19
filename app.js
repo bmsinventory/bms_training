@@ -4215,8 +4215,8 @@ function _renderPrintTitleDropdown(){
 
 async function _loadPrintSettings(){
   const DEFAULT_TITLES=[
-    'ใบลงชื่อ Stand by การใช้งานระบบงาน โปรแกรม BMS-HOSxP XE',
-    'ใบลงชื่อเข้าร่วมประชุมสรุป Flow การใช้งานโปรแกรม BMS-INVENTORY ครั้งที่ ๑/๒',
+    'ใบลงชื่อ Stand by การใช้งานระบบงาน โปรแกรม BMS-INVENTORY',
+    'ใบลงชื่อเข้าร่วมประชุมสรุป Flow การใช้งานโปรแกรม BMS-INVENTORY',
     'ใบลงชื่อเข้าร่วมประชุมสรุปปัญหาการใช้งานโปรแกรม BMS-INVENTORY',
     'ใบลงชื่อเข้าร่วมการจำลองคู่ขนาน SIT (System Integration Testing)',
     'ใบเซ็นชื่อคีย์ยอดตั้งต้นคลังย่อย โปรแกรม BMS-INVENTORY',
