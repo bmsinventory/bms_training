@@ -4336,7 +4336,7 @@ function _buildDocHTML(cfg,absLogoSrc,forPrint){
   function buildRows(from,to,cls){
     let r='';
     for(let i=from;i<=to;i++){
-      r+=`<tr class="${cls}"><td style="text-align:center;width:11mm;">${i}</td><td></td><td></td><td></td><td></td></tr>`;
+      r+=`<tr class="${cls}"><td style="text-align:center;width:11mm;">${i}</td><td></td><td style="width:36mm;"></td><td style="width:36mm;"></td><td style="width:40mm;"></td></tr>`;
     }
     return r;
   }
@@ -4358,7 +4358,7 @@ function _buildDocHTML(cfg,absLogoSrc,forPrint){
       ${cfg.rightInst?`<div class="sig-lbl">${_esc(cfg.rightInst)}</div>`:''}
     </div>
   </div>
-  <div class="pg-num">หน้า ${pageNum} / ${totalPages}</div>
+  ${totalPages>1?`<div class="pg-num">หน้า ${pageNum} / ${totalPages}</div>`:''}
 </div>`;
   }
 
