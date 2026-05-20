@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>คู่มือการใช้งาน BMS Training</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue: #2563eb; --blue-light: #eff6ff; --blue-mid: #dbeafe;
+    --green: #16a34a; --green-light: #f0fdf4;
+    --amber: #d97706; --amber-light: #fffbeb;
+    --red: #dc2626; --red-light: #fef2f2;
+    --purple: #7c3aed; --purple-light: #f5f3ff;
+    --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb;
+    --gray-400: #9ca3af; --gray-600: #4b5563; --gray-900: #111827;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-md: 0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.06);
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Anuphan', sans-serif;
+    font-size: 14px; color: var(--gray-900);
+    background: var(--gray-50); line-height: 1.7;
+  }
+
+  /* ── Layout ── */
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 260px; flex-shrink: 0; background: #fff;
+    border-right: 1px solid var(--gray-200);
+    position: sticky; top: 0; height: 100vh;
+    overflow-y: auto; padding: 24px 0;
+  }
+  .content { flex: 1; max-width: 860px; padding: 40px 48px; }
+
+  /* ── Sidebar ── */
+  .sidebar-logo {
+    padding: 0 20px 20px; border-bottom: 1px solid var(--gray-200); margin-bottom: 16px;
+  }
+  .sidebar-logo-title {
+    font-size: 15px; font-weight: 700; color: var(--blue); line-height: 1.3;
+  }
+  .sidebar-logo-sub { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+  .nav-section { padding: 4px 20px 2px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .8px; color: var(--gray-400);
+    margin-top: 12px; }
+  .nav-link {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 20px; font-size: 13px; color: var(--gray-600);
+    text-decoration: none; border-left: 3px solid transparent;
+    transition: all .15s;
+  }
+  .nav-link:hover { background: var(--gray-50); color: var(--blue); }
+  .nav-link.active { color: var(--blue); background: var(--blue-light);
+    border-left-color: var(--blue); font-weight: 600; }
+  .nav-link .icon { font-size: 15px; }
+
+  /* ── Typography ── */
+  h1 { font-size: 26px; font-weight: 700; color: var(--gray-900); margin-bottom: 6px; }
+  h2 { font-size: 20px; font-weight: 700; color: var(--gray-900);
+    margin: 40px 0 16px; padding-bottom: 10px;
+    border-bottom: 2px solid var(--gray-200); }
+  h3 { font-size: 16px; font-weight: 600; color: var(--gray-900); margin: 24px 0 12px; }
+  h4 { font-size: 14px; font-weight: 600; color: var(--gray-600); margin: 16px 0 8px; }
+  p { margin-bottom: 12px; color: var(--gray-600); }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; color: var(--gray-600); }
+  li { margin-bottom: 4px; }
+  strong { color: var(--gray-900); }
+  code {
+    font-family: 'Courier New', monospace; font-size: 12px;
+    background: var(--gray-100); border: 1px solid var(--gray-200);
+    padding: 1px 6px; border-radius: 4px; color: #be185d;
+  }
+
+  /* ── Section anchor ── */
+  section { scroll-margin-top: 24px; }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 60%, #7c3aed 100%);
+    border-radius: var(--radius); padding: 32px 36px; color: #fff; margin-bottom: 32px;
+  }
+  .hero h1 { color: #fff; margin-bottom: 4px; }
+  .hero p { color: rgba(255,255,255,.8); margin: 0; font-size: 14px; }
+  .hero-badges { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .hero-badge {
+    background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25);
+    border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 500;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: #fff; border: 1px solid var(--gray-200);
+    border-radius: var(--radius); padding: 20px; margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--gray-400);
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+
+  /* ── Feature Grid ── */
+  .feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .feat-card {
+    background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius);
+    padding: 16px; box-shadow: var(--shadow); border-top: 3px solid var(--blue);
+  }
+  .feat-card.green { border-top-color: var(--green); }
+  .feat-card.purple { border-top-color: var(--purple); }
+  .feat-card.amber { border-top-color: var(--amber); }
+  .feat-icon { font-size: 22px; margin-bottom: 8px; }
+  .feat-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .feat-desc { font-size: 12px; color: var(--gray-400); }
+
+  /* ── Steps ── */
+  .steps { counter-reset: step; }
+  .step {
+    display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start;
+  }
+  .step-num {
+    counter-increment: step;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--blue); color: #fff;
+    font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .step-body { flex: 1; }
+  .step-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .step-desc { font-size: 13px; color: var(--gray-600); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 10px; padding: 12px 16px; margin: 16px 0;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout-body { font-size: 13px; }
+  .callout-title { font-weight: 600; margin-bottom: 2px; }
+  .callout.info { background: var(--blue-light); border: 1px solid var(--blue-mid); }
+  .callout.info .callout-icon, .callout.info .callout-title { color: var(--blue); }
+  .callout.success { background: var(--green-light); border: 1px solid #bbf7d0; }
+  .callout.success .callout-icon, .callout.success .callout-title { color: var(--green); }
+  .callout.warning { background: var(--amber-light); border: 1px solid #fde68a; }
+  .callout.warning .callout-icon, .callout.warning .callout-title { color: var(--amber); }
+  .callout.danger { background: var(--red-light); border: 1px solid #fecaca; }
+  .callout.danger .callout-icon, .callout.danger .callout-title { color: var(--red); }
+
+  /* ── Table ── */
+  .tbl { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  .tbl th {
+    background: var(--gray-50); padding: 9px 12px; text-align: left;
+    font-size: 12px; font-weight: 600; color: var(--gray-600);
+    border-bottom: 1px solid var(--gray-200); border-top: 1px solid var(--gray-200);
+  }
+  .tbl td {
+    padding: 9px 12px; font-size: 13px; border-bottom: 1px solid var(--gray-100);
+    color: var(--gray-600);
+  }
+  .tbl tr:last-child td { border-bottom: none; }
+
+  /* ── Badge ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  }
+  .badge-blue { background: var(--blue-light); color: var(--blue); }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-purple { background: var(--purple-light); color: var(--purple); }
+  .badge-amber { background: var(--amber-light); color: var(--amber); }
+  .badge-red { background: var(--red-light); color: var(--red); }
+
+  /* ── Tab pills ── */
+  .tab-list {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .tab-pill {
+    background: var(--gray-100); border: 1px solid var(--gray-200);
+    border-radius: 20px; padding: 4px 14px; font-size: 12px; font-weight: 600;
+    color: var(--gray-600);
+  }
+
+  /* ── Divider ── */
+  .divider { border: none; border-top: 1px solid var(--gray-200); margin: 32px 0; }
+
+  /* ── Print hide ── */
+  @media print {
+    .sidebar { display: none; }
+    .content { padding: 20px; max-width: 100%; }
+  }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .content { padding: 24px 20px; }
+    .feat-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- ══ SIDEBAR ══ -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">🏥 BMS Training</div>
+    <div class="sidebar-logo-sub">คู่มือการใช้งานระบบ</div>
+  </div>
+
+  <div class="nav-section">ภาพรวม</div>
+  <a href="#overview" class="nav-link"><span class="icon">📋</span>ภาพรวมระบบ</a>
+  <a href="#user-roles" class="nav-link"><span class="icon">👥</span>ประเภทผู้ใช้งาน</a>
+  <a href="#url-param" class="nav-link"><span class="icon">🔗</span>การเข้าใช้งานตามสาขา</a>
+
+  <div class="nav-section">ผู้ใช้งานทั่วไป</div>
+  <a href="#register" class="nav-link"><span class="icon">📝</span>ลงทะเบียนอบรม</a>
+  <a href="#checkin" class="nav-link"><span class="icon">📲</span>เช็คชื่อเข้าอบรม</a>
+  <a href="#survey" class="nav-link"><span class="icon">📊</span>แบบประเมินความพึงพอใจ</a>
+  <a href="#quiz-user" class="nav-link"><span class="icon">✏️</span>ทำแบบทดสอบ</a>
+
+  <div class="nav-section">ผู้ดูแลระบบ</div>
+  <a href="#admin-login" class="nav-link"><span class="icon">🔐</span>เข้าสู่ระบบ Admin</a>
+  <a href="#admin-sessions" class="nav-link"><span class="icon">📅</span>จัดการรอบอบรม</a>
+  <a href="#admin-categories" class="nav-link"><span class="icon">🗂️</span>จัดการประเภทอบรม</a>
+  <a href="#admin-masters" class="nav-link"><span class="icon">📌</span>ข้อมูลพื้นฐาน</a>
+  <a href="#admin-regs" class="nav-link"><span class="icon">👤</span>ผู้ลงทะเบียน</a>
+  <a href="#admin-locations" class="nav-link"><span class="icon">📍</span>จัดการสาขา</a>
+  <a href="#admin-users" class="nav-link"><span class="icon">🛡️</span>จัดการผู้ใช้งาน Admin</a>
+  <a href="#admin-loginverify" class="nav-link"><span class="icon">✅</span>ตรวจสอบสิทธิ์</a>
+  <a href="#admin-survey" class="nav-link"><span class="icon">📈</span>Dashboard ผลประเมิน</a>
+  <a href="#admin-quiz" class="nav-link"><span class="icon">🧩</span>ระบบแบบทดสอบ</a>
+  <a href="#admin-print" class="nav-link"><span class="icon">🖨️</span>พิมพ์เอกสาร</a>
+</nav>
+
+<!-- ══ CONTENT ══ -->
+<main class="content">
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>คู่มือการใช้งาน BMS Training</h1>
+    <p>ระบบบริหารจัดการการอบรม สำหรับสถานพยาบาลและหน่วยงาน</p>
+    <div class="hero-badges">
+      <span class="hero-badge">📋 ลงทะเบียนอบรม</span>
+      <span class="hero-badge">📲 เช็คชื่อ QR Code</span>
+      <span class="hero-badge">✏️ แบบทดสอบออนไลน์</span>
+      <span class="hero-badge">📊 ผลประเมินความพึงพอใจ</span>
+      <span class="hero-badge">🖨️ พิมพ์เอกสาร</span>
+    </div>
+  </div>
+
+  <!-- ═══ OVERVIEW ═══ -->
+  <section id="overview">
+    <h2>📋 ภาพรวมระบบ</h2>
+    <p>BMS Training เป็นระบบบริหารจัดการการอบรมสำหรับบุคลากรทางการแพทย์ ครอบคลุมตั้งแต่การลงทะเบียน เช็คชื่อ ทำแบบทดสอบ ประเมินความพึงพอใจ ไปจนถึงการพิมพ์เอกสาร</p>
+
+    <div class="feat-grid">
+      <div class="feat-card">
+        <div class="feat-icon">📝</div>
+        <div class="feat-title">ลงทะเบียนอบรม</div>
+        <div class="feat-desc">ผู้เข้าอบรมลงทะเบียนผ่านเว็บ เลือกหลักสูตรและรอบ กรอกข้อมูลส่วนตัว รับ QR Code ยืนยัน</div>
+      </div>
+      <div class="feat-card green">
+        <div class="feat-icon">📲</div>
+        <div class="feat-title">เช็คชื่อ QR Code</div>
+        <div class="feat-desc">เช็คชื่อด้วยการสแกน QR Code หรือค้นหาชื่อจากรายการ รองรับ Walk-in</div>
+      </div>
+      <div class="feat-card purple">
+        <div class="feat-icon">✏️</div>
+        <div class="feat-title">แบบทดสอบออนไลน์</div>
+        <div class="feat-desc">ทำแบบทดสอบออนไลน์ ดูผลทันที รับใบประกาศนียบัตรอัตโนมัติ</div>
+      </div>
+      <div class="feat-card amber">
+        <div class="feat-icon">📊</div>
+        <div class="feat-title">Dashboard ผลประเมิน</div>
+        <div class="feat-desc">วิเคราะห์ผลความพึงพอใจแบบ Real-time พร้อมกราฟ Radar, Heatmap, Trend</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ USER ROLES ═══ -->
+  <section id="user-roles">
+    <h2>👥 ประเภทผู้ใช้งาน</h2>
+    <table class="tbl">
+      <thead><tr><th>ประเภท</th><th>สิทธิ์</th><th>วิธีเข้าถึง</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>ผู้เข้าอบรม</strong> <span class="badge badge-green">Public</span></td>
+          <td>ลงทะเบียน, ทำแบบทดสอบ, แบบประเมิน</td>
+          <td>เปิดเว็บได้เลย ไม่ต้อง Login</td>
+        </tr>
+        <tr>
+          <td><strong>เจ้าหน้าที่ / Admin</strong> <span class="badge badge-blue">Admin</span></td>
+          <td>จัดการรอบ, ดูรายชื่อ, เช็คชื่อ, พิมพ์เอกสาร</td>
+          <td>กด <strong>Admin</strong> ที่มุมขวาบน → ใส่ Username / Password</td>
+        </tr>
+        <tr>
+          <td><strong>Super Admin</strong> <span class="badge badge-purple">Super</span></td>
+          <td>ทุกอย่าง รวมถึงจัดการสาขา, ผู้ใช้งาน</td>
+          <td>Login ด้วย account ระดับ Super Admin</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══ URL PARAM ═══ -->
+  <section id="url-param">
+    <h2>🔗 การเข้าใช้งานตามสาขา</h2>
+    <p>ระบบรองรับหลายสาขาในลิงก์เดียวกัน โดยใช้ parameter <code>?site=</code> ใน URL</p>
+
+    <div class="callout info">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body">
+        <div class="callout-title">ตัวอย่าง URL ตามสาขา</div>
+        <code>https://yoursite.com/?site=theme_1</code> → สาขา 1<br>
+        <code>https://yoursite.com/?site=theme_2</code> → สาขา 2<br>
+        <code>https://yoursite.com/</code> → แสดงทุกสาขา (ไม่กรอง)
+      </div>
+    </div>
+
+    <p>เมื่อกำหนด <code>?site=</code> ระบบจะกรองแสดงเฉพาะหลักสูตร รอบอบรม และผู้ลงทะเบียนของสาขานั้นโดยอัตโนมัติ รวมถึงดึงชื่อสถานพยาบาลมากรอกในเอกสารอัตโนมัติ</p>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ════════════════════════════════════
+       ██ ผู้ใช้งานทั่วไป
+  ════════════════════════════════════ -->
+
+  <!-- ═══ REGISTER ═══ -->
+  <section id="register">
+    <h2>📝 ลงทะเบียนอบรม</h2>
+    <p>ผู้เข้าอบรมสามารถลงทะเบียนได้เองผ่านหน้าเว็บโดยไม่ต้อง Login</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">เลือกหลักสูตร</div>
+          <div class="step-desc">หน้าแรกจะแสดงการ์ดหลักสูตรทั้งหมด สามารถ <strong>ค้นหา</strong> หรือกรองตามสถานะ (มีที่ว่าง / ใกล้เต็ม / เต็มแล้ว) ได้</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">เลือกรอบอบรม</div>
+          <div class="step-desc">กดการ์ดหลักสูตรที่ต้องการ ระบบจะแสดงรอบอบรมที่มีอยู่ พร้อมวันที่ เวลา สถานที่ และจำนวนที่นั่งคงเหลือ</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">กรอกข้อมูลส่วนตัว</div>
+          <div class="step-desc">กรอก คำนำหน้า, ชื่อ-นามสกุล, ตำแหน่ง, แผนก, เบอร์โทร แล้วกด <strong>"ลงทะเบียน"</strong></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">รับ QR Code</div>
+          <div class="step-desc">เมื่อลงทะเบียนสำเร็จ ระบบแสดง QR Code ของผู้เข้าอบรม — บันทึกภาพหรือ screenshot ไว้ใช้เช็คชื่อในวันอบรม</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <span class="callout-icon">⚠️</span>
+      <div class="callout-body">
+        <div class="callout-title">หมายเหตุ</div>
+        หากรอบอบรมเต็มแล้ว ปุ่ม "ลงทะเบียน" จะถูกปิด ไม่สามารถลงทะเบียนได้
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CHECKIN ═══ -->
+  <section id="checkin">
+    <h2>📲 เช็คชื่อเข้าอบรม</h2>
+    <p>หน้าเช็คชื่อสำหรับเจ้าหน้าที่ Login แล้ว ใช้ได้ 3 วิธี</p>
+
+    <h3>วิธีที่ 1 — สแกน QR Code</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">กด "เปิดกล้องสแกน"</div>
+          <div class="step-desc">ระบบจะขอสิทธิ์ใช้กล้อง กด "อนุญาต" ในป๊อปอัพของเบราว์เซอร์</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">ส่องกล้องที่ QR Code</div>
+          <div class="step-desc">นำ QR Code ของผู้เข้าอบรมเข้าในกรอบสแกน ระบบจะบันทึกเช็คชื่อทันที</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">ดูผลการเช็คชื่อ</div>
+          <div class="step-desc">แสดงชื่อ-นามสกุล ประเภท รอบอบรม และสถานะ "เช็คชื่อแล้ว" หรือ "ไม่พบ"</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>วิธีที่ 2 — พิมพ์ชื่อด้วยมือ</h3>
+    <p>กดปุ่ม <strong>"พิมพ์ชื่อ"</strong> → ค้นหาชื่อผู้เข้าอบรม → กดเลือกเพื่อบันทึกเช็คชื่อ</p>
+
+    <h3>วิธีที่ 3 — รายชื่อ (List)</h3>
+    <p>กดแท็บ <strong>"รายชื่อ"</strong> → เลือกรอบอบรม → ติ๊กถูกหน้าชื่อผู้ที่มาอบรม</p>
+
+    <h3>Walk-in</h3>
+    <p>กดปุ่ม <strong>"Walk-in"</strong> (สีม่วง) สำหรับผู้ที่ยังไม่ได้ลงทะเบียนล่วงหน้า — กรอกข้อมูลแล้วกด "บันทึก" ระบบจะเพิ่มรายชื่อและเช็คชื่อพร้อมกัน</p>
+  </section>
+
+  <!-- ═══ SURVEY ═══ -->
+  <section id="survey">
+    <h2>📊 แบบประเมินความพึงพอใจ</h2>
+    <p>ผู้เข้าอบรมกรอกแบบประเมินหลังจบการอบรมผ่านหน้า <code>survey.html?site=xxx</code></p>
+    <ul>
+      <li>ประเมิน 6 ด้าน ได้แก่ หลักสูตร, วิทยากร, สื่อการสอน, สถานที่, การจัดการ และประโยชน์ที่ได้รับ</li>
+      <li>คะแนนแต่ละด้าน 1–5 คะแนน</li>
+      <li>มีช่องข้อเสนอแนะเพิ่มเติม</li>
+      <li>ผู้ Admin ดูสรุปผลได้ที่แท็บ <strong>ผลประเมิน</strong></li>
+    </ul>
+  </section>
+
+  <!-- ═══ QUIZ USER ═══ -->
+  <section id="quiz-user">
+    <h2>✏️ ทำแบบทดสอบ (ผู้เข้าอบรม)</h2>
+    <p>เข้าหน้าแบบทดสอบได้ที่ <code>/quiz/</code> หรือผ่านลิงก์ที่ผู้ดูแลระบบแชร์ให้</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">ลงทะเบียน / เข้าสู่ระบบ</div>
+          <div class="step-desc">กรอกชื่อ อีเมล แผนก และหน่วยงาน (ใช้ครั้งแรก) หรือกรอกอีเมลเพื่อเข้าสู่ระบบถ้าเคยสอบแล้ว</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">เลือกหลักสูตร</div>
+          <div class="step-desc">เลือกหลักสูตรที่ต้องการสอบ ระบบแสดงจำนวนข้อ เวลา และเกณฑ์ผ่าน</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">ทำแบบทดสอบ</div>
+          <div class="step-desc">ตอบคำถามทีละข้อ มีตัวเลือก 3–5 ตัว กดถัดไป / ย้อนกลับได้ มีนับถอยหลังเวลา</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">ดูผลและรับใบประกาศ</div>
+          <div class="step-desc">แสดงคะแนน % และสถานะ ผ่าน/ไม่ผ่าน ถ้าผ่านสามารถดาวน์โหลดใบประกาศนียบัตร PDF หรือส่งทางอีเมลได้</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout success">
+      <span class="callout-icon">🎓</span>
+      <div class="callout-body">
+        <div class="callout-title">ใบประกาศนียบัตร</div>
+        สามารถดูประวัติการสอบและดาวน์โหลดใบประกาศย้อนหลังได้ที่หน้า <strong>"ประวัติการสอบ"</strong>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ════════════════════════════════════
+       ██ ADMIN
+  ════════════════════════════════════ -->
+
+  <!-- ═══ ADMIN LOGIN ═══ -->
+  <section id="admin-login">
+    <h2>🔐 เข้าสู่ระบบ Admin</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">กดปุ่ม "Admin" มุมขวาบน</div>
+          <div class="step-desc">หน้า Login จะปรากฏขึ้น</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">กรอก Username และ Password</div>
+          <div class="step-desc">ใช้ account ที่ผู้ดูแลระบบสร้างให้</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">เข้าสู่หน้า Admin Panel</div>
+          <div class="step-desc">ระบบแสดง Tab ต่างๆ ด้านบน ได้แก่ รอบอบรม, ประเภท, ข้อมูลพื้นฐาน, ผู้ลงทะเบียน ฯลฯ</div>
+        </div>
+      </div>
+    </div>
+    <div class="callout warning">
+      <span class="callout-icon">⚠️</span>
+      <div class="callout-body">
+        <div class="callout-title">ออกจากระบบ</div>
+        กดปุ่ม <strong>"ออกจากระบบ"</strong> ทุกครั้งหลังใช้งานเสร็จ โดยเฉพาะบนคอมพิวเตอร์สาธารณะ
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ADMIN SESSIONS ═══ -->
+  <section id="admin-sessions">
+    <h2>📅 จัดการรอบอบรม</h2>
+    <p>แท็บ <strong>รอบอบรม</strong> — จัดการกำหนดการอบรมทั้งหมด</p>
+
+    <h3>ดูรายการรอบอบรม</h3>
+    <p>ตารางแสดง ประเภท, รอบ, วันที่, เวลา, สถานที่, วิทยากร, จำนวนลงทะเบียน/ทั้งหมด, จำนวนเข้าอบรมจริง และสถานะ สามารถกรองตามประเภทได้ที่ dropdown ด้านบน</p>
+
+    <h3>เพิ่มรอบอบรม</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">กด "+ เพิ่มรอบ"</div>
+          <div class="step-desc">หน้าต่างเพิ่มรอบจะปรากฏ</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">กรอกข้อมูลรอบอบรม</div>
+          <div class="step-desc">เลือกประเภทอบรม, กรอกชื่อรอบ, วันที่, เวลาเริ่ม-สิ้นสุด, สถานที่, วิทยากร, จำนวนที่นั่ง</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">กด "บันทึก"</div>
+          <div class="step-desc">รอบอบรมใหม่จะปรากฏในตารางและหน้าลงทะเบียนทันที</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>แก้ไข / ลบรอบอบรม</h3>
+    <p>กดไอคอน ✏️ เพื่อแก้ไข หรือ 🗑️ เพื่อลบ ในคอลัมน์ <strong>จัดการ</strong></p>
+
+    <div class="callout danger">
+      <span class="callout-icon">🚫</span>
+      <div class="callout-body">
+        <div class="callout-title">ข้อควรระวัง</div>
+        การลบรอบอบรมที่มีผู้ลงทะเบียนแล้ว จะลบข้อมูลการลงทะเบียนทั้งหมดในรอบนั้นด้วย
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ADMIN CATEGORIES ═══ -->
+  <section id="admin-categories">
+    <h2>🗂️ จัดการประเภทอบรม</h2>
+    <p>แท็บ <strong>ประเภท</strong> — จัดการหมวดหมู่ / ประเภทของการอบรม</p>
+    <p>ตารางแสดงชื่อประเภท, คำอธิบาย, จำนวนรอบ, จำนวนผู้ลงทะเบียน และว่ามีแบบทดสอบผูกอยู่หรือไม่</p>
+
+    <h3>เพิ่มประเภทอบรม</h3>
+    <p>กด <strong>"+ เพิ่มประเภท"</strong> → กรอกชื่อประเภทและคำอธิบาย → เลือกแบบทดสอบที่ผูกกัน (ถ้ามี) → กด "บันทึก"</p>
+
+    <div class="callout info">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body">
+        <div class="callout-title">ผูกประเภทกับแบบทดสอบ</div>
+        สามารถเลือกหลักสูตรแบบทดสอบ (Quiz) ที่ผูกกับประเภทอบรมนี้ได้ เมื่อผู้เข้าอบรมผ่านการเช็คชื่อ ระบบจะส่งลิงก์แบบทดสอบให้อัตโนมัติ
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ADMIN MASTERS ═══ -->
+  <section id="admin-masters">
+    <h2>📌 ข้อมูลพื้นฐาน</h2>
+    <p>แท็บ <strong>ข้อมูลพื้นฐาน</strong> — จัดการรายการ Dropdown ที่ใช้ในระบบ</p>
+
+    <table class="tbl">
+      <thead><tr><th>รายการ</th><th>ใช้ที่</th></tr></thead>
+      <tbody>
+        <tr><td>🎤 <strong>วิทยากร</strong></td><td>Dropdown ในฟอร์มเพิ่มรอบอบรม</td></tr>
+        <tr><td>📍 <strong>สถานที่</strong></td><td>Dropdown ในฟอร์มเพิ่มรอบอบรม</td></tr>
+        <tr><td>🏢 <strong>แผนก</strong></td><td>Dropdown ในฟอร์มลงทะเบียน และ Walk-in</td></tr>
+        <tr><td>🪪 <strong>คำนำหน้าชื่อ</strong></td><td>Dropdown ในฟอร์มลงทะเบียน</td></tr>
+      </tbody>
+    </table>
+
+    <p>วิธีเพิ่ม: พิมพ์ในช่องด้านล่างของแต่ละรายการ แล้วกด <strong>+</strong> หรือกด Enter</p>
+    <p>วิธีลบ: กดไอคอน 🗑️ ที่หน้าแต่ละรายการ</p>
+  </section>
+
+  <!-- ═══ ADMIN REGS ═══ -->
+  <section id="admin-regs">
+    <h2>👤 ผู้ลงทะเบียน</h2>
+    <p>แท็บ <strong>ผู้ลงทะเบียน</strong> — ดูและจัดการรายชื่อผู้ที่ลงทะเบียนทั้งหมด</p>
+
+    <h3>ค้นหาและกรอง</h3>
+    <ul>
+      <li>ช่องค้นหา: ค้นหาชื่อ, นามสกุล, แผนก</li>
+      <li>Dropdown ประเภท: กรองตามประเภทอบรม</li>
+      <li>Dropdown รอบ: กรองตามรอบอบรม</li>
+    </ul>
+
+    <h3>เพิ่มรายการด้วยมือ</h3>
+    <p>กด <strong>"+ เพิ่มรายการ"</strong> → กรอกข้อมูลผู้เข้าอบรม → เลือกประเภทและรอบ → กด "บันทึก"</p>
+
+    <h3>Import จาก Excel</h3>
+    <p>กดไอคอน Import → ดาวน์โหลด Template → กรอกข้อมูล → อัปโหลดไฟล์ Excel ระบบจะ Import รายชื่อทั้งหมด</p>
+
+    <h3>พิมพ์แบบฟอร์มเซ็นชื่อ</h3>
+    <p>กดปุ่ม <strong>"พิมพ์แบบฟอร์ม"</strong> → กรอกข้อมูลหัวข้อเอกสารและผู้ลงนาม (ชื่อสถานพยาบาลจะดึงจากสาขาอัตโนมัติ) → กด "พิมพ์"</p>
+
+    <h3>ดู QR Code</h3>
+    <p>กดไอคอน QR ในคอลัมน์ QR เพื่อดู QR Code ของผู้ลงทะเบียนแต่ละคน</p>
+
+    <div class="callout danger">
+      <span class="callout-icon">⚠️</span>
+      <div class="callout-body">
+        <div class="callout-title">เคียร์ตามสาขา</div>
+        ปุ่ม <strong>"เคียร์ตามสาขา"</strong> จะลบข้อมูลการลงทะเบียนทั้งหมดของสาขาที่เลือก — ใช้ด้วยความระมัดระวัง
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ADMIN LOCATIONS ═══ -->
+  <section id="admin-locations">
+    <h2>📍 จัดการสาขา</h2>
+    <p>แท็บ <strong>สาขา</strong> — จัดการรายชื่อสาขา / โรงพยาบาลที่ใช้ระบบ</p>
+
+    <h3>เพิ่มสาขาใหม่</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">กรอก "รหัสสาขา"</div>
+          <div class="step-desc">ใช้ได้เฉพาะ a-z, 0-9, -, _ เช่น <code>theme_3</code> หรือ <code>hospital-abc</code></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">กรอก "ชื่อสาขา"</div>
+          <div class="step-desc">ชื่อเต็มของสาขา / โรงพยาบาล เช่น "โรงพยาบาลกรุงเทพ สาขา 3"</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">กด "เพิ่มสาขา"</div>
+          <div class="step-desc">URL สำหรับสาขานี้คือ <code>?site=รหัสสาขา</code></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ADMIN USERS ═══ -->
+  <section id="admin-users">
+    <h2>🛡️ จัดการผู้ใช้งาน Admin</h2>
+    <p>แท็บ <strong>ผู้ใช้งาน</strong> — เพิ่ม / ลบ บัญชี Admin</p>
+
+    <h3>เพิ่มผู้ใช้ Admin ใหม่</h3>
+    <p>กรอก <strong>ชื่อผู้ใช้ (Username)</strong> และ <strong>รหัสผ่าน</strong> แล้วกด <strong>"+ เพิ่มผู้ใช้"</strong></p>
+
+    <h3>ลบผู้ใช้</h3>
+    <p>กดไอคอน 🗑️ ที่หน้าชื่อผู้ใช้ที่ต้องการลบ</p>
+
+    <div class="callout warning">
+      <span class="callout-icon">🔒</span>
+      <div class="callout-body">
+        <div class="callout-title">ความปลอดภัย</div>
+        ควรตั้งรหัสผ่านที่แข็งแรง (ตัวอักษร + ตัวเลข + อักขระพิเศษ) และเปลี่ยนรหัสผ่านเป็นประจำ
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ADMIN LOGIN VERIFY ═══ -->
+  <section id="admin-loginverify">
+    <h2>✅ ตรวจสอบสิทธิ์ (Login Verify)</h2>
+    <p>แท็บ <strong>ตรวจสอบสิทธิ์</strong> — กำหนดว่าผู้ลงทะเบียนคนไหนสามารถ Login เข้าระบบแบบทดสอบได้</p>
+
+    <table class="tbl">
+      <thead><tr><th>สถานะ</th><th>ความหมาย</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-green">มี Login</span></td><td>อนุญาตให้เข้าระบบแบบทดสอบได้</td></tr>
+        <tr><td><span class="badge badge-red">ไม่มี Login</span></td><td>ไม่อนุญาตให้เข้าระบบแบบทดสอบ</td></tr>
+        <tr><td><span class="badge badge-amber">ปิดใช้งาน</span></td><td>บัญชีถูกปิดชั่วคราว</td></tr>
+      </tbody>
+    </table>
+
+    <p>ค้นหาด้วยชื่อหรือหน่วยงาน → ปรับสถานะแต่ละคน → กด <strong>"บันทึกสถานะ"</strong></p>
+  </section>
+
+  <!-- ═══ ADMIN SURVEY ═══ -->
+  <section id="admin-survey">
+    <h2>📈 Dashboard ผลการประเมิน</h2>
+    <p>แท็บ <strong>ผลประเมิน</strong> — วิเคราะห์ผลความพึงพอใจจากผู้เข้าอบรม</p>
+
+    <h3>ตัวกรอง</h3>
+    <ul>
+      <li><strong>สาขา</strong> — เลือกดูผลของสาขาใดสาขาหนึ่ง</li>
+      <li><strong>รอบอบรม</strong> — กรองตามรอบที่ต้องการ หรือดูทุกรอบ</li>
+      <li><strong>ช่วงเวลา</strong> — 7 / 30 / 90 วันล่าสุด หรือทั้งหมด</li>
+    </ul>
+
+    <h3>กราฟและข้อมูลที่แสดง</h3>
+    <table class="tbl">
+      <thead><tr><th>ส่วน</th><th>รายละเอียด</th></tr></thead>
+      <tbody>
+        <tr><td>KPI Cards</td><td>จำนวนผู้ประเมิน, คะแนนเฉลี่ย, % ผู้ที่ต้องการอบรมเพิ่ม</td></tr>
+        <tr><td>Radar Chart</td><td>ภาพรวม 6 ด้านในรูปแบบแผนภูมิใยแมงมุม</td></tr>
+        <tr><td>Bar Chart</td><td>คะแนนเฉลี่ยแต่ละด้าน (เต็ม 5.00)</td></tr>
+        <tr><td>Distribution Chart</td><td>การกระจายระดับคะแนน (%)</td></tr>
+        <tr><td>Heatmap</td><td>คะแนนรายข้อทุกด้าน (สีแสดงระดับ)</td></tr>
+        <tr><td>Trend Chart</td><td>แนวโน้มคะแนนแต่ละด้านตามรอบอบรม</td></tr>
+        <tr><td>ข้อเสนอแนะ</td><td>รายการ Comment จากผู้ประเมิน</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Export</h3>
+    <ul>
+      <li><strong>Export Excel</strong> — ส่งออกข้อมูลดิบเป็นไฟล์ .xlsx</li>
+      <li><strong>บันทึกเป็นภาพ</strong> — บันทึก Dashboard เป็นรูปภาพ PNG</li>
+    </ul>
+  </section>
+
+  <!-- ═══ ADMIN QUIZ ═══ -->
+  <section id="admin-quiz">
+    <h2>🧩 ระบบแบบทดสอบ (Admin)</h2>
+    <p>แท็บ <strong>แบบทดสอบ</strong> — จัดการหลักสูตรแบบทดสอบและดูผลการสอบ (ฝังระบบ Quiz ไว้ในหน้านี้)</p>
+
+    <div class="tab-list">
+      <span class="tab-pill">📚 จัดการหลักสูตร</span>
+      <span class="tab-pill">📋 ผลการทดสอบ</span>
+      <span class="tab-pill">⚙️ ตั้งค่า</span>
+    </div>
+
+    <h3>จัดการหลักสูตร</h3>
+    <ul>
+      <li>เพิ่ม / แก้ไข / ลบ หลักสูตรแบบทดสอบ</li>
+      <li>กำหนดจำนวนข้อ, เวลา, เกณฑ์ผ่าน (%)</li>
+      <li>จัดการข้อสอบแต่ละหลักสูตร (เพิ่ม/แก้ไข/ลบ ข้อ)</li>
+      <li>Import ข้อสอบจาก Excel</li>
+    </ul>
+
+    <h3>ผลการทดสอบ</h3>
+    <ul>
+      <li>ดูผลสอบทั้งหมด กรองตามหลักสูตร, สถานะ (ผ่าน/ไม่ผ่าน), วันที่</li>
+      <li>Export ผลสอบเป็น Excel</li>
+      <li>ลบผลสอบตามสาขา</li>
+    </ul>
+
+    <h3>ตั้งค่า</h3>
+    <ul>
+      <li>ตั้งค่าข้อมูลใบประกาศนียบัตร (ชื่อองค์กร, ลายเซ็น)</li>
+      <li>ตั้งค่า SMTP สำหรับส่งอีเมลใบประกาศ</li>
+    </ul>
+
+    <div class="callout info">
+      <span class="callout-icon">🔗</span>
+      <div class="callout-body">
+        <div class="callout-title">เปิดเต็มหน้า</div>
+        กดปุ่ม <strong>"เปิดเต็มหน้า"</strong> มุมขวาบนเพื่อเปิดระบบ Quiz ในแท็บใหม่แบบเต็มหน้าจอ
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ADMIN PRINT ═══ -->
+  <section id="admin-print">
+    <h2>🖨️ พิมพ์เอกสาร</h2>
+    <p>แท็บ <strong>พิมพ์เอกสาร</strong> — สร้างและพิมพ์ใบเซ็นชื่อผู้เข้าอบรม</p>
+
+    <h3>ตั้งค่าเอกสาร</h3>
+
+    <h4>หัวข้อเอกสาร</h4>
+    <ul>
+      <li>เลือกจาก Dropdown รายการที่บันทึกไว้ หรือพิมพ์หัวข้อเองในช่อง Textarea</li>
+      <li>กด <strong>"จัดการหัวข้อ"</strong> เพื่อเพิ่ม/แก้ไข/ลบ รายการ Dropdown</li>
+    </ul>
+
+    <h4>ข้อมูลเอกสาร</h4>
+    <table class="tbl">
+      <thead><tr><th>ฟิลด์</th><th>หมายเหตุ</th></tr></thead>
+      <tbody>
+        <tr><td>สถานพยาบาล</td><td>เลือกสาขา — ชื่อจะถูกดึงอัตโนมัติ</td></tr>
+        <tr><td>วันที่</td><td>วันที่ในเอกสาร</td></tr>
+        <tr><td>จำนวนแถว</td><td>5–100 แถว (แต่ละแถวคือ 1 ช่องเซ็นชื่อ)</td></tr>
+        <tr><td>แสดงช่องเจ้าหน้าที่</td><td>เพิ่มคอลัมน์ชื่อเจ้าหน้าที่ BMS</td></tr>
+      </tbody>
+    </table>
+
+    <h4>ผู้ลงนาม</h4>
+    <ul>
+      <li><strong>ซ้าย (BMS)</strong> — ชื่อ, ตำแหน่งของผู้แทน BMS</li>
+      <li><strong>ขวา (สถานพยาบาล)</strong> — ชื่อ, ตำแหน่ง, ชื่อโรงพยาบาล (ดึงจากสาขาอัตโนมัติ)</li>
+      <li>กด <strong>"บันทึกเป็นค่าเริ่มต้น"</strong> เพื่อจำค่าผู้ลงนามไว้ใช้ครั้งหน้า</li>
+    </ul>
+
+    <h3>พิมพ์</h3>
+    <p>ด้านขวาแสดง <strong>ตัวอย่างเอกสาร</strong> แบบ Real-time กด <strong>"พิมพ์เอกสาร"</strong> มุมขวาบนเพื่อสั่งพิมพ์ออกเครื่องพิมพ์ รองรับกระดาษ A4</p>
+
+    <div class="callout info">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body">
+        <div class="callout-title">หลายหน้า</div>
+        หากมีแถวมากกว่า 1 หน้ากระดาษ ระบบจะแสดงหมายเลขหน้า <strong>หน้า 1/2</strong>, <strong>หน้า 2/2</strong> โดยอัตโนมัติ หากมีเพียง 1 หน้า จะไม่แสดงหมายเลขหน้า
+      </div>
+    </div>
+
+    <h3>พิมพ์แบบฟอร์มจาก Tab ผู้ลงทะเบียน</h3>
+    <p>ใน Tab <strong>ผู้ลงทะเบียน</strong> → กดปุ่ม <strong>"พิมพ์แบบฟอร์ม"</strong> → กรอกข้อมูลในหน้าต่างที่เปิดขึ้น ชื่อสถานพยาบาลจะถูกดึงจากสาขาปัจจุบันอัตโนมัติ</p>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ═══ TIPS ═══ -->
+  <section id="tips">
+    <h2>💡 เคล็ดลับการใช้งาน</h2>
+
+    <div class="callout success">
+      <span class="callout-icon">⌨️</span>
+      <div class="callout-body">
+        <div class="callout-title">Keyboard Shortcuts ในฟอร์ม</div>
+        กด <strong>Enter</strong> ในช่อง Input ของ ข้อมูลพื้นฐาน (วิทยากร/สถานที่/แผนก/คำนำหน้า) เพื่อเพิ่มรายการได้ทันที ไม่ต้องคลิกปุ่ม +
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">📱</span>
+      <div class="callout-body">
+        <div class="callout-title">การสแกน QR บนมือถือ</div>
+        หน้าเช็คชื่อรองรับมือถือได้เต็มรูปแบบ ใช้งานได้ทั้งกล้องหน้าและกล้องหลัง กดปุ่ม "สลับกล้อง" ได้ระหว่างสแกน
+      </div>
+    </div>
+
+    <div class="callout success">
+      <span class="callout-icon">🔄</span>
+      <div class="callout-body">
+        <div class="callout-title">รีเฟรชข้อมูล</div>
+        ข้อมูลในระบบ sync แบบ Real-time — หากไม่เห็นข้อมูลล่าสุด ให้ reload หน้าเว็บหรือกดปุ่ม "รีเฟรช" ในหน้า Dashboard ผลประเมิน
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <hr class="divider">
+  <div style="text-align:center;color:var(--gray-400);font-size:12px;padding-bottom:40px;">
+    คู่มือการใช้งาน BMS Training &nbsp;·&nbsp; Bangkok Medical Software Co., Ltd.<br>
+    อัปเดตล่าสุด: พฤษภาคม 2568
+  </div>
+
+</main>
+</div>
+
+<!-- Highlight active nav on scroll -->
+<script>
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.nav-link');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.nav-link[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -75% 0px' });
+  sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>
