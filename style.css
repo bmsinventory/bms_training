@@ -414,6 +414,12 @@ tr:hover td{background:#f8fafc}
 .csel-list.open{display:block}
 .csel-list li{padding:11px 14px;cursor:pointer;font-size:14px;color:var(--text)}
 .csel-list li:hover,.csel-list li:active{background:var(--primary-light);color:var(--primary)}
+.csel-search-wrap{position:sticky;top:0;background:var(--card);padding:7px 8px;border-bottom:1px solid var(--border);z-index:1;cursor:default}
+.csel-search-wrap:hover,.csel-search-wrap:active{background:var(--card)}
+.csel-search{width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font);font-size:13px;color:var(--text);background:#fff;box-sizing:border-box;outline:none}
+.csel-search:focus{border-color:var(--primary-mid);box-shadow:0 0 0 2px rgba(59,130,246,.1)}
+.csel-no-result{padding:10px 14px;font-size:13px;color:var(--text-muted);cursor:default;text-align:center}
+.csel-no-result:hover{background:transparent}
 /* ── Touch device: active state instead of hover ── */
 @media(hover:none){
   .cat-card:hover{transform:none;box-shadow:var(--shadow-sm);border-color:var(--border)}

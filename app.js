@@ -3082,8 +3082,33 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
     btn.textContent=placeholder;
     btn.dataset.empty='1';
     list.innerHTML='';
+    // Search box for large lists
+    if(arr.length>5){
+      const sw=document.createElement('li');
+      sw.className='csel-search-wrap';
+      sw.innerHTML='<input type="text" class="csel-search" placeholder="ค้นหา..." autocomplete="off">';
+      sw.addEventListener('click',e=>e.stopPropagation());
+      const si=sw.querySelector('.csel-search');
+      si.addEventListener('input',()=>{
+        const q=si.value.toLowerCase().trim();
+        let found=0;
+        list.querySelectorAll('li.csel-option').forEach(li=>{
+          const match=!q||li.textContent.toLowerCase().includes(q);
+          li.style.display=match?'':'none';
+          if(match)found++;
+        });
+        let nr=list.querySelector('.csel-no-result');
+        if(!found){
+          if(!nr){nr=document.createElement('li');nr.className='csel-no-result';nr.textContent='ไม่พบผลลัพธ์';list.appendChild(nr);}
+          nr.style.display='';
+        }else if(nr){nr.style.display='none';}
+      });
+      si.addEventListener('click',e=>e.stopPropagation());
+      list.appendChild(sw);
+    }
     const addLi=(val,label)=>{
       const li=document.createElement('li');
+      li.className='csel-option';
       li.textContent=label;
       li.addEventListener('click',()=>cselPick(id,val,label));
       list.appendChild(li);
@@ -3092,22 +3117,30 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
     else arr.forEach(v=>addLi(v,v));
   }
 }
+function cselResetSearch(list){
+  const si=list.querySelector('.csel-search');if(!si)return;
+  si.value='';
+  list.querySelectorAll('li.csel-option').forEach(li=>li.style.display='');
+  const nr=list.querySelector('.csel-no-result');if(nr)nr.style.display='none';
+}
 function cselToggle(id){
   const list=document.getElementById('csell-'+id);
   const btn=document.getElementById('cselb-'+id);
   if(!list||!btn)return;
   const wasOpen=list.classList.contains('open');
-  document.querySelectorAll('.csel-list.open').forEach(x=>{x.classList.remove('open');x.style.cssText='';});
+  document.querySelectorAll('.csel-list.open').forEach(x=>{cselResetSearch(x);x.classList.remove('open');x.style.cssText='';});
   if(!wasOpen){
     const r=btn.getBoundingClientRect();
     const below=window.innerHeight-r.bottom;
     const above=r.top;
     list.style.left=r.left+'px';
     list.style.width=r.width+'px';
-    list.style.maxHeight=Math.min(220,Math.max(below,above)-8)+'px';
+    list.style.maxHeight=Math.min(260,Math.max(below,above)-8)+'px';
     if(below>=120||below>=above){list.style.top=(r.bottom+2)+'px';list.style.bottom='auto';}
     else{list.style.top='auto';list.style.bottom=(window.innerHeight-r.top+2)+'px';}
     list.classList.add('open');
+    const si=list.querySelector('.csel-search');
+    if(si)setTimeout(()=>si.focus(),50);
   }
 }
 function cselPick(id,val,label){
@@ -3128,7 +3161,7 @@ function cselSetVal(id,val,placeholder){
 }
 document.addEventListener('click',e=>{
   if(!e.target.closest('.csel-wrap'))
-    document.querySelectorAll('.csel-list.open').forEach(x=>{x.classList.remove('open');x.style.cssText='';});
+    document.querySelectorAll('.csel-list.open').forEach(x=>{cselResetSearch(x);x.classList.remove('open');x.style.cssText='';});
 });
 function openAddSession(){
   document.getElementById('sess-modal-title').innerHTML='<i class="ti ti-calendar-plus"></i>เพิ่มรอบอบรม';
