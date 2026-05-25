@@ -1754,6 +1754,8 @@ function openRegister(sessId){
   populateSelect('reg-prefix',prefixes,'คำนำหน้า...');
   populateSelect('reg-dept',departments,'เลือกแผนก...');
   document.getElementById('modal-register').classList.add('open');
+  // DEBUG: ลบทิ้งหลังแก้เสร็จ
+  showToast(`[debug] prefix:${prefixes.length} dept:${departments.length}`,'info');
   setTimeout(()=>document.getElementById('reg-prefix').focus(),200);
 }
 function previewRegName(){
