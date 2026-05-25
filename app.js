@@ -1751,12 +1751,10 @@ function openRegister(sessId){
   ['reg-fname','reg-lname','reg-pos'].forEach(id=>document.getElementById(id).value='');
   const prev=document.getElementById('reg-name-preview');
   if(prev)prev.style.display='none';
+  populateSelect('reg-prefix',prefixes,'คำนำหน้า...');
+  populateSelect('reg-dept',departments,'เลือกแผนก...');
   document.getElementById('modal-register').classList.add('open');
-  requestAnimationFrame(()=>{
-    populateSelect('reg-prefix',prefixes,'คำนำหน้า...');
-    populateSelect('reg-dept',departments,'เลือกแผนก...');
-    setTimeout(()=>document.getElementById('reg-prefix').focus(),200);
-  });
+  setTimeout(()=>document.getElementById('reg-prefix').focus(),200);
 }
 function previewRegName(){
   const pre=document.getElementById('reg-prefix').value;
@@ -2380,12 +2378,10 @@ function openWalkinModal(sid){
   document.getElementById('walkin-sess-title').textContent=`${cat?.name||''} — ${s.name}`;
   document.getElementById('walkin-sess-meta').textContent=`${fmtDate(s.date)} · ${sessTxt(s)}`;
   ['walkin-fname','walkin-lname','walkin-pos'].forEach(id=>document.getElementById(id).value='');
+  populateSelect('walkin-prefix',prefixes,'คำนำหน้า...');
+  populateSelect('walkin-dept',departments,'เลือกแผนก...');
   document.getElementById('modal-walkin').classList.add('open');
-  requestAnimationFrame(()=>{
-    populateSelect('walkin-prefix',prefixes,'คำนำหน้า...');
-    populateSelect('walkin-dept',departments,'เลือกแผนก...');
-    setTimeout(()=>document.getElementById('walkin-fname').focus(),200);
-  });
+  setTimeout(()=>document.getElementById('walkin-fname').focus(),200);
 }
 async function submitWalkin(){
   const sid=parseInt(document.getElementById('walkin-sess-id').value);
@@ -3072,8 +3068,10 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
   const el=document.getElementById(id);if(!el)return;
   if(isObj){
     el.innerHTML=`<option value="">${placeholder}</option>`+arr.map(a=>`<option value="${a.v}">${a.l}</option>`).join('');
-  } else {
-    el.innerHTML=`<option value="">${placeholder}</option>`+arr.map(v=>`<option value="${v}">${v}</option>`).join('');
+  }else{
+    while(el.options.length)el.options.remove(0);
+    el.options.add(new Option(placeholder,''));
+    arr.forEach(v=>el.options.add(new Option(v,v)));
   }
 }
 function openAddSession(){
@@ -3800,11 +3798,9 @@ function adminAddReg(){
     const full=cnt>=ss.capacity;
     return`<option value="${ss.id}"${full?' disabled':''}>${cat?cat.name+' — ':''}${ss.name} (${fmtDateShort(ss.date)})${full?' [เต็ม]':' ว่าง '+(ss.capacity-cnt)+' ที่'}</option>`;
   }).join('');
+  populateSelect('ar-prefix',prefixes,'คำนำหน้า...');
+  populateSelect('ar-dept',departments,'เลือกแผนก...');
   document.getElementById('modal-admin-add-reg').classList.add('open');
-  requestAnimationFrame(()=>{
-    populateSelect('ar-prefix',prefixes,'คำนำหน้า...');
-    populateSelect('ar-dept',departments,'เลือกแผนก...');
-  });
 }
 async function adminSubmitReg(){
   const sessId=parseInt(document.getElementById('ar-sess').value);
@@ -3845,13 +3841,11 @@ function adminOpenEditReg(regId){
     return`<option value="${ss.id}"${isCur?' selected':''}${isFull?' disabled':''}>${cat?cat.name+' — ':''}${ss.name} — ${fmtDateShort(ss.date)}${isCur?' (ปัจจุบัน)':isFull?' [เต็ม]':' (ว่าง '+(ss.capacity-cnt)+' ที่)'}</option>`;
   }).join('');
   document.getElementById('edit-deadline-txt').textContent='Admin — แก้ไขได้ไม่จำกัดเงื่อนไข';
+  populateSelect('edit-prefix',prefixes,'คำนำหน้า...');
+  populateSelect('edit-dept',departments,'เลือกแผนก...');
   document.getElementById('modal-edit-reg').classList.add('open');
-  requestAnimationFrame(()=>{
-    populateSelect('edit-prefix',prefixes,'คำนำหน้า...');
-    document.getElementById('edit-prefix').value=reg.prefix||'';
-    populateSelect('edit-dept',departments,'เลือกแผนก...');
-    document.getElementById('edit-dept').value=reg.dept;
-  });
+  document.getElementById('edit-prefix').value=reg.prefix||'';
+  document.getElementById('edit-dept').value=reg.dept;
 }
 
 function goToAttendance(sessId){
@@ -3888,13 +3882,11 @@ function openEditReg(regId){
   }).join('');
   const deadline=new Date(s.date);deadline.setDate(deadline.getDate()-1);
   document.getElementById('edit-deadline-txt').textContent='แก้ไขได้ถึง: '+fmtDate(deadline.toISOString().split('T')[0]);
+  populateSelect('edit-prefix',prefixes,'คำนำหน้า...');
+  populateSelect('edit-dept',departments,'เลือกแผนก...');
   document.getElementById('modal-edit-reg').classList.add('open');
-  requestAnimationFrame(()=>{
-    populateSelect('edit-prefix',prefixes,'คำนำหน้า...');
-    document.getElementById('edit-prefix').value=reg.prefix||'';
-    populateSelect('edit-dept',departments,'เลือกแผนก...');
-    document.getElementById('edit-dept').value=reg.dept;
-  });
+  document.getElementById('edit-prefix').value=reg.prefix||'';
+  document.getElementById('edit-dept').value=reg.dept;
 }
 async function submitEditReg(){
   const reg=getReg(window._editRegId);if(!reg)return;
