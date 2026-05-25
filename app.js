@@ -3074,7 +3074,7 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
       arr.forEach(v=>el.options.add(new Option(v,v)));
     }
   }else{
-    // custom dropdown (hidden input + .csel-list)
+    // custom dropdown (hidden input + .csel-list div)
     const list=document.getElementById('csell-'+id);
     const btn=document.getElementById('cselb-'+id);
     if(!list||!btn)return;
@@ -3082,36 +3082,41 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
     btn.textContent=placeholder;
     btn.dataset.empty='1';
     list.innerHTML='';
-    // Search box for large lists
+    // Create options <ul> — scrollable area
+    const opts=document.createElement('ul');
+    opts.className='csel-options';
+    // Search box for large lists (prepended as sibling div, not sticky li)
     if(arr.length>5){
-      const sw=document.createElement('li');
+      const sw=document.createElement('div');
       sw.className='csel-search-wrap';
-      sw.innerHTML='<input type="text" class="csel-search" placeholder="ค้นหา..." autocomplete="off">';
+      const si=document.createElement('input');
+      si.type='text';si.className='csel-search';si.placeholder='ค้นหา...';si.autocomplete='off';
+      sw.appendChild(si);
       sw.addEventListener('click',e=>e.stopPropagation());
-      const si=sw.querySelector('.csel-search');
+      si.addEventListener('click',e=>e.stopPropagation());
       si.addEventListener('input',()=>{
         const q=si.value.toLowerCase().trim();
         let found=0;
-        list.querySelectorAll('li.csel-option').forEach(li=>{
+        opts.querySelectorAll('li.csel-option').forEach(li=>{
           const match=!q||li.textContent.toLowerCase().includes(q);
           li.style.display=match?'':'none';
           if(match)found++;
         });
-        let nr=list.querySelector('.csel-no-result');
+        let nr=opts.querySelector('.csel-no-result');
         if(!found){
-          if(!nr){nr=document.createElement('li');nr.className='csel-no-result';nr.textContent='ไม่พบผลลัพธ์';list.appendChild(nr);}
+          if(!nr){nr=document.createElement('li');nr.className='csel-no-result';nr.textContent='ไม่พบผลลัพธ์';opts.appendChild(nr);}
           nr.style.display='';
         }else if(nr){nr.style.display='none';}
       });
-      si.addEventListener('click',e=>e.stopPropagation());
       list.appendChild(sw);
     }
+    list.appendChild(opts);
     const addLi=(val,label)=>{
       const li=document.createElement('li');
       li.className='csel-option';
       li.textContent=label;
       li.addEventListener('click',()=>cselPick(id,val,label));
-      list.appendChild(li);
+      opts.appendChild(li);
     };
     if(isObj)arr.forEach(a=>addLi(a.v,a.l));
     else arr.forEach(v=>addLi(v,v));
@@ -3139,8 +3144,6 @@ function cselToggle(id){
     if(below>=120||below>=above){list.style.top=(r.bottom+2)+'px';list.style.bottom='auto';}
     else{list.style.top='auto';list.style.bottom=(window.innerHeight-r.top+2)+'px';}
     list.classList.add('open');
-    const si=list.querySelector('.csel-search');
-    if(si)setTimeout(()=>si.focus(),50);
   }
 }
 function cselPick(id,val,label){
@@ -3149,7 +3152,7 @@ function cselPick(id,val,label){
   const list=document.getElementById('csell-'+id);
   if(input)input.value=val;
   if(btn){btn.textContent=label;btn.dataset.empty='';}
-  if(list)list.classList.remove('open');
+  if(list){cselResetSearch(list);list.classList.remove('open');list.style.cssText='';}
 }
 function cselSetVal(id,val,placeholder){
   const input=document.getElementById(id);

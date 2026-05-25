@@ -410,16 +410,16 @@ tr:hover td{background:#f8fafc}
 .csel-btn{width:100%;text-align:left;cursor:pointer;background:var(--card);color:var(--text);border:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding-right:10px}
 .csel-btn[data-empty="1"]{color:var(--text-muted)}
 .csel-btn::after{content:'';flex-shrink:0;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--text-muted)}
-.csel-list{display:none;position:fixed;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);z-index:9999;max-height:220px;overflow-y:auto;list-style:none;padding:4px 0;margin:0;box-shadow:0 4px 16px rgba(0,0,0,.18)}
-.csel-list.open{display:block}
-.csel-list li{padding:11px 14px;cursor:pointer;font-size:14px;color:var(--text)}
-.csel-list li:hover,.csel-list li:active{background:var(--primary-light);color:var(--primary)}
-.csel-search-wrap{position:sticky;top:0;background:var(--card);padding:7px 8px;border-bottom:1px solid var(--border);z-index:1;cursor:default}
-.csel-search-wrap:hover,.csel-search-wrap:active{background:var(--card)}
+.csel-list{display:none;position:fixed;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.18);overflow:hidden}
+.csel-list.open{display:flex}
+.csel-search-wrap{flex-shrink:0;padding:7px 8px;border-bottom:1px solid var(--border);background:var(--card)}
 .csel-search{width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font);font-size:13px;color:var(--text);background:#fff;box-sizing:border-box;outline:none}
 .csel-search:focus{border-color:var(--primary-mid);box-shadow:0 0 0 2px rgba(59,130,246,.1)}
+.csel-options{list-style:none;padding:4px 0;margin:0;overflow-y:auto;flex:1}
+.csel-options li{padding:11px 14px;cursor:pointer;font-size:14px;color:var(--text)}
+.csel-options li:hover,.csel-options li:active{background:var(--primary-light);color:var(--primary)}
 .csel-no-result{padding:10px 14px;font-size:13px;color:var(--text-muted);cursor:default;text-align:center}
-.csel-no-result:hover{background:transparent}
+.csel-no-result:hover,.csel-no-result:active{background:transparent}
 /* ── Touch device: active state instead of hover ── */
 @media(hover:none){
   .cat-card:hover{transform:none;box-shadow:var(--shadow-sm);border-color:var(--border)}
