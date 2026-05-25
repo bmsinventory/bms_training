@@ -3093,10 +3093,22 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
   }
 }
 function cselToggle(id){
-  const list=document.getElementById('csell-'+id);if(!list)return;
+  const list=document.getElementById('csell-'+id);
+  const btn=document.getElementById('cselb-'+id);
+  if(!list||!btn)return;
   const wasOpen=list.classList.contains('open');
-  document.querySelectorAll('.csel-list.open').forEach(x=>x.classList.remove('open'));
-  if(!wasOpen)list.classList.add('open');
+  document.querySelectorAll('.csel-list.open').forEach(x=>{x.classList.remove('open');x.style.cssText='';});
+  if(!wasOpen){
+    const r=btn.getBoundingClientRect();
+    const below=window.innerHeight-r.bottom;
+    const above=r.top;
+    list.style.left=r.left+'px';
+    list.style.width=r.width+'px';
+    list.style.maxHeight=Math.min(220,Math.max(below,above)-8)+'px';
+    if(below>=120||below>=above){list.style.top=(r.bottom+2)+'px';list.style.bottom='auto';}
+    else{list.style.top='auto';list.style.bottom=(window.innerHeight-r.top+2)+'px';}
+    list.classList.add('open');
+  }
 }
 function cselPick(id,val,label){
   const input=document.getElementById(id);
@@ -3116,7 +3128,7 @@ function cselSetVal(id,val,placeholder){
 }
 document.addEventListener('click',e=>{
   if(!e.target.closest('.csel-wrap'))
-    document.querySelectorAll('.csel-list.open').forEach(x=>x.classList.remove('open'));
+    document.querySelectorAll('.csel-list.open').forEach(x=>{x.classList.remove('open');x.style.cssText='';});
 });
 function openAddSession(){
   document.getElementById('sess-modal-title').innerHTML='<i class="ti ti-calendar-plus"></i>เพิ่มรอบอบรม';
