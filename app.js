@@ -1754,9 +1754,6 @@ function openRegister(sessId){
   populateSelect('reg-prefix',prefixes,'คำนำหน้า...');
   populateSelect('reg-dept',departments,'เลือกแผนก...');
   document.getElementById('modal-register').classList.add('open');
-  // DEBUG: ลบทิ้งหลังแก้เสร็จ
-  showToast(`[debug] prefix:${prefixes.length} dept:${departments.length}`,'info');
-  setTimeout(()=>document.getElementById('reg-prefix').focus(),200);
 }
 function previewRegName(){
   const pre=document.getElementById('reg-prefix').value;
@@ -3068,14 +3065,59 @@ function populateSessionDropdowns(){
 }
 function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
   const el=document.getElementById(id);if(!el)return;
-  if(isObj){
-    el.innerHTML=`<option value="">${placeholder}</option>`+arr.map(a=>`<option value="${a.v}">${a.l}</option>`).join('');
+  if(el.tagName==='SELECT'){
+    if(isObj){
+      el.innerHTML=`<option value="">${placeholder}</option>`+arr.map(a=>`<option value="${a.v}">${a.l}</option>`).join('');
+    }else{
+      while(el.options.length)el.options.remove(0);
+      el.options.add(new Option(placeholder,''));
+      arr.forEach(v=>el.options.add(new Option(v,v)));
+    }
   }else{
-    while(el.options.length)el.options.remove(0);
-    el.options.add(new Option(placeholder,''));
-    arr.forEach(v=>el.options.add(new Option(v,v)));
+    // custom dropdown (hidden input + .csel-list)
+    const list=document.getElementById('csell-'+id);
+    const btn=document.getElementById('cselb-'+id);
+    if(!list||!btn)return;
+    el.value='';
+    btn.textContent=placeholder;
+    btn.dataset.empty='1';
+    list.innerHTML='';
+    const addLi=(val,label)=>{
+      const li=document.createElement('li');
+      li.textContent=label;
+      li.addEventListener('click',()=>cselPick(id,val,label));
+      list.appendChild(li);
+    };
+    if(isObj)arr.forEach(a=>addLi(a.v,a.l));
+    else arr.forEach(v=>addLi(v,v));
   }
 }
+function cselToggle(id){
+  const list=document.getElementById('csell-'+id);if(!list)return;
+  const wasOpen=list.classList.contains('open');
+  document.querySelectorAll('.csel-list.open').forEach(x=>x.classList.remove('open'));
+  if(!wasOpen)list.classList.add('open');
+}
+function cselPick(id,val,label){
+  const input=document.getElementById(id);
+  const btn=document.getElementById('cselb-'+id);
+  const list=document.getElementById('csell-'+id);
+  if(input)input.value=val;
+  if(btn){btn.textContent=label;btn.dataset.empty='';}
+  if(list)list.classList.remove('open');
+}
+function cselSetVal(id,val,placeholder){
+  const input=document.getElementById(id);
+  const btn=document.getElementById('cselb-'+id);
+  if(!input)return;
+  if(input.tagName==='SELECT'){input.value=val;return;}
+  input.value=val;
+  if(btn){btn.textContent=val||placeholder||'เลือก...';btn.dataset.empty=val?'':'1';}
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.csel-wrap'))
+    document.querySelectorAll('.csel-list.open').forEach(x=>x.classList.remove('open'));
+});
 function openAddSession(){
   document.getElementById('sess-modal-title').innerHTML='<i class="ti ti-calendar-plus"></i>เพิ่มรอบอบรม';
   document.getElementById('sess-edit-id').value='';
@@ -3846,8 +3888,8 @@ function adminOpenEditReg(regId){
   populateSelect('edit-prefix',prefixes,'คำนำหน้า...');
   populateSelect('edit-dept',departments,'เลือกแผนก...');
   document.getElementById('modal-edit-reg').classList.add('open');
-  document.getElementById('edit-prefix').value=reg.prefix||'';
-  document.getElementById('edit-dept').value=reg.dept;
+  cselSetVal('edit-prefix',reg.prefix||'','คำนำหน้า...');
+  cselSetVal('edit-dept',reg.dept||'','เลือกแผนก...');
 }
 
 function goToAttendance(sessId){
@@ -3887,8 +3929,8 @@ function openEditReg(regId){
   populateSelect('edit-prefix',prefixes,'คำนำหน้า...');
   populateSelect('edit-dept',departments,'เลือกแผนก...');
   document.getElementById('modal-edit-reg').classList.add('open');
-  document.getElementById('edit-prefix').value=reg.prefix||'';
-  document.getElementById('edit-dept').value=reg.dept;
+  cselSetVal('edit-prefix',reg.prefix||'','คำนำหน้า...');
+  cselSetVal('edit-dept',reg.dept||'','เลือกแผนก...');
 }
 async function submitEditReg(){
   const reg=getReg(window._editRegId);if(!reg)return;
