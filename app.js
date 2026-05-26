@@ -3125,6 +3125,13 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
     };
     if(isObj)arr.forEach(a=>addLi(a.v,a.l));
     else arr.forEach(v=>addLi(v,v));
+    // Also populate native select overlay (used on touch devices)
+    const nat=document.getElementById('cselm-'+id);
+    if(nat){
+      nat.innerHTML=`<option value="">${placeholder}</option>`;
+      if(isObj)arr.forEach(a=>{const o=document.createElement('option');o.value=String(a.v);o.textContent=a.l;nat.appendChild(o);});
+      else arr.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;nat.appendChild(o);});
+    }
   }
 }
 function cselResetSearch(list){
@@ -3139,7 +3146,20 @@ function cselCloseList(x){
   x.style.cssText='';
   if(x._onOutside){document.removeEventListener('touchstart',x._onOutside);x._onOutside=null;}
 }
+function cselNativePick(id,sel){
+  const val=sel.value;
+  const lbl=val?sel.options[sel.selectedIndex].textContent:'';
+  const input=document.getElementById(id);
+  const btn=document.getElementById('cselb-'+id);
+  if(input)input.value=val;
+  if(btn){
+    const span=btn.querySelector('.csel-btn-txt');
+    if(val&&lbl){if(span)span.textContent=lbl;btn.dataset.empty='';}
+    else{btn.dataset.empty='1';}
+  }
+}
 function cselToggle(id){
+  if('ontouchstart' in window)return; // touch: native select handles interaction
   const list=document.getElementById('csell-'+id);
   const btn=document.getElementById('cselb-'+id);
   if(!list||!btn)return;
@@ -3202,6 +3222,9 @@ function cselSetVal(id,val,placeholder){
     if(span)span.textContent=txt;else btn.firstChild.textContent=txt;
     btn.dataset.empty=val?'':'1';
   }
+  // Sync native select value
+  const nat=document.getElementById('cselm-'+id);
+  if(nat)nat.value=val||'';
 }
 document.addEventListener('click',e=>{
   if(!e.target.closest('.csel-wrap')&&!e.target.closest('.csel-list')&&!e.target.closest('.csel-backdrop'))
@@ -4768,3 +4791,7 @@ window.addEventListener('afterprint',function(){
 
 // INIT
 initApp();
+// Enable native select on touch devices (replaces custom dropdown for mobile)
+if('ontouchstart' in window){
+  document.querySelectorAll('.csel-native-select').forEach(s=>s.style.pointerEvents='auto');
+}
