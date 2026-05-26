@@ -3084,8 +3084,8 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
     btn.dataset.empty='1';
     btn.dataset.placeholder=placeholder;
     list.innerHTML='';
-    // Create options <ul> — scrollable area
-    const opts=document.createElement('ul');
+    // Use div container + button items — buttons reliably fire click in all WebViews
+    const opts=document.createElement('div');
     opts.className='csel-options';
     // Search box for large lists
     if(arr.length>5){
@@ -3099,39 +3099,29 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
       si.addEventListener('input',()=>{
         const q=si.value.toLowerCase().trim();
         let found=0;
-        opts.querySelectorAll('li.csel-option').forEach(li=>{
-          const match=!q||li.dataset.label.toLowerCase().includes(q);
-          li.style.display=match?'':'none';
+        opts.querySelectorAll('.csel-option').forEach(btn=>{
+          const match=!q||btn.dataset.label.toLowerCase().includes(q);
+          btn.style.display=match?'':'none';
           if(match)found++;
         });
         let nr=opts.querySelector('.csel-no-result');
         if(!found){
-          if(!nr){nr=document.createElement('li');nr.className='csel-no-result';nr.textContent='ไม่พบผลลัพธ์';opts.appendChild(nr);}
+          if(!nr){nr=document.createElement('div');nr.className='csel-no-result';nr.textContent='ไม่พบผลลัพธ์';opts.appendChild(nr);}
           nr.style.display='';
         }else if(nr){nr.style.display='none';}
       });
       list.appendChild(sw);
     }
-    // Event delegation on opts container — more reliable than per-li listeners
-    // in Android Line WebView where touch events on li inside overflow can be swallowed
-    let _startY=0;
-    opts.addEventListener('touchstart',(e)=>{_startY=e.touches[0].clientY;},{passive:true});
-    opts.addEventListener('touchend',(e)=>{
-      if(Math.abs(e.changedTouches[0].clientY-_startY)>10)return; // was scrolling
-      const li=e.target.closest('.csel-option');
-      if(!li)return;
-      e.preventDefault();
-      cselPick(id,li.dataset.val,li.dataset.label);
-    },{passive:false});
     list.appendChild(opts);
     const addLi=(val,label)=>{
-      const li=document.createElement('li');
-      li.className='csel-option';
-      li.dataset.val=String(val);
-      li.dataset.label=label;
-      li.textContent=label;
-      li.addEventListener('click',()=>cselPick(id,val,label)); // desktop fallback
-      opts.appendChild(li);
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='csel-option';
+      btn.dataset.val=String(val);
+      btn.dataset.label=label;
+      btn.textContent=label;
+      btn.addEventListener('click',()=>cselPick(id,val,label));
+      opts.appendChild(btn);
     };
     if(isObj)arr.forEach(a=>addLi(a.v,a.l));
     else arr.forEach(v=>addLi(v,v));
@@ -3140,7 +3130,7 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
 function cselResetSearch(list){
   const si=list.querySelector('.csel-search');if(!si)return;
   si.value='';
-  list.querySelectorAll('li.csel-option').forEach(li=>li.style.display='');
+  list.querySelectorAll('.csel-option').forEach(btn=>btn.style.display='');
   const nr=list.querySelector('.csel-no-result');if(nr)nr.style.display='none';
 }
 function cselCloseList(x){

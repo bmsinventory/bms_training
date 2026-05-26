@@ -428,20 +428,21 @@ tr:hover td{background:#f8fafc}
 .csel-search{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:15px;color:var(--text);background:var(--bg);box-sizing:border-box;outline:none;-webkit-appearance:none}
 .csel-search:focus{border-color:var(--primary-mid);background:#fff;box-shadow:0 0 0 3px rgba(59,130,246,.1)}
 /* Options */
-.csel-options{list-style:none;padding:0;margin:0;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
-.csel-options li{
-  padding:15px 16px;cursor:pointer;font-size:16px;color:var(--text);
-  border-bottom:1px solid var(--border-subtle);
-  display:flex;align-items:center;justify-content:space-between;
-  touch-action:manipulation;-webkit-tap-highlight-color:rgba(37,99,235,.08);
-  user-select:none;-webkit-user-select:none
+.csel-options{padding:0;margin:0;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.csel-option{
+  display:flex;align-items:center;justify-content:space-between;width:100%;
+  padding:15px 16px;font-size:16px;font-family:var(--font);color:var(--text);
+  background:transparent;border:none;border-bottom:1px solid var(--border-subtle);
+  cursor:pointer;text-align:left;box-sizing:border-box;
+  touch-action:manipulation;-webkit-tap-highlight-color:rgba(37,99,235,.12);
+  user-select:none;-webkit-user-select:none;outline:none
 }
-.csel-options li:last-child{border-bottom:none}
-.csel-options li:active,.csel-options li.csel-tapping{background:var(--primary-light);color:var(--primary)}
-.csel-options li.csel-selected{color:var(--primary);font-weight:600;background:var(--primary-light)}
-.csel-options li.csel-selected::after{content:'✓';font-size:16px;color:var(--primary);font-weight:700;flex-shrink:0}
-.csel-no-result{padding:20px 16px;font-size:15px;color:var(--text-muted);cursor:default;text-align:center}
-.csel-no-result:active{background:transparent}
+.csel-option:last-child{border-bottom:none}
+.csel-option:active{background:var(--primary-light);color:var(--primary)}
+.csel-option.csel-selected{color:var(--primary);font-weight:600;background:var(--primary-light)}
+.csel-option.csel-selected::after{content:'✓';font-size:16px;color:var(--primary);font-weight:700;flex-shrink:0}
+.csel-no-result{padding:20px 16px;font-size:15px;color:var(--text-muted);text-align:center}
+
 /* ── Touch device: active state instead of hover ── */
 @media(hover:none){
   .cat-card:hover{transform:none;box-shadow:var(--shadow-sm);border-color:var(--border)}
