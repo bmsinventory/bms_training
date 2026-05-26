@@ -101,7 +101,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 /* Register form name row */
 .reg-name-row{display:grid;grid-template-columns:110px 1fr 1fr;gap:8px;}
 .reg-field-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;}
-@media(max-width:480px){.reg-name-row{grid-template-columns:1fr 1fr;}.reg-name-row .reg-field-prefix{grid-column:span 2;}}
 select.form-control{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
 .badge{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
 .badge-success{background:var(--success-light);color:#065f46}
@@ -394,6 +393,11 @@ tr:hover td{background:#f8fafc}
   .hero-stat{padding:6px 10px}
   .hero-stat-num{font-size:18px}
   .modal{padding:16px}
+  /* Mobile form improvements */
+  .modal-overlay{padding:6px}
+  .reg-name-row{grid-template-columns:1fr}
+  .form-control,.csel-btn{padding:11px 12px;font-size:15px}
+  .reg-field-label{font-size:12px}
 }
 /* ── Small phone (≤ 480px): 1 column ─────────── */
 @media(max-width:480px){
