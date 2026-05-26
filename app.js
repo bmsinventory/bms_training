@@ -3154,7 +3154,7 @@ function cselToggle(id){
         if(!list.contains(e.target)&&!btn.contains(e.target))
           document.querySelectorAll('.csel-list.open').forEach(x=>cselCloseList(x));
       };
-      setTimeout(()=>document.addEventListener('touchstart',onOutside,{passive:true}),50);
+      setTimeout(()=>document.addEventListener('touchstart',onOutside,{passive:true}),200);
       list._onOutside=onOutside;
     }else{
       // ── Desktop: floating near button (position:fixed set via JS only, never CSS) ──
@@ -4102,7 +4102,10 @@ function showToast(msg,type='success'){
   setTimeout(()=>t.classList.remove('show'),3500);
 }
 document.querySelectorAll('.modal-overlay').forEach(o=>{
-  o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+  o.addEventListener('click',function(e){
+    if('ontouchstart' in window)return; // touch: use explicit close button only
+    if(e.target===this)this.classList.remove('open');
+  });
 });
 
 /* ══ PRINT FORM ══ */

@@ -413,7 +413,7 @@ tr:hover td{background:#f8fafc}
 .csel-btn::after{content:'';flex-shrink:0;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--text-muted)}
 /* Dropdown list — inline by default; JS sets position:fixed for desktop only */
 .csel-list{display:none;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:4px;max-height:260px}
-.csel-list.open{display:flex}
+.csel-list.open{display:flex;-webkit-transform:translateZ(0);transform:translateZ(0)}
 /* When JS sets csel-desktop class, show as floating panel */
 .csel-list.csel-desktop{margin-top:0;box-shadow:0 4px 16px rgba(0,0,0,.18)}
 /* Search */
