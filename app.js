@@ -3079,7 +3079,8 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
     const btn=document.getElementById('cselb-'+id);
     if(!list||!btn)return;
     el.value='';
-    btn.textContent=placeholder;
+    const btnSpan=btn.querySelector('.csel-btn-txt');
+    if(btnSpan)btnSpan.textContent=placeholder;else btn.firstChild.textContent=placeholder;
     btn.dataset.empty='1';
     list.innerHTML='';
     // Create options <ul> — scrollable area
@@ -3128,22 +3129,66 @@ function cselResetSearch(list){
   list.querySelectorAll('li.csel-option').forEach(li=>li.style.display='');
   const nr=list.querySelector('.csel-no-result');if(nr)nr.style.display='none';
 }
+function cselCloseList(x){
+  cselResetSearch(x);
+  x.classList.remove('open','csel-sheet');
+  x.style.cssText='';
+  if(x._vvResize&&window.visualViewport)window.visualViewport.removeEventListener('resize',x._vvResize);
+  x._vvResize=null;
+  const bd=document.getElementById('csel-backdrop');if(bd)bd.classList.remove('open');
+}
 function cselToggle(id){
   const list=document.getElementById('csell-'+id);
   const btn=document.getElementById('cselb-'+id);
   if(!list||!btn)return;
   const wasOpen=list.classList.contains('open');
-  document.querySelectorAll('.csel-list.open').forEach(x=>{cselResetSearch(x);x.classList.remove('open');x.style.cssText='';});
+  document.querySelectorAll('.csel-list.open').forEach(x=>cselCloseList(x));
   if(!wasOpen){
-    const r=btn.getBoundingClientRect();
-    const below=window.innerHeight-r.bottom;
-    const above=r.top;
-    list.style.left=r.left+'px';
-    list.style.width=r.width+'px';
-    list.style.maxHeight=Math.min(260,Math.max(below,above)-8)+'px';
-    if(below>=120||below>=above){list.style.top=(r.bottom+2)+'px';list.style.bottom='auto';}
-    else{list.style.top='auto';list.style.bottom=(window.innerHeight-r.top+2)+'px';}
-    list.classList.add('open');
+    const isTouch='ontouchstart' in window;
+    if(isTouch){
+      // ── Mobile: bottom sheet ──
+      list.classList.add('open','csel-sheet');
+      // Inject handle + title once
+      if(!list.querySelector('.csel-sheet-handle')){
+        const handle=document.createElement('div');handle.className='csel-sheet-handle';
+        const title=document.createElement('div');title.className='csel-sheet-title';
+        title.textContent=btn.querySelector('.csel-btn-txt')?btn.querySelector('.csel-btn-txt').dataset.placeholder||'':btn.dataset.ph||'';
+        list.prepend(title);list.prepend(handle);
+      }
+      // Backdrop
+      let bd=document.getElementById('csel-backdrop');
+      if(!bd){
+        bd=document.createElement('div');bd.id='csel-backdrop';bd.className='csel-backdrop';
+        bd.addEventListener('click',()=>document.querySelectorAll('.csel-list.open').forEach(x=>cselCloseList(x)));
+        document.body.appendChild(bd);
+      }
+      bd.classList.add('open');
+      // VisualViewport: lift sheet above keyboard
+      if(window.visualViewport){
+        const onResize=()=>{
+          const kb=Math.max(0,window.innerHeight-window.visualViewport.height-window.visualViewport.offsetTop);
+          list.style.bottom=kb+'px';
+          const opts=list.querySelector('.csel-options');
+          if(opts)opts.style.maxHeight=Math.min(window.visualViewport.height*0.55,window.visualViewport.height-kb-140)+'px';
+        };
+        window.visualViewport.addEventListener('resize',onResize);
+        list._vvResize=onResize;
+      }
+      // Auto-focus search after sheet settles
+      const si=list.querySelector('.csel-search');
+      if(si)setTimeout(()=>si.focus(),300);
+    }else{
+      // ── Desktop: near-button dropdown ──
+      const r=btn.getBoundingClientRect();
+      const below=window.innerHeight-r.bottom;
+      const above=r.top;
+      list.style.left=r.left+'px';
+      list.style.width=r.width+'px';
+      list.style.maxHeight=Math.min(260,Math.max(below,above)-8)+'px';
+      if(below>=120||below>=above){list.style.top=(r.bottom+2)+'px';list.style.bottom='auto';}
+      else{list.style.top='auto';list.style.bottom=(window.innerHeight-r.top+2)+'px';}
+      list.classList.add('open');
+    }
   }
 }
 function cselPick(id,val,label){
@@ -3151,8 +3196,13 @@ function cselPick(id,val,label){
   const btn=document.getElementById('cselb-'+id);
   const list=document.getElementById('csell-'+id);
   if(input)input.value=val;
-  if(btn){btn.textContent=label;btn.dataset.empty='';}
-  if(list){cselResetSearch(list);list.classList.remove('open');list.style.cssText='';}
+  if(btn){
+    // Update visible text span (or fallback to direct textContent)
+    const span=btn.querySelector('.csel-btn-txt');
+    if(span)span.textContent=label;else btn.firstChild.textContent=label;
+    btn.dataset.empty='';
+  }
+  if(list)cselCloseList(list);
 }
 function cselSetVal(id,val,placeholder){
   const input=document.getElementById(id);
@@ -3160,11 +3210,16 @@ function cselSetVal(id,val,placeholder){
   if(!input)return;
   if(input.tagName==='SELECT'){input.value=val;return;}
   input.value=val;
-  if(btn){btn.textContent=val||placeholder||'เลือก...';btn.dataset.empty=val?'':'1';}
+  if(btn){
+    const span=btn.querySelector('.csel-btn-txt');
+    const txt=val||placeholder||'เลือก...';
+    if(span)span.textContent=txt;else btn.firstChild.textContent=txt;
+    btn.dataset.empty=val?'':'1';
+  }
 }
 document.addEventListener('click',e=>{
-  if(!e.target.closest('.csel-wrap'))
-    document.querySelectorAll('.csel-list.open').forEach(x=>{cselResetSearch(x);x.classList.remove('open');x.style.cssText='';});
+  if(!e.target.closest('.csel-wrap')&&!e.target.closest('.csel-list')&&!e.target.closest('.csel-backdrop'))
+    document.querySelectorAll('.csel-list.open').forEach(x=>cselCloseList(x));
 });
 function openAddSession(){
   document.getElementById('sess-modal-title').innerHTML='<i class="ti ti-calendar-plus"></i>เพิ่มรอบอบรม';
