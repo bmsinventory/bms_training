@@ -414,9 +414,7 @@ tr:hover td{background:#f8fafc}
 /* Desktop dropdown */
 .csel-list{display:none;position:fixed;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.18);overflow:hidden}
 .csel-list.open{display:flex}
-/* Backdrop */
-.csel-backdrop{display:none;pointer-events:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:9998}
-.csel-backdrop.open{display:block;pointer-events:auto}
+/* Backdrop is created/destroyed via JS with inline style — no CSS class needed */
 /* Bottom sheet */
 .csel-list.csel-sheet{left:0!important;right:0!important;width:100%!important;bottom:0;top:auto!important;max-height:75vh!important;border-radius:20px 20px 0 0!important;border:none;box-shadow:0 -6px 32px rgba(0,0,0,.22)}
 /* Sheet header */

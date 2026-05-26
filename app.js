@@ -3139,12 +3139,9 @@ function cselCloseList(x){
   x.style.cssText='';
   if(x._vvResize&&window.visualViewport)window.visualViewport.removeEventListener('resize',x._vvResize);
   x._vvResize=null;
+  // Remove backdrop from DOM entirely — hiding via CSS is unreliable on Android WebView
   const bd=document.getElementById('csel-backdrop');
-  if(bd){
-    bd.classList.remove('open');
-    bd.style.display='none';
-    bd.style.pointerEvents='none';
-  }
+  if(bd&&bd.parentNode)bd.parentNode.removeChild(bd);
 }
 function cselToggle(id){
   const list=document.getElementById('csell-'+id);
@@ -3166,16 +3163,14 @@ function cselToggle(id){
         hdr.appendChild(handle);hdr.appendChild(title);
         list.prepend(hdr);
       }
-      // Backdrop
-      let bd=document.getElementById('csel-backdrop');
-      if(!bd){
-        bd=document.createElement('div');bd.id='csel-backdrop';bd.className='csel-backdrop';
-        bd.addEventListener('click',()=>document.querySelectorAll('.csel-list.open').forEach(x=>cselCloseList(x)));
-        document.body.appendChild(bd);
-      }
-      bd.classList.add('open');
-      bd.style.display='block';
-      bd.style.pointerEvents='auto';
+      // Backdrop — always create fresh to avoid stale state in Android WebView
+      const oldBd=document.getElementById('csel-backdrop');
+      if(oldBd&&oldBd.parentNode)oldBd.parentNode.removeChild(oldBd);
+      const bd=document.createElement('div');
+      bd.id='csel-backdrop';
+      bd.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:9998;display:block';
+      bd.addEventListener('click',()=>document.querySelectorAll('.csel-list.open').forEach(x=>cselCloseList(x)));
+      document.body.appendChild(bd);
       // VisualViewport: lift sheet above keyboard
       if(window.visualViewport){
         const onResize=()=>{
