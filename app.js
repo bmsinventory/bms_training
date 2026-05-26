@@ -3139,7 +3139,8 @@ function cselCloseList(x){
   x.style.cssText='';
   if(x._vvResize&&window.visualViewport)window.visualViewport.removeEventListener('resize',x._vvResize);
   x._vvResize=null;
-  // Return list to its original DOM position inside the modal
+  if(x._onOutside){document.removeEventListener('touchstart',x._onOutside);x._onOutside=null;}
+  // Return list to original DOM position inside modal
   if(x._origParent){
     if(x._origNextSib&&x._origNextSib.parentNode===x._origParent){
       x._origParent.insertBefore(x,x._origNextSib);
@@ -3148,9 +3149,6 @@ function cselCloseList(x){
     }
     x._origParent=null;x._origNextSib=null;
   }
-  // Remove backdrop from DOM entirely
-  const bd=document.getElementById('csel-backdrop');
-  if(bd&&bd.parentNode)bd.parentNode.removeChild(bd);
 }
 function cselToggle(id){
   const list=document.getElementById('csell-'+id);
@@ -3162,7 +3160,7 @@ function cselToggle(id){
     const isTouch='ontouchstart' in window;
     if(isTouch){
       // ── Mobile: bottom sheet ──
-      // Move list to body so it shares stacking context with backdrop (z-index works correctly)
+      // Move list to body to escape modal stacking context
       list._origParent=list.parentNode;
       list._origNextSib=list.nextSibling;
       document.body.appendChild(list);
@@ -3176,12 +3174,15 @@ function cselToggle(id){
         hdr.appendChild(handle);hdr.appendChild(title);
         list.prepend(hdr);
       }
-      // Backdrop at z-index 9998, list at 9999 — both body-level so stacking is correct
-      const bd=document.createElement('div');
-      bd.id='csel-backdrop';
-      bd.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:9998';
-      bd.addEventListener('click',()=>document.querySelectorAll('.csel-list.open').forEach(x=>cselCloseList(x)));
-      document.body.insertBefore(bd,list);
+      // No backdrop overlay — use outside-touch handler instead (backdrop causes z-index
+      // issues in Android Line WebView regardless of stacking context)
+      const onOutside=(e)=>{
+        if(!list.contains(e.target)&&e.target!==btn&&!btn.contains(e.target)){
+          document.querySelectorAll('.csel-list.open').forEach(x=>cselCloseList(x));
+        }
+      };
+      setTimeout(()=>document.addEventListener('touchstart',onOutside,{passive:true}),50);
+      list._onOutside=onOutside;
       // VisualViewport: lift sheet above keyboard
       if(window.visualViewport){
         const onResize=()=>{
