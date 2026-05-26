@@ -11,7 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-<link rel="stylesheet" href="style.css?v=21">
+<link rel="stylesheet" href="style.css?v=22">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -882,9 +882,9 @@
 </div>
 
 <div class="modal-overlay" id="modal-register">
-  <div class="modal" style="max-width:520px;padding:0;overflow:hidden;">
+  <div class="modal" style="max-width:520px;padding:0;">
     <!-- Modal header with session info -->
-    <div id="reg-modal-header" style="background:linear-gradient(135deg,#1a3a6b,#1a56a0);padding:18px 22px;color:#fff;">
+    <div id="reg-modal-header" style="background:linear-gradient(135deg,#1a3a6b,#1a56a0);padding:18px 22px;color:#fff;border-radius:var(--radius) var(--radius) 0 0;">
       <div style="font-size:11px;opacity:.7;margin-bottom:2px;text-transform:uppercase;letter-spacing:.8px;">กรอกข้อมูลเพื่อลงทะเบียน</div>
       <div id="reg-sess-title" style="font-family:Prompt,sans-serif;font-size:16px;font-weight:700;"></div>
       <div id="reg-sess-meta" style="font-size:12px;opacity:.8;margin-top:4px;display:flex;gap:14px;flex-wrap:wrap;"></div>
@@ -964,8 +964,8 @@
 
 <!-- Walk-in -->
 <div class="modal-overlay" id="modal-walkin">
-  <div class="modal" style="max-width:480px;padding:0;overflow:hidden;">
-    <div style="background:linear-gradient(135deg,#4c1d95,#7c3aed);padding:18px 22px;color:#fff;">
+  <div class="modal" style="max-width:480px;padding:0;">
+    <div style="background:linear-gradient(135deg,#4c1d95,#7c3aed);padding:18px 22px;color:#fff;border-radius:var(--radius) var(--radius) 0 0;">
       <div style="font-size:11px;opacity:.7;margin-bottom:2px;text-transform:uppercase;letter-spacing:.8px;">🚶 บันทึก Walk-in</div>
       <div id="walkin-sess-title" style="font-family:Prompt,sans-serif;font-size:16px;font-weight:700;"></div>
       <div id="walkin-sess-meta" style="font-size:12px;opacity:.8;margin-top:3px;"></div>
@@ -1023,8 +1023,8 @@
 
 <!-- Edit Registration -->
 <div class="modal-overlay" id="modal-edit-reg">
-  <div class="modal" style="max-width:520px;padding:0;overflow:hidden;">
-    <div style="background:linear-gradient(135deg,#1a3a6b,#1a56a0);padding:18px 22px;color:#fff;">
+  <div class="modal" style="max-width:520px;padding:0;">
+    <div style="background:linear-gradient(135deg,#1a3a6b,#1a56a0);padding:18px 22px;color:#fff;border-radius:var(--radius) var(--radius) 0 0;">
       <div style="font-size:11px;opacity:.7;margin-bottom:2px;text-transform:uppercase;letter-spacing:.8px;">แก้ไขข้อมูลการลงทะเบียน</div>
       <div style="font-family:Prompt,sans-serif;font-size:15px;font-weight:700;">แก้ไขข้อมูลผู้เข้าอบรม</div>
       <div style="background:rgba(255,255,255,.15);border-radius:6px;padding:6px 10px;margin-top:8px;font-size:12px;display:flex;align-items:center;gap:6px;">
@@ -1184,8 +1184,8 @@
 
 <!-- Admin Add Registration -->
 <div class="modal-overlay" id="modal-admin-add-reg">
-  <div class="modal" style="max-width:520px;padding:0;overflow:hidden;">
-    <div style="background:linear-gradient(135deg,#1a3a6b,#1a56a0);padding:18px 22px;color:#fff;">
+  <div class="modal" style="max-width:520px;padding:0;">
+    <div style="background:linear-gradient(135deg,#1a3a6b,#1a56a0);padding:18px 22px;color:#fff;border-radius:var(--radius) var(--radius) 0 0;">
       <div style="font-size:11px;opacity:.7;margin-bottom:2px;text-transform:uppercase;letter-spacing:.8px;">Admin</div>
       <div style="font-family:Prompt,sans-serif;font-size:15px;font-weight:700;">เพิ่มผู้ลงทะเบียน</div>
     </div>
@@ -1392,6 +1392,6 @@
   </div>
 </div>
 
-<script src="app.js?v=21"></script>
+<script src="app.js?v=22"></script>
 </body>
 </html>
