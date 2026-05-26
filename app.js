@@ -3139,7 +3139,16 @@ function cselCloseList(x){
   x.style.cssText='';
   if(x._vvResize&&window.visualViewport)window.visualViewport.removeEventListener('resize',x._vvResize);
   x._vvResize=null;
-  // Remove backdrop from DOM entirely — hiding via CSS is unreliable on Android WebView
+  // Return list to its original DOM position inside the modal
+  if(x._origParent){
+    if(x._origNextSib&&x._origNextSib.parentNode===x._origParent){
+      x._origParent.insertBefore(x,x._origNextSib);
+    }else{
+      x._origParent.appendChild(x);
+    }
+    x._origParent=null;x._origNextSib=null;
+  }
+  // Remove backdrop from DOM entirely
   const bd=document.getElementById('csel-backdrop');
   if(bd&&bd.parentNode)bd.parentNode.removeChild(bd);
 }
@@ -3153,6 +3162,10 @@ function cselToggle(id){
     const isTouch='ontouchstart' in window;
     if(isTouch){
       // ── Mobile: bottom sheet ──
+      // Move list to body so it shares stacking context with backdrop (z-index works correctly)
+      list._origParent=list.parentNode;
+      list._origNextSib=list.nextSibling;
+      document.body.appendChild(list);
       list.classList.add('open','csel-sheet');
       // Inject sheet header once
       if(!list.querySelector('.csel-sheet-header')){
@@ -3163,14 +3176,12 @@ function cselToggle(id){
         hdr.appendChild(handle);hdr.appendChild(title);
         list.prepend(hdr);
       }
-      // Backdrop — always create fresh to avoid stale state in Android WebView
-      const oldBd=document.getElementById('csel-backdrop');
-      if(oldBd&&oldBd.parentNode)oldBd.parentNode.removeChild(oldBd);
+      // Backdrop at z-index 9998, list at 9999 — both body-level so stacking is correct
       const bd=document.createElement('div');
       bd.id='csel-backdrop';
-      bd.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:9998;display:block';
+      bd.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:9998';
       bd.addEventListener('click',()=>document.querySelectorAll('.csel-list.open').forEach(x=>cselCloseList(x)));
-      document.body.appendChild(bd);
+      document.body.insertBefore(bd,list);
       // VisualViewport: lift sheet above keyboard
       if(window.visualViewport){
         const onResize=()=>{
