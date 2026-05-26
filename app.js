@@ -3159,16 +3159,17 @@ function cselNativePick(id,sel){
   }
 }
 function cselToggle(id){
-  if('ontouchstart' in window)return; // touch: native select handles interaction
+  const isTouch='ontouchstart' in window;
+  const isLine=/Line\//.test(navigator.userAgent);
+  if(isTouch&&!isLine)return; // regular touch: native select overlay handles it
   const list=document.getElementById('csell-'+id);
   const btn=document.getElementById('cselb-'+id);
   if(!list||!btn)return;
   const wasOpen=list.classList.contains('open');
   document.querySelectorAll('.csel-list.open').forEach(x=>cselCloseList(x));
   if(!wasOpen){
-    const isTouch='ontouchstart' in window;
     if(isTouch){
-      // ── Mobile: inline expansion (no fixed/backdrop — avoid WebView stacking bugs) ──
+      // Line WebView: inline expansion inside modal (no fixed — avoids WebView stacking bugs)
       list.classList.add('open');
       const onOutside=(e)=>{
         if(!list.contains(e.target)&&!btn.contains(e.target))
@@ -3177,7 +3178,7 @@ function cselToggle(id){
       setTimeout(()=>document.addEventListener('touchstart',onOutside,{passive:true}),200);
       list._onOutside=onOutside;
     }else{
-      // ── Desktop: floating near button (position:fixed set via JS only, never CSS) ──
+      // Desktop: floating near button (position:fixed set via JS only, never CSS)
       const r=btn.getBoundingClientRect();
       const below=window.innerHeight-r.bottom;
       const above=r.top;
@@ -4791,7 +4792,8 @@ window.addEventListener('afterprint',function(){
 
 // INIT
 initApp();
-// Enable native select on touch devices (replaces custom dropdown for mobile)
-if('ontouchstart' in window){
+// Enable native select overlay on non-Line touch devices only
+// Line WebView does not open OS picker for invisible selects; uses inline dropdown instead
+if('ontouchstart' in window && !/Line\//.test(navigator.userAgent)){
   document.querySelectorAll('.csel-native-select').forEach(s=>s.style.pointerEvents='auto');
 }
