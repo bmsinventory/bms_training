@@ -3082,11 +3082,12 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
     const btnSpan=btn.querySelector('.csel-btn-txt');
     if(btnSpan)btnSpan.textContent=placeholder;else btn.firstChild.textContent=placeholder;
     btn.dataset.empty='1';
+    btn.dataset.placeholder=placeholder;
     list.innerHTML='';
     // Create options <ul> — scrollable area
     const opts=document.createElement('ul');
     opts.className='csel-options';
-    // Search box for large lists (prepended as sibling div, not sticky li)
+    // Search box for large lists
     if(arr.length>5){
       const sw=document.createElement('div');
       sw.className='csel-search-wrap';
@@ -3099,7 +3100,7 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
         const q=si.value.toLowerCase().trim();
         let found=0;
         opts.querySelectorAll('li.csel-option').forEach(li=>{
-          const match=!q||li.textContent.toLowerCase().includes(q);
+          const match=!q||li.dataset.label.toLowerCase().includes(q);
           li.style.display=match?'':'none';
           if(match)found++;
         });
@@ -3115,7 +3116,19 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
     const addLi=(val,label)=>{
       const li=document.createElement('li');
       li.className='csel-option';
+      li.dataset.val=String(val);
+      li.dataset.label=label;
       li.textContent=label;
+      // Fix: Android WebView doesn't reliably fire 'click' on li inside overflow scroll
+      // Use touchend+preventDefault to block the ghost click, fallback click for desktop
+      let _moved=false;
+      li.addEventListener('touchstart',()=>{_moved=false;},{passive:true});
+      li.addEventListener('touchmove',()=>{_moved=true;},{passive:true});
+      li.addEventListener('touchend',(e)=>{
+        if(_moved)return;
+        e.preventDefault();
+        cselPick(id,val,label);
+      },{passive:false});
       li.addEventListener('click',()=>cselPick(id,val,label));
       opts.appendChild(li);
     };
@@ -3148,12 +3161,14 @@ function cselToggle(id){
     if(isTouch){
       // ── Mobile: bottom sheet ──
       list.classList.add('open','csel-sheet');
-      // Inject handle + title once
-      if(!list.querySelector('.csel-sheet-handle')){
+      // Inject sheet header once
+      if(!list.querySelector('.csel-sheet-header')){
+        const hdr=document.createElement('div');hdr.className='csel-sheet-header';
         const handle=document.createElement('div');handle.className='csel-sheet-handle';
         const title=document.createElement('div');title.className='csel-sheet-title';
-        title.textContent=btn.querySelector('.csel-btn-txt')?btn.querySelector('.csel-btn-txt').dataset.placeholder||'':btn.dataset.ph||'';
-        list.prepend(title);list.prepend(handle);
+        title.textContent=btn.dataset.placeholder||'เลือก...';
+        hdr.appendChild(handle);hdr.appendChild(title);
+        list.prepend(hdr);
       }
       // Backdrop
       let bd=document.getElementById('csel-backdrop');
@@ -3197,12 +3212,17 @@ function cselPick(id,val,label){
   const list=document.getElementById('csell-'+id);
   if(input)input.value=val;
   if(btn){
-    // Update visible text span (or fallback to direct textContent)
     const span=btn.querySelector('.csel-btn-txt');
     if(span)span.textContent=label;else btn.firstChild.textContent=label;
     btn.dataset.empty='';
   }
-  if(list)cselCloseList(list);
+  if(list){
+    list.querySelectorAll('.csel-selected').forEach(el=>el.classList.remove('csel-selected'));
+    list.querySelectorAll('.csel-option').forEach(li=>{
+      if(li.dataset.val===String(val))li.classList.add('csel-selected');
+    });
+    cselCloseList(list);
+  }
 }
 function cselSetVal(id,val,placeholder){
   const input=document.getElementById(id);
