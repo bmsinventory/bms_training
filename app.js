@@ -3135,20 +3135,9 @@ function cselResetSearch(list){
 }
 function cselCloseList(x){
   cselResetSearch(x);
-  x.classList.remove('open','csel-sheet');
+  x.classList.remove('open');
   x.style.cssText='';
-  if(x._vvResize&&window.visualViewport)window.visualViewport.removeEventListener('resize',x._vvResize);
-  x._vvResize=null;
   if(x._onOutside){document.removeEventListener('touchstart',x._onOutside);x._onOutside=null;}
-  // Return list to original DOM position inside modal
-  if(x._origParent){
-    if(x._origNextSib&&x._origNextSib.parentNode===x._origParent){
-      x._origParent.insertBefore(x,x._origNextSib);
-    }else{
-      x._origParent.appendChild(x);
-    }
-    x._origParent=null;x._origNextSib=null;
-  }
 }
 function cselToggle(id){
   const list=document.getElementById('csell-'+id);
@@ -3159,46 +3148,16 @@ function cselToggle(id){
   if(!wasOpen){
     const isTouch='ontouchstart' in window;
     if(isTouch){
-      // ── Mobile: bottom sheet ──
-      // Move list to body to escape modal stacking context
-      list._origParent=list.parentNode;
-      list._origNextSib=list.nextSibling;
-      document.body.appendChild(list);
-      list.classList.add('open','csel-sheet');
-      // Inject sheet header once
-      if(!list.querySelector('.csel-sheet-header')){
-        const hdr=document.createElement('div');hdr.className='csel-sheet-header';
-        const handle=document.createElement('div');handle.className='csel-sheet-handle';
-        const title=document.createElement('div');title.className='csel-sheet-title';
-        title.textContent=btn.dataset.placeholder||'เลือก...';
-        hdr.appendChild(handle);hdr.appendChild(title);
-        list.prepend(hdr);
-      }
-      // No backdrop overlay — use outside-touch handler instead (backdrop causes z-index
-      // issues in Android Line WebView regardless of stacking context)
+      // ── Mobile: inline expansion (no fixed/backdrop — avoid WebView stacking bugs) ──
+      list.classList.add('open');
       const onOutside=(e)=>{
-        if(!list.contains(e.target)&&e.target!==btn&&!btn.contains(e.target)){
+        if(!list.contains(e.target)&&!btn.contains(e.target))
           document.querySelectorAll('.csel-list.open').forEach(x=>cselCloseList(x));
-        }
       };
       setTimeout(()=>document.addEventListener('touchstart',onOutside,{passive:true}),50);
       list._onOutside=onOutside;
-      // VisualViewport: lift sheet above keyboard
-      if(window.visualViewport){
-        const onResize=()=>{
-          const kb=Math.max(0,window.innerHeight-window.visualViewport.height-window.visualViewport.offsetTop);
-          list.style.bottom=kb+'px';
-          const opts=list.querySelector('.csel-options');
-          if(opts)opts.style.maxHeight=Math.min(window.visualViewport.height*0.55,window.visualViewport.height-kb-140)+'px';
-        };
-        window.visualViewport.addEventListener('resize',onResize);
-        list._vvResize=onResize;
-      }
-      // Auto-focus search after sheet settles
-      const si=list.querySelector('.csel-search');
-      if(si)setTimeout(()=>si.focus(),300);
     }else{
-      // ── Desktop: near-button dropdown ──
+      // ── Desktop: floating near button ──
       const r=btn.getBoundingClientRect();
       const below=window.innerHeight-r.bottom;
       const above=r.top;
