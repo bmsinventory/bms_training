@@ -3135,7 +3135,7 @@ function cselResetSearch(list){
 }
 function cselCloseList(x){
   cselResetSearch(x);
-  x.classList.remove('open');
+  x.classList.remove('open','csel-desktop');
   x.style.cssText='';
   if(x._onOutside){document.removeEventListener('touchstart',x._onOutside);x._onOutside=null;}
 }
@@ -3157,16 +3157,18 @@ function cselToggle(id){
       setTimeout(()=>document.addEventListener('touchstart',onOutside,{passive:true}),50);
       list._onOutside=onOutside;
     }else{
-      // ── Desktop: floating near button ──
+      // ── Desktop: floating near button (position:fixed set via JS only, never CSS) ──
       const r=btn.getBoundingClientRect();
       const below=window.innerHeight-r.bottom;
       const above=r.top;
+      list.style.position='fixed';
+      list.style.zIndex='9999';
       list.style.left=r.left+'px';
       list.style.width=r.width+'px';
       list.style.maxHeight=Math.min(260,Math.max(below,above)-8)+'px';
       if(below>=120||below>=above){list.style.top=(r.bottom+2)+'px';list.style.bottom='auto';}
       else{list.style.top='auto';list.style.bottom=(window.innerHeight-r.top+2)+'px';}
-      list.classList.add('open');
+      list.classList.add('open','csel-desktop');
     }
   }
 }

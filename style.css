@@ -411,13 +411,11 @@ tr:hover td{background:#f8fafc}
 .csel-btn[data-empty="1"]{color:var(--text-muted)}
 .csel-btn-txt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .csel-btn::after{content:'';flex-shrink:0;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--text-muted)}
-/* Mobile: inline dropdown — no position:fixed, no backdrop, no stacking issues */
+/* Dropdown list — inline by default; JS sets position:fixed for desktop only */
 .csel-list{display:none;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:4px;max-height:260px}
 .csel-list.open{display:flex}
-/* Desktop: floating near button */
-@media(hover:hover){
-  .csel-list{position:fixed;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.18);margin-top:0;max-height:none}
-}
+/* When JS sets csel-desktop class, show as floating panel */
+.csel-list.csel-desktop{margin-top:0;box-shadow:0 4px 16px rgba(0,0,0,.18)}
 /* Search */
 .csel-search-wrap{flex-shrink:0;padding:8px 10px;background:var(--card);border-bottom:1px solid var(--border)}
 .csel-search{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font);font-size:15px;color:var(--text);background:var(--bg);box-sizing:border-box;outline:none;-webkit-appearance:none}
