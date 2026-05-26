@@ -3170,6 +3170,7 @@ function cselToggle(id){
   if(!wasOpen){
     if(isTouch){
       // Line WebView: inline expansion inside modal (no fixed — avoids WebView stacking bugs)
+      list.style.maxHeight='none'; // let modal scroll handle overflow
       list.classList.add('open');
       const onOutside=(e)=>{
         if(!list.contains(e.target)&&!btn.contains(e.target))
