@@ -3139,7 +3139,12 @@ function cselCloseList(x){
   x.style.cssText='';
   if(x._vvResize&&window.visualViewport)window.visualViewport.removeEventListener('resize',x._vvResize);
   x._vvResize=null;
-  const bd=document.getElementById('csel-backdrop');if(bd)bd.classList.remove('open');
+  const bd=document.getElementById('csel-backdrop');
+  if(bd){
+    bd.classList.remove('open');
+    bd.style.display='none';
+    bd.style.pointerEvents='none';
+  }
 }
 function cselToggle(id){
   const list=document.getElementById('csell-'+id);
@@ -3169,6 +3174,8 @@ function cselToggle(id){
         document.body.appendChild(bd);
       }
       bd.classList.add('open');
+      bd.style.display='block';
+      bd.style.pointerEvents='auto';
       // VisualViewport: lift sheet above keyboard
       if(window.visualViewport){
         const onResize=()=>{
