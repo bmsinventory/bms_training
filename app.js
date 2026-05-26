@@ -3112,6 +3112,17 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
       });
       list.appendChild(sw);
     }
+    // Event delegation on opts container — more reliable than per-li listeners
+    // in Android Line WebView where touch events on li inside overflow can be swallowed
+    let _startY=0;
+    opts.addEventListener('touchstart',(e)=>{_startY=e.touches[0].clientY;},{passive:true});
+    opts.addEventListener('touchend',(e)=>{
+      if(Math.abs(e.changedTouches[0].clientY-_startY)>10)return; // was scrolling
+      const li=e.target.closest('.csel-option');
+      if(!li)return;
+      e.preventDefault();
+      cselPick(id,li.dataset.val,li.dataset.label);
+    },{passive:false});
     list.appendChild(opts);
     const addLi=(val,label)=>{
       const li=document.createElement('li');
@@ -3119,17 +3130,7 @@ function populateSelect(id,arr,placeholder='เลือก...',isObj=false){
       li.dataset.val=String(val);
       li.dataset.label=label;
       li.textContent=label;
-      // Fix: Android WebView doesn't reliably fire 'click' on li inside overflow scroll
-      // Use touchend+preventDefault to block the ghost click, fallback click for desktop
-      let _moved=false;
-      li.addEventListener('touchstart',()=>{_moved=false;},{passive:true});
-      li.addEventListener('touchmove',()=>{_moved=true;},{passive:true});
-      li.addEventListener('touchend',(e)=>{
-        if(_moved)return;
-        e.preventDefault();
-        cselPick(id,val,label);
-      },{passive:false});
-      li.addEventListener('click',()=>cselPick(id,val,label));
+      li.addEventListener('click',()=>cselPick(id,val,label)); // desktop fallback
       opts.appendChild(li);
     };
     if(isObj)arr.forEach(a=>addLi(a.v,a.l));
