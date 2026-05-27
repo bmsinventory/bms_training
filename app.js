@@ -29,7 +29,6 @@ let adminRolePermissions={};
 let siteNotifyTokens={};
 let pendingPage='admin';
 const APP_VERSION='v1.0.0';
-const NOTIFY_API_KEY='54f4fa05-bfb9-4ac5-930d-93e942e36786';
 const currentSite=new URLSearchParams(location.search).get('site')||'theme_1';
 document.getElementById('nav-version').textContent=APP_VERSION;
 
@@ -51,15 +50,15 @@ const _mSess=r=>({id:r.id,catId:r.cat_id,name:r.name,date:r.date,timeStart:r.tim
 const _mReg=r=>({id:r.id,sessionId:r.session_id,prefix:r.prefix||'',fname:r.fname,lname:r.lname,position:r.position||'',dept:r.dept||'',regDate:r.reg_date,attended:r.attended||false,attendedTime:r.attended_time||null,isWalkin:r.is_walkin||false});
 
 async function pushNotify(reg){
-  const NOTIFY_API_KEY=siteNotifyTokens[currentSite]||'54f4fa05-bfb9-4ac5-930d-93e942e36786';
-  if(!NOTIFY_API_KEY)return;
+  const token=siteNotifyTokens[currentSite];
+  if(!token)return;
   const s=getSess(reg.sessionId);
   const loc=locations.find(l=>l.code===currentSite);
   const dateStr=s?fmtDate(s.date):'-';
   const timeStr=s?`${s.timeStart} - ${s.timeEnd} น.`:'-';
   const lines=[
     '📢 มีผู้ลงทะเบียนใหม่',
-    `🏢 สาขา: ${currentSite}${loc?' : '+loc.name:''}`,
+    `🏢 สาขา: ${loc?loc.name:currentSite}`,
     `👤 ชื่อ-สกุล: ${reg.prefix}${reg.fname} ${reg.lname}`,
     `💼 ตำแหน่ง: ${reg.position||'-'}`,
     `🏢 หน่วยงาน: ${reg.dept||'-'}`,
@@ -69,7 +68,7 @@ async function pushNotify(reg){
   try{
     await fetch('https://api-notify.bmscloud.in.th/api/v1/push-notify',{
       method:'POST',
-      headers:{'Token':NOTIFY_API_KEY,'Content-Type':'application/json'},
+      headers:{'Token':token,'Content-Type':'application/json'},
       body:JSON.stringify({content:lines.join('\n'),receiver:null})
     });
   }catch(e){}
