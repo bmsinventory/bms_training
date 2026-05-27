@@ -4464,10 +4464,10 @@ function executePrintForm(){
   const numPages=Math.ceil(totalRows/PAGE_SIZE);
 
   const COLS=`<colgroup>
-    <col style="width:9mm"><col><col style="width:36mm"><col style="width:36mm"><col style="width:43mm">
+    <col style="width:11mm"><col><col><col><col style="width:36mm">
   </colgroup>`;
   const THEAD=`<thead><tr>
-    <th>ลำดับ</th><th>ชื่อ – นามสกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th>ลายมือชื่อ</th>
+    <th style="width:11mm;">ลำดับ</th><th>ชื่อ – นามสกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th style="width:36mm;">ลายมือชื่อ</th>
   </tr></thead>`;
 
   // build header HTML (reused on each page)
@@ -4520,11 +4520,11 @@ function executePrintForm(){
     for(let i=start;i<end;i++){
       const r=regs[i];
       tbody+=`<tr>
-        <td style="text-align:center;">${i+1}</td>
+        <td style="text-align:center;width:11mm;">${i+1}</td>
         <td>${r?_esc(`${r.prefix||''}${r.fname||''} ${r.lname||''}`.trim()):''}</td>
         <td>${r?_esc(r.position||''):''}</td>
         <td>${r?_esc(r.dept||''):''}</td>
-        <td></td>
+        <td style="width:36mm;"></td>
       </tr>`;
     }
     pagesHtml+=`<div class="page">
