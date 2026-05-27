@@ -4506,7 +4506,6 @@ function executePrintForm(){
         <div class="sig-lbl">${_esc(signerOrg)||'…………………………………………'}</div>
       </div>
     </div>
-    <div class="pg-num">หน้า ${pn} / ${numPages}</div>
     ${numPages > 1 ? `<div class="pg-num">หน้า ${pn} / ${numPages}</div>` : ''}
   </div>`;
   }
