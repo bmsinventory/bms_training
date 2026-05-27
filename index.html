@@ -13,6 +13,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <link rel="stylesheet" href="style.css?v=29">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
@@ -310,16 +311,17 @@
   </div>
   <div class="stats-grid" id="admin-stats"></div>
   <div class="admin-tabs">
-    <button class="admin-tab active" onclick="switchAdminTab('sessions')"><i class="ti ti-calendar"></i> รอบอบรม</button>
-    <button class="admin-tab" onclick="switchAdminTab('categories')"><i class="ti ti-category"></i> ประเภท</button>
-    <button class="admin-tab" onclick="switchAdminTab('masters')"><i class="ti ti-list"></i> ข้อมูลพื้นฐาน</button>
-    <button class="admin-tab" onclick="switchAdminTab('registrations')"><i class="ti ti-users"></i> ผู้ลงทะเบียน</button>
-    <button class="admin-tab" onclick="switchAdminTab('locations')"><i class="ti ti-map-pin"></i> สาขา</button>
-    <button class="admin-tab" onclick="switchAdminTab('users')"><i class="ti ti-users-group"></i> ผู้ใช้งาน</button>
-    <button class="admin-tab" onclick="switchAdminTab('loginverify')"><i class="ti ti-shield-check"></i> ตรวจสอบสิทธิ์</button>
-    <button class="admin-tab" onclick="switchAdminTab('survey')"><i class="ti ti-chart-radar"></i> ผลประเมิน</button>
-    <button class="admin-tab" onclick="switchAdminTab('quiz')"><i class="ti ti-pencil-check"></i> แบบทดสอบ</button>
-    <button class="admin-tab" onclick="switchAdminTab('print')"><i class="ti ti-printer"></i> พิมพ์เอกสาร</button>
+    <button class="admin-tab active" data-tab="sessions" onclick="switchAdminTab('sessions')"><i class="ti ti-calendar"></i> รอบอบรม</button>
+    <button class="admin-tab" data-tab="categories" onclick="switchAdminTab('categories')"><i class="ti ti-category"></i> ประเภท</button>
+    <button class="admin-tab" data-tab="masters" onclick="switchAdminTab('masters')"><i class="ti ti-list"></i> ข้อมูลพื้นฐาน</button>
+    <button class="admin-tab" data-tab="registrations" onclick="switchAdminTab('registrations')"><i class="ti ti-users"></i> ผู้ลงทะเบียน</button>
+    <button class="admin-tab" data-tab="locations" onclick="switchAdminTab('locations')"><i class="ti ti-map-pin"></i> สาขา</button>
+    <button class="admin-tab" data-tab="users" onclick="switchAdminTab('users')"><i class="ti ti-users-group"></i> ผู้ใช้งาน</button>
+    <button class="admin-tab" data-tab="loginverify" onclick="switchAdminTab('loginverify')"><i class="ti ti-shield-check"></i> ตรวจสอบสิทธิ์</button>
+    <button class="admin-tab" data-tab="survey" onclick="switchAdminTab('survey')"><i class="ti ti-chart-radar"></i> ผลประเมิน</button>
+    <button class="admin-tab" data-tab="quiz" onclick="switchAdminTab('quiz')"><i class="ti ti-pencil-check"></i> แบบทดสอบ</button>
+    <button class="admin-tab" data-tab="print" onclick="switchAdminTab('print')"><i class="ti ti-printer"></i> พิมพ์เอกสาร</button>
+    <button class="admin-tab" data-tab="permissions" onclick="switchAdminTab('permissions')"><i class="ti ti-shield-lock"></i> สิทธิ์การเข้าถึง</button>
   </div>
 
   <!-- Sessions -->
@@ -461,6 +463,12 @@
                 <i class="ti ti-eye" id="new-au-eye"></i>
               </button>
             </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0;flex:0 0 140px;">
+            <label class="form-label">Role</label>
+            <select class="form-control" id="new-au-role">
+              <option value="admin">admin</option>
+            </select>
           </div>
           <button class="btn btn-primary" onclick="addAdminUser()" style="height:40px;"><i class="ti ti-plus"></i>เพิ่มผู้ใช้</button>
         </div>
@@ -698,6 +706,17 @@
           <div id="print-preview" style="display:contents;"></div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Permissions -->
+  <div class="admin-section" id="asec-permissions">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-shield-lock"></i>จัดการสิทธิ์การเข้าถึงเมนู Admin</div>
+      </div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">กำหนดว่าแต่ละ Role สามารถเข้าถึงแถบเมนูใดได้บ้าง ✓ = เข้าถึงได้</div>
+      <div id="admin-permissions-content"></div>
     </div>
   </div>
 
@@ -1392,6 +1411,6 @@
   </div>
 </div>
 
-<script src="app.js?v=28"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>
