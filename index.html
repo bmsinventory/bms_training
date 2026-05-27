@@ -321,6 +321,7 @@
     <button class="admin-tab" data-tab="quiz" onclick="switchAdminTab('quiz')"><i class="ti ti-pencil-check"></i> แบบทดสอบ</button>
     <button class="admin-tab" data-tab="locations" onclick="switchAdminTab('locations')"><i class="ti ti-map-pin"></i> สาขา</button>
     <button class="admin-tab" data-tab="users" onclick="switchAdminTab('users')"><i class="ti ti-users-group"></i> ผู้ใช้งาน</button>
+    <button class="admin-tab" data-tab="settings" onclick="switchAdminTab('settings')"><i class="ti ti-settings-2"></i> การตั้งค่า</button>
     <button class="admin-tab" data-tab="permissions" onclick="switchAdminTab('permissions')"><i class="ti ti-shield-lock"></i> สิทธิ์การเข้าถึง</button>
   </div>
 
@@ -713,6 +714,17 @@
     </div>
   </div>
 
+  <!-- Settings -->
+  <div class="admin-section" id="asec-settings">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-settings-2"></i>การตั้งค่าระบบ</div>
+      </div>
+      <div class="card-title" style="font-size:14px;margin-bottom:12px;"><i class="ti ti-bell-ringing" style="color:var(--primary);"></i>Token แจ้งเตือน (Line Notify) ต่อสาขา</div>
+      <div id="admin-settings-content"></div>
+    </div>
+  </div>
+
   <!-- Permissions -->
   <div class="admin-section" id="asec-permissions">
     <div class="card">
@@ -837,8 +849,8 @@
           <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;margin-bottom:8px;">
             <input type="checkbox" id="import-clear" style="width:16px;height:16px;margin-top:1px;cursor:pointer;" onchange="refreshImportStats()">
             <div>
-              <div style="font-weight:600;">ลบข้อมูลเดิมทั้งหมดก่อนนำเข้า</div>
-              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">ถ้าไม่เลือก — จะข้ามรายการที่ซ้ำ เพิ่มเฉพาะรายการใหม่</div>
+              <div style="font-weight:600;">ลบข้อมูลเดิมทั้งหมด<span style="color:var(--danger);">ของสาขานี้</span>ก่อนนำเข้า</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">ลบเฉพาะข้อมูลสาขาปัจจุบัน ไม่กระทบสาขาอื่น — ถ้าไม่เลือก จะข้ามรายการซ้ำ เพิ่มเฉพาะรายการใหม่</div>
             </div>
           </label>
           <div id="import-mode-info" style="font-size:12px;padding:6px 10px;border-radius:6px;background:#fff;border:1px solid var(--border);"></div>

@@ -26,6 +26,7 @@ let isAdminLoggedIn=false;
 let adminUsers=[];
 let currentAdminUser=null;
 let adminRolePermissions={};
+let siteNotifyTokens={};
 let pendingPage='admin';
 const APP_VERSION='v1.0.0';
 const NOTIFY_API_KEY='54f4fa05-bfb9-4ac5-930d-93e942e36786';
@@ -50,6 +51,7 @@ const _mSess=r=>({id:r.id,catId:r.cat_id,name:r.name,date:r.date,timeStart:r.tim
 const _mReg=r=>({id:r.id,sessionId:r.session_id,prefix:r.prefix||'',fname:r.fname,lname:r.lname,position:r.position||'',dept:r.dept||'',regDate:r.reg_date,attended:r.attended||false,attendedTime:r.attended_time||null,isWalkin:r.is_walkin||false});
 
 async function pushNotify(reg){
+  const NOTIFY_API_KEY=siteNotifyTokens[currentSite]||'54f4fa05-bfb9-4ac5-930d-93e942e36786';
   if(!NOTIFY_API_KEY)return;
   const s=getSess(reg.sessionId);
   const loc=locations.find(l=>l.code===currentSite);
@@ -110,6 +112,7 @@ const ADMIN_TABS=[
   {id:'survey',       label:'ผลประเมิน'},
   {id:'quiz',         label:'แบบทดสอบ'},
   {id:'print',        label:'พิมพ์เอกสาร'},
+  {id:'settings',     label:'การตั้งค่า'},
   {id:'permissions',  label:'สิทธิ์การเข้าถึง'},
 ];
 const ADMIN_ACTIONS=[
@@ -179,7 +182,7 @@ function canEditReg(reg){
 /* ══════════════════ DB INIT ══════════════════ */
 function setLoading(on){document.getElementById('app-loading').classList.toggle('hidden',!on);}
 async function loadAllData(){
-  const [cR,sR,rR,mR,lR,auR,lvR,asR,qcR,quR,qjR,arR]=await Promise.all([
+  const [cR,sR,rR,mR,lR,auR,lvR,asR,qcR,quR,qjR,arR,snR]=await Promise.all([
     _sb.from('categories').select('*').eq('site',currentSite).order('id'),
     _sb.from('sessions').select('*').eq('site',currentSite).order('id'),
     _sb.from('registrations').select('*').order('id'),
@@ -192,6 +195,7 @@ async function loadAllData(){
     _sb.from('settings').select('value').eq('key','quiz_base_url').maybeSingle(),
     _sb.from('course_categories').select('category_id'),
     _sb.from('settings').select('value').eq('key','admin_role_permissions').maybeSingle(),
+    _sb.from('settings').select('value').eq('key','site_notify_tokens').maybeSingle(),
   ]);
   if(cR.error||sR.error||rR.error||mR.error||lR.error||auR.error)throw new Error('โหลดข้อมูลล้มเหลว');
   categories=(cR.data||[]).map(_mCat);
@@ -204,6 +208,7 @@ async function loadAllData(){
   try{adminRolePermissions=JSON.parse(arR.data?.value||'{}');}catch(e){adminRolePermissions={};}
   // superadmin always has full access (tabs + actions)
   adminRolePermissions.superadmin=[...ADMIN_TABS.map(t=>t.id),...ADMIN_ACTIONS.map(a=>a.id)];
+  try{siteNotifyTokens=JSON.parse(snR.data?.value||'{}');}catch(e){siteNotifyTokens={};}
   const ms=mR.data||[];
   trainers=ms.filter(m=>m.type==='trainer').map(m=>m.value);
   venues=ms.filter(m=>m.type==='venue').map(m=>m.value);
@@ -636,11 +641,11 @@ async function _clearImportType(type,rows=[]){
   const MASTER=['trainer','venue','dept','prefix'];
   let err;
   if(MASTER.includes(type)){
-    ({error:err}=await _sb.from('master_items').delete().eq('type',type));
+    ({error:err}=await _sb.from('master_items').delete().eq('type',type).eq('site',currentSite));
   } else if(type==='category'){
-    ({error:err}=await _sb.from('categories').delete().gte('id',1));
+    ({error:err}=await _sb.from('categories').delete().eq('site',currentSite));
   } else if(type==='session'){
-    ({error:err}=await _sb.from('sessions').delete().gte('id',1));
+    ({error:err}=await _sb.from('sessions').delete().eq('site',currentSite));
   } else if(type==='quiz_question'){
     const ids=[...new Set(rows.map(r=>r.value.courseId))];
     for(const cid of ids){
@@ -763,6 +768,7 @@ function switchAdminTab(name){
   if(name==='survey'){_initSvdSiteSelect();loadSurveyDashboard();}
   if(name==='quiz'){_initQuizAdmin();}
   if(name==='print'){initPrintSection();}
+  if(name==='settings')renderAdminSettings();
   if(name==='permissions')renderAdminPermissions();
 }
 
@@ -3876,6 +3882,80 @@ async function deletePermissionRole(role){
   }
   await saveAdminRolePermissions();
   renderAdminUsers();
+}
+
+/* ══════════════════ ADMIN SETTINGS ══════════════════ */
+function renderAdminSettings(){
+  const el=document.getElementById('admin-settings-content');
+  if(!el)return;
+  const rows=locations.map(loc=>{
+    const isCurrent=loc.code===currentSite;
+    const token=siteNotifyTokens[loc.code]||'';
+    return`<tr${isCurrent?' style="background:var(--bg-subtle);"':''}>
+      <td style="font-weight:600;white-space:nowrap;">
+        ${loc.name}
+        <div style="font-size:11px;color:var(--text-muted);">@${loc.code}</div>
+        ${isCurrent?'<span style="font-size:10px;background:#dcfce7;color:#166534;padding:1px 7px;border-radius:10px;font-weight:600;">สาขาปัจจุบัน</span>':''}
+      </td>
+      <td>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input class="form-control" id="notify-token-${loc.code}"
+            value="${token.replace(/"/g,'&quot;')}"
+            placeholder="วาง Token ที่นี่..."
+            style="flex:1;font-size:13px;font-family:monospace;"
+            oninput="siteNotifyTokens['${loc.code}']=this.value.trim()">
+          <button class="btn btn-ghost btn-sm" onclick="testNotifyToken('${loc.code}')" title="ทดสอบการแจ้งเตือน" style="white-space:nowrap;">
+            <i class="ti ti-send"></i> ทดสอบ
+          </button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML=`
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+      กำหนด Token สำหรับระบบแจ้งเตือนการลงทะเบียนแต่ละสาขา
+      (<a href="https://api-notify.bmscloud.in.th" target="_blank" style="color:var(--primary);">api-notify.bmscloud.in.th</a>)
+    </div>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead><tr><th style="white-space:nowrap;">สาขา</th><th>Token แจ้งเตือน</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="2" style="text-align:center;color:var(--text-muted);">ยังไม่มีสาขา</td></tr>'}</tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-success" onclick="saveAdminSettings()"><i class="ti ti-device-floppy"></i>บันทึกการตั้งค่า</button>
+      <span style="font-size:12px;color:var(--text-muted);">บันทึกแล้วมีผลทันทีสำหรับทุกสาขา</span>
+    </div>`;
+}
+
+async function saveAdminSettings(){
+  // sync tokens from inputs before save
+  locations.forEach(loc=>{
+    const el=document.getElementById(`notify-token-${loc.code}`);
+    if(el)siteNotifyTokens[loc.code]=el.value.trim();
+  });
+  // remove empty tokens
+  Object.keys(siteNotifyTokens).forEach(k=>{if(!siteNotifyTokens[k])delete siteNotifyTokens[k];});
+  const {error}=await _sb.from('settings').upsert({key:'site_notify_tokens',value:JSON.stringify(siteNotifyTokens),updated_at:new Date().toISOString()});
+  if(error){showToast('บันทึกไม่สำเร็จ: '+error.message,'danger');return;}
+  showToast('บันทึกการตั้งค่าสำเร็จ','success');
+}
+
+async function testNotifyToken(siteCode){
+  const el=document.getElementById(`notify-token-${siteCode}`);
+  const token=(el?.value.trim())||siteNotifyTokens[siteCode]||'';
+  if(!token){showToast('กรุณาระบุ Token ก่อน','warn');return;}
+  const loc=locations.find(l=>l.code===siteCode);
+  try{
+    const res=await fetch('https://api-notify.bmscloud.in.th/api/v1/push-notify',{
+      method:'POST',
+      headers:{'Token':token,'Content-Type':'application/json'},
+      body:JSON.stringify({content:`🔔 ทดสอบการแจ้งเตือน\n🏢 สาขา: ${loc?.name||siteCode}`,receiver:null})
+    });
+    if(res.ok)showToast('ส่งทดสอบสำเร็จ — ตรวจสอบ Line ของคุณ','success');
+    else showToast('ส่งไม่สำเร็จ (status '+res.status+')','danger');
+  }catch(e){showToast('เชื่อมต่อไม่ได้: '+e.message,'danger');}
 }
 
 /* ══ LOGIN VERIFY ══ */
