@@ -113,6 +113,7 @@ const ADMIN_TABS=[
   {id:'permissions',  label:'สิทธิ์การเข้าถึง'},
 ];
 const ADMIN_ACTIONS=[
+  {id:'action:import',       label:'นำเข้าข้อมูล\n(Import CSV)',   btnId:'btn-import'},
   {id:'action:clear_regs',   label:'เคียร์ผู้ลงทะเบียน\nตามสาขา', btnId:'btn-clear-regs'},
   {id:'action:clear_survey', label:'เคียร์ผลประเมิน\nตามสาขา',   btnId:'btn-clear-survey'},
 ];
