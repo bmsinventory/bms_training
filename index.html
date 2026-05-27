@@ -397,7 +397,7 @@
       <div class="card-header">
         <div class="card-title"><i class="ti ti-list-details"></i>รายชื่อผู้ลงทะเบียน</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn btn-ghost btn-sm" onclick="openClearRegsBySite()" style="gap:6px;color:var(--danger);border-color:rgba(239,68,68,.3);"><i class="ti ti-trash-x"></i>เคียร์ตามสาขา</button>
+          <button id="btn-clear-regs" class="btn btn-ghost btn-sm" onclick="openClearRegsBySite()" style="gap:6px;color:var(--danger);border-color:rgba(239,68,68,.3);"><i class="ti ti-trash-x"></i>เคียร์ตามสาขา</button>
           <button class="btn btn-ghost btn-sm" onclick="openPrintForm()" style="gap:6px;"><i class="ti ti-printer"></i>พิมพ์แบบฟอร์ม</button>
           <button class="btn btn-primary btn-sm" onclick="adminAddReg()"><i class="ti ti-plus"></i>เพิ่มรายการ</button>
         </div>
@@ -487,7 +487,7 @@
           <button class="btn btn-ghost btn-sm" onclick="loadSurveyDashboard()" style="gap:5px;"><i class="ti ti-refresh"></i>รีเฟรช</button>
           <button class="btn btn-ghost btn-sm" onclick="exportSurveyExcel()" style="gap:5px;"><i class="ti ti-file-spreadsheet"></i>Export Excel</button>
           <button class="btn btn-sm" onclick="saveSurveyImage()" style="background:#7c3aed;color:#fff;gap:5px;border:none;"><i class="ti ti-photo-down"></i>บันทึกเป็นภาพ</button>
-          <button class="btn btn-sm" onclick="openClearSurveyBySite()" style="background:transparent;color:#dc2626;border:1px solid #fecaca;gap:5px;"><i class="ti ti-trash"></i>เคียร์ตามสาขา</button>
+          <button id="btn-clear-survey" class="btn btn-sm" onclick="openClearSurveyBySite()" style="background:transparent;color:#dc2626;border:1px solid #fecaca;gap:5px;"><i class="ti ti-trash"></i>เคียร์ตามสาขา</button>
         </div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">

@@ -112,6 +112,10 @@ const ADMIN_TABS=[
   {id:'print',        label:'พิมพ์เอกสาร'},
   {id:'permissions',  label:'สิทธิ์การเข้าถึง'},
 ];
+const ADMIN_ACTIONS=[
+  {id:'action:clear_regs',   label:'เคียร์ผู้ลงทะเบียน\nตามสาขา', btnId:'btn-clear-regs'},
+  {id:'action:clear_survey', label:'เคียร์ผลประเมิน\nตามสาขา',   btnId:'btn-clear-survey'},
+];
 
 /* ══════════════════ HELPERS ══════════════════ */
 const getCount=sid=>registrations.filter(r=>r.sessionId===sid).length;
@@ -197,7 +201,8 @@ async function loadAllData(){
   adminUsers=(auR.data||[]);
   loginVerifyData=(lvR.data||[]);
   try{adminRolePermissions=JSON.parse(arR.data?.value||'{}');}catch(e){adminRolePermissions={};}
-  if(!adminRolePermissions.superadmin)adminRolePermissions.superadmin=ADMIN_TABS.map(t=>t.id);
+  // superadmin always has full access (tabs + actions)
+  adminRolePermissions.superadmin=[...ADMIN_TABS.map(t=>t.id),...ADMIN_ACTIONS.map(a=>a.id)];
   const ms=mR.data||[];
   trainers=ms.filter(m=>m.type==='trainer').map(m=>m.value);
   venues=ms.filter(m=>m.type==='venue').map(m=>m.value);
@@ -3736,7 +3741,12 @@ function toggleNewPass(){
 function getMyAllowedTabs(){
   if(!currentAdminUser)return ADMIN_TABS.map(t=>t.id);
   if(currentAdminUser.role==='superadmin')return ADMIN_TABS.map(t=>t.id);
-  return adminRolePermissions[currentAdminUser.role]||[];
+  return (adminRolePermissions[currentAdminUser.role]||[]).filter(p=>!p.startsWith('action:'));
+}
+function hasAdminAction(actionId){
+  if(!currentAdminUser)return true;
+  if(currentAdminUser.role==='superadmin')return true;
+  return (adminRolePermissions[currentAdminUser.role]||[]).includes(actionId);
 }
 
 function _applyAdminTabVisibility(){
@@ -3750,6 +3760,11 @@ function _applyAdminTabVisibility(){
     if(show&&!firstAllowed)firstAllowed=tab;
     if(btn.classList.contains('active')&&!show)activeIsHidden=true;
   });
+  // apply action button visibility
+  ADMIN_ACTIONS.forEach(a=>{
+    const el=document.getElementById(a.btnId);
+    if(el)el.style.display=hasAdminAction(a.id)?'':'none';
+  });
   if(activeIsHidden&&firstAllowed)switchAdminTab(firstAllowed);
 }
 
@@ -3761,25 +3776,42 @@ function renderAdminPermissions(){
     return;
   }
   const roles=Object.keys(adminRolePermissions);
-  const tabCols=ADMIN_TABS.map(t=>`<th style="white-space:nowrap;font-size:12px;padding:6px 8px;">${t.label}</th>`).join('');
+  const nTabs=ADMIN_TABS.length;
+  const nActs=ADMIN_ACTIONS.length;
+
+  // header row 1: group labels
+  const grpHeader=`<tr>
+    <th rowspan="2" style="white-space:nowrap;vertical-align:middle;">Role</th>
+    <th colspan="${nTabs}" style="text-align:center;background:#e8f0fb;color:#1a56a0;font-size:12px;border-bottom:none;">แถบเมนู</th>
+    <th colspan="${nActs}" style="text-align:center;background:#fee2e2;color:#991b1b;font-size:12px;border-bottom:none;">การกระทำพิเศษ</th>
+    <th rowspan="2"></th>
+  </tr>`;
+
+  // header row 2: individual column labels
+  const tabCols=ADMIN_TABS.map(t=>`<th style="white-space:pre;font-size:11px;padding:5px 7px;background:#f0f4ff;">${t.label}</th>`).join('');
+  const actCols=ADMIN_ACTIONS.map(a=>`<th style="white-space:pre;font-size:11px;padding:5px 7px;background:#fff0f0;">${a.label}</th>`).join('');
+
   const rows=roles.map(role=>{
     const isSup=role==='superadmin';
-    const perms=isSup?ADMIN_TABS.map(t=>t.id):(adminRolePermissions[role]||[]);
-    const cells=ADMIN_TABS.map(t=>{
-      const chk=perms.includes(t.id)?'checked':'';
+    const perms=new Set(isSup?[...ADMIN_TABS.map(t=>t.id),...ADMIN_ACTIONS.map(a=>a.id)]:(adminRolePermissions[role]||[]));
+    const tabCells=ADMIN_TABS.map(t=>{
+      const chk=perms.has(t.id)?'checked':'';
       const dis=isSup?'disabled':'';
-      return`<td style="text-align:center;"><input type="checkbox" data-role="${role}" data-tab="${t.id}" ${chk} ${dis} onchange="_onPermChange(this)" style="width:16px;height:16px;cursor:pointer;"></td>`;
+      return`<td style="text-align:center;background:#f8faff;"><input type="checkbox" data-role="${role}" data-tab="${t.id}" ${chk} ${dis} onchange="_onPermChange(this)" style="width:16px;height:16px;cursor:${isSup?'default':'pointer'};"></td>`;
+    }).join('');
+    const actCells=ADMIN_ACTIONS.map(a=>{
+      const chk=perms.has(a.id)?'checked':'';
+      const dis=isSup?'disabled':'';
+      return`<td style="text-align:center;background:#fff8f8;"><input type="checkbox" data-role="${role}" data-tab="${a.id}" ${chk} ${dis} onchange="_onPermChange(this)" style="width:16px;height:16px;cursor:${isSup?'default':'pointer'};"></td>`;
     }).join('');
     const badge=isSup?'<span style="font-size:10px;background:#e8f0fb;color:#1a56a0;padding:1px 6px;border-radius:10px;margin-left:6px;font-weight:600;">ระบบ</span>':'';
     const del=isSup?'':`<button class="btn btn-danger btn-sm" onclick="deletePermissionRole('${role}')"><i class="ti ti-trash"></i></button>`;
-    return`<tr><td style="font-weight:600;white-space:nowrap;padding:8px 12px;">${role}${badge}</td>${cells}<td>${del}</td></tr>`;
+    return`<tr><td style="font-weight:600;white-space:nowrap;padding:8px 12px;">${role}${badge}</td>${tabCells}${actCells}<td>${del}</td></tr>`;
   }).join('');
-
-  const roleOpts=roles.filter(r=>r!=='superadmin').map(r=>`<option value="${r}">${r}</option>`).join('');
 
   el.innerHTML=`
     <div class="table-wrap" style="margin-bottom:16px;overflow-x:auto;">
-      <table><thead><tr><th style="white-space:nowrap;">Role</th>${tabCols}<th></th></tr></thead><tbody>${rows}</tbody></table>
+      <table><thead>${grpHeader}<tr>${tabCols}${actCols}</tr></thead><tbody>${rows}</tbody></table>
     </div>
     <div style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;">
       <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">เพิ่ม Role ใหม่</div>
@@ -3806,7 +3838,8 @@ function _onPermChange(cb){
 }
 
 async function saveAdminRolePermissions(){
-  adminRolePermissions.superadmin=ADMIN_TABS.map(t=>t.id);
+  // superadmin always gets all tabs + all actions
+  adminRolePermissions.superadmin=[...ADMIN_TABS.map(t=>t.id),...ADMIN_ACTIONS.map(a=>a.id)];
   const {error}=await _sb.from('settings').upsert({key:'admin_role_permissions',value:JSON.stringify(adminRolePermissions),updated_at:new Date().toISOString()});
   if(error){showToast('บันทึกไม่สำเร็จ: '+error.message,'danger');return;}
   showToast('บันทึกสิทธิ์สำเร็จ','success');
