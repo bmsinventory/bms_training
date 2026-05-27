@@ -452,10 +452,14 @@
         <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">เพิ่มผู้ใช้งานใหม่</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
           <div class="form-group" style="margin-bottom:0;flex:0 0 180px;">
-            <label class="form-label">ชื่อผู้ใช้</label>
+            <label class="form-label">ชื่อ-นามสกุล</label>
+            <input class="form-control" id="new-au-name" placeholder="ชื่อผู้ใช้งาน" autocomplete="off" onkeydown="if(event.key==='Enter')addAdminUser()">
+          </div>
+          <div class="form-group" style="margin-bottom:0;flex:0 0 160px;">
+            <label class="form-label">ชื่อผู้ใช้ (Login)</label>
             <input class="form-control" id="new-au-username" placeholder="username" autocomplete="off" onkeydown="if(event.key==='Enter')addAdminUser()">
           </div>
-          <div class="form-group" style="margin-bottom:0;flex:1;min-width:180px;">
+          <div class="form-group" style="margin-bottom:0;flex:1;min-width:160px;">
             <label class="form-label">รหัสผ่าน</label>
             <div style="position:relative;">
               <input class="form-control" type="password" id="new-au-password" placeholder="password" autocomplete="new-password" style="padding-right:40px;" onkeydown="if(event.key==='Enter')addAdminUser()">

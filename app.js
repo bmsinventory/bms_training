@@ -185,7 +185,7 @@ async function loadAllData(){
     _sb.from('registrations').select('*').order('id'),
     _sb.from('master_items').select('*').eq('site',currentSite).order('type,sort_order,id'),
     _sb.from('locations').select('*').order('id'),
-    _sb.from('admin_users').select('id,username,role,created_at').order('id'),
+    _sb.from('admin_users').select('id,username,name,role,created_at').order('id'),
     _sb.from('login_verify').select('*').eq('site',currentSite),
     _sb.from('sessions').select('id,site,capacity').order('id'),
     _sb.from('courses').select('id,category_id').eq('is_active',true).not('category_id','is',null),
@@ -383,7 +383,7 @@ async function adminLogin(){
   const p=document.getElementById('login-pass').value;
   const btn=document.querySelector('#modal-admin-login .btn-primary');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i>กำลังตรวจสอบ...';}
-  const {data,error}=await _sb.from('admin_users').select('id,username,role').eq('username',u).eq('password',p).maybeSingle();
+  const {data,error}=await _sb.from('admin_users').select('id,username,name,role').eq('username',u).eq('password',p).maybeSingle();
   if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-login"></i>เข้าสู่ระบบ';}
   if(data&&!error){
     isAdminLoggedIn=true;
@@ -395,7 +395,7 @@ async function adminLogin(){
     document.getElementById('tab-'+pendingPage).classList.add('active');
     if(pendingPage==='admin')renderAdmin();
     if(pendingPage==='checkin')initCheckinPage();
-    showToast(`ยินดีต้อนรับ ${data.username}`,'success');
+    showToast(`ยินดีต้อนรับ ${data.name||data.username}`,'success');
   } else {
     const errEl=document.getElementById('login-error');
     document.getElementById('login-error-msg').textContent='ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
@@ -3655,7 +3655,10 @@ function renderAdminUsers(){
     <div class="master-item" id="au-row-${u.id}">
       <div style="display:flex;gap:8px;align-items:center;flex:1;flex-wrap:wrap;">
         <i class="ti ti-user-shield" style="color:var(--primary);font-size:16px;"></i>
-        <span style="font-weight:500;">${u.username}</span>
+        <div>
+          <div style="font-weight:600;font-size:14px;">${u.name||u.username}</div>
+          ${u.name?`<div style="font-size:12px;color:var(--text-muted);">@${u.username}</div>`:''}
+        </div>
         ${_roleChip(u.role)}
         ${u.id===currentAdminUser?.id?'<span style="font-size:11px;background:var(--success-light);color:var(--success);padding:1px 7px;border-radius:20px;font-weight:600;">กำลังใช้งาน</span>':''}
       </div>
@@ -3672,54 +3675,58 @@ function editAdminUserInline(id){
   const roleOpts=Object.keys(adminRolePermissions).map(r=>`<option value="${r}"${(user.role||'admin')===r?' selected':''}>${r}</option>`).join('');
   el.innerHTML=`
     <div style="display:flex;gap:6px;flex:1;align-items:center;flex-wrap:wrap;">
-      <input class="form-control" id="au-inp-user-${id}" value="${user.username}" placeholder="ชื่อผู้ใช้"
-        style="width:130px;height:32px;font-size:13px;">
+      <input class="form-control" id="au-inp-name-${id}" value="${(user.name||'').replace(/"/g,'&quot;')}" placeholder="ชื่อ-นามสกุล"
+        style="width:160px;height:32px;font-size:13px;">
+      <input class="form-control" id="au-inp-user-${id}" value="${user.username}" placeholder="username"
+        style="width:120px;height:32px;font-size:13px;">
       <input class="form-control" type="password" id="au-inp-pass-${id}" placeholder="รหัสผ่านใหม่ (เว้นว่าง=คงเดิม)"
-        style="flex:1;min-width:140px;height:32px;font-size:13px;"
+        style="flex:1;min-width:130px;height:32px;font-size:13px;"
         onkeydown="if(event.key==='Enter')saveAdminUserInline(${id});if(event.key==='Escape')renderAdminUsers();">
-      <select class="form-control" id="au-inp-role-${id}" style="width:130px;height:32px;font-size:13px;">${roleOpts}</select>
+      <select class="form-control" id="au-inp-role-${id}" style="width:120px;height:32px;font-size:13px;">${roleOpts}</select>
     </div>
     <div style="display:flex;gap:4px;">
       <button class="btn btn-success btn-sm" onclick="saveAdminUserInline(${id})"><i class="ti ti-check"></i></button>
       <button class="btn btn-ghost btn-sm" onclick="renderAdminUsers()"><i class="ti ti-x"></i></button>
     </div>`;
-  document.getElementById(`au-inp-user-${id}`).focus();
+  document.getElementById(`au-inp-name-${id}`).focus();
 }
 async function saveAdminUserInline(id){
+  const name=document.getElementById(`au-inp-name-${id}`)?.value.trim()||'';
   const username=document.getElementById(`au-inp-user-${id}`).value.trim();
   const newPass=document.getElementById(`au-inp-pass-${id}`).value;
   const newRole=document.getElementById(`au-inp-role-${id}`)?.value||'admin';
-  if(!username){showToast('กรุณาระบุชื่อผู้ใช้','danger');return;}
+  if(!username){showToast('กรุณาระบุชื่อผู้ใช้ (Login)','danger');return;}
   if(adminUsers.find(a=>a.username===username&&a.id!==id)){showToast('ชื่อผู้ใช้นี้มีอยู่แล้ว','danger');return;}
   const user=adminUsers.find(u=>u.id===id);
-  // ป้องกันลด role ของ superadmin คนสุดท้าย
   if(user?.role==='superadmin'&&newRole!=='superadmin'){
     if(adminUsers.filter(u=>u.role==='superadmin').length<=1){
       showToast('ต้องมี Superadmin อย่างน้อย 1 คน','danger');return;
     }
   }
-  const payload={username,role:newRole};
+  const payload={name,username,role:newRole};
   if(newPass)payload.password=newPass;
   const {error}=await _sb.from('admin_users').update(payload).eq('id',id);
   if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
-  if(user){user.username=username;user.role=newRole;}
-  if(currentAdminUser?.id===id){currentAdminUser.username=username;currentAdminUser.role=newRole;}
+  if(user){user.name=name;user.username=username;user.role=newRole;}
+  if(currentAdminUser?.id===id){currentAdminUser.name=name;currentAdminUser.username=username;currentAdminUser.role=newRole;}
   renderAdminUsers();showToast('แก้ไขผู้ใช้งานสำเร็จ','success');
 }
 async function addAdminUser(){
+  const nEl=document.getElementById('new-au-name');
   const uEl=document.getElementById('new-au-username');
   const pEl=document.getElementById('new-au-password');
   const rEl=document.getElementById('new-au-role');
+  const name=nEl?.value.trim()||'';
   const username=uEl.value.trim();
   const password=pEl.value;
   const role=rEl?.value||'admin';
   if(!username||!password){showToast('กรุณาระบุชื่อผู้ใช้และรหัสผ่าน','danger');return;}
   if(adminUsers.find(a=>a.username===username)){showToast('ชื่อผู้ใช้นี้มีอยู่แล้ว','danger');return;}
-  const {data,error}=await _sb.from('admin_users').insert({username,password,role}).select('id,username,role,created_at').single();
+  const {data,error}=await _sb.from('admin_users').insert({name,username,password,role}).select('id,username,name,role,created_at').single();
   if(error){showToast('บันทึกไม่สำเร็จ','danger');return;}
   adminUsers.push(data);
-  uEl.value='';pEl.value='';
-  renderAdminUsers();showToast(`เพิ่มผู้ใช้ "${username}" (${role}) สำเร็จ`,'success');
+  if(nEl)nEl.value='';uEl.value='';pEl.value='';
+  renderAdminUsers();showToast(`เพิ่มผู้ใช้ "${name||username}" (${role}) สำเร็จ`,'success');
 }
 async function deleteAdminUser(id){
   const user=adminUsers.find(u=>u.id===id);if(!user)return;
