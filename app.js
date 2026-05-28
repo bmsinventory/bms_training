@@ -58,7 +58,7 @@ async function pushNotify(reg){
   const timeStr=s?`${s.timeStart} - ${s.timeEnd} น.`:'-';
   const lines=[
     '📢 มีผู้ลงทะเบียนใหม่',
-    `🏢 สาขา: ${loc?loc.name:currentSite}`,
+    `🏢 สาขา: ${currentSite}${loc?' : '+loc.name:''}`,
     `👤 ชื่อ-สกุล: ${reg.prefix}${reg.fname} ${reg.lname}`,
     `💼 ตำแหน่ง: ${reg.position||'-'}`,
     `🏢 หน่วยงาน: ${reg.dept||'-'}`,
