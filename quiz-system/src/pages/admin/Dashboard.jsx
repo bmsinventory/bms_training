@@ -34,13 +34,13 @@ function RecentRow({ a }) {
   const isPass = a.status === 'PASS';
   return (
     <tr className="hover:bg-slate-50">
-      <td className="px-3 py-2.5 text-sm font-medium border-b border-slate-100">{a.full_name}</td>
-      <td className="px-3 py-2.5 text-sm text-slate-500 border-b border-slate-100 max-w-[140px] truncate">{a.courses?.name}</td>
-      <td className="px-3 py-2.5 text-sm text-right border-b border-slate-100">{a.score}/{a.total}</td>
-      <td className="px-3 py-2.5 border-b border-slate-100">
+      <td className="px-3 py-2.5 text-sm font-medium border-b border-slate-100 text-wrap" data-label="ชื่อ">{a.full_name}</td>
+      <td className="px-3 py-2.5 text-sm text-slate-500 border-b border-slate-100 max-w-[140px] truncate" data-label="หลักสูตร">{a.courses?.name}</td>
+      <td className="px-3 py-2.5 text-sm text-right border-b border-slate-100" data-label="คะแนน">{a.score}/{a.total}</td>
+      <td className="px-3 py-2.5 border-b border-slate-100" data-label="ผล">
         <span className={isPass ? 'badge badge-pass' : 'badge badge-fail'}>{a.status}</span>
       </td>
-      <td className="px-3 py-2.5 text-xs text-slate-500 border-b border-slate-100">{fmtDateTime(a.completed_at)}</td>
+      <td className="px-3 py-2.5 text-xs text-slate-500 border-b border-slate-100 whitespace-nowrap" data-label="วันที่">{fmtDateTime(a.completed_at)}</td>
     </tr>
   );
 }
@@ -68,24 +68,24 @@ export default function Dashboard() {
     <div className="text-slate-900">
 
       {/* Page header */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-5">
         <div>
           <h1 className="text-lg font-bold text-slate-900 m-0">Dashboard</h1>
           <p className="text-sm text-slate-500 mt-0.5 mb-0">ภาพรวมระบบแบบทดสอบ</p>
         </div>
-        <Link to="/admin/results" className="btn btn-primary btn-sm">ดูผลสอบทั้งหมด →</Link>
+        <Link to="/admin/results" className="btn btn-primary btn-sm shrink-0">ดูผลสอบทั้งหมด →</Link>
       </div>
 
-      {/* 4-column stat grid */}
-      <div className="grid grid-cols-4 gap-3.5 mb-4">
+      {/* 4-column stat grid — 2 cols on mobile, 4 on sm+ */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-3.5 mb-4">
         <StatCard label="ผู้สอบทั้งหมด" value={stats.total} topColor="#2563eb" valueColor="#2563eb" icon="📝" />
         <StatCard label="ผ่าน"           value={stats.pass}  topColor="#059669" valueColor="#059669" icon="✅" />
         <StatCard label="ไม่ผ่าน"        value={stats.fail}  topColor="#dc2626" valueColor="#dc2626" icon="❌" />
         <StatCard label="ใบรับรอง"       value={stats.certs} topColor="#d97706" valueColor="#d97706" icon="🏆" />
       </div>
 
-      {/* Secondary stats */}
-      <div className="grid grid-cols-3 gap-3.5 mb-4">
+      {/* Secondary stats — 1 col on mobile, 3 on sm+ */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-3.5 mb-4">
         <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
           <div className="text-3xl font-black text-blue-600 leading-none">{passRate}%</div>
           <div className="text-sm text-slate-500 mt-1">อัตราผ่าน</div>
@@ -122,7 +122,7 @@ export default function Dashboard() {
           <div className="text-center py-8 text-slate-500 text-sm">ยังไม่มีผลสอบ</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full border-collapse table-responsive">
               <thead>
                 <tr>
                   {['ชื่อ', 'หลักสูตร', 'คะแนน', 'ผล', 'วันที่'].map((h, i) => (

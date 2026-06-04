@@ -179,11 +179,11 @@ export default function Courses() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="text-sm font-semibold text-blue-600 flex items-center gap-2">
           <span>📚</span> จัดการหลักสูตรแบบทดสอบ
         </div>
-        <button onClick={openAdd} className="btn btn-primary btn-sm">+ เพิ่มหลักสูตร</button>
+        <button onClick={openAdd} className="btn btn-primary btn-sm shrink-0">+ เพิ่มหลักสูตร</button>
       </div>
 
       {/* Cards */}
@@ -343,7 +343,7 @@ export default function Courses() {
             value={form.description} onChange={e => setF('description', e.target.value)} />
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-3.5">
+        <div className="grid gap-3 sm:grid-cols-2 mb-3.5">
           <div>
             <label className="form-label">จำนวนข้อที่สุ่ม</label>
             <input type="number" min="1" max="100" className="form-input"

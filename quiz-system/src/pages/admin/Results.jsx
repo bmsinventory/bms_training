@@ -220,19 +220,19 @@ export default function Results() {
       />
 
       {/* Page header */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-5">
         <div>
           <h1 className="font-bold text-slate-900 m-0" style={{ fontSize: '17px' }}>ผลสอบทั้งหมด</h1>
           <p className="text-slate-500 mt-0.5 mb-0" style={{ fontSize: '13px' }}>ค้นหา กรอง และจัดการผลสอบ</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={() => setShowClearModal(true)} className="btn btn-danger btn-sm">🗑️ เคียร์ตามสาขา</button>
-          <button onClick={handleExport} className="btn btn-secondary btn-sm">⬇️ Export Excel</button>
+          <button onClick={handleExport} className="btn btn-secondary btn-sm">⬇️ Export</button>
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-4 gap-3.5 mb-4">
+      {/* Stat cards — 2 cols on mobile, 4 on sm+ */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-3.5 mb-4">
         <StatCard label="ผลสอบทั้งหมด" value={attempts.length} topColor="#2563eb" valueColor="#2563eb" icon="📋" />
         <StatCard label="ผ่าน"          value={passCount}       topColor="#059669" valueColor="#059669" icon="✅" sub={`อัตรา ${passRate}%`} />
         <StatCard label="ไม่ผ่าน"       value={failCount}       topColor="#dc2626" valueColor="#dc2626" icon="❌" />
@@ -240,11 +240,11 @@ export default function Results() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+      <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 mb-4">
         <div className="font-semibold text-blue-600 flex items-center gap-2 mb-3" style={{ fontSize: '13px' }}>
           🔍 ค้นหาและกรอง
         </div>
-        <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: '2fr 1.5fr 1fr' }}>
+        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
           <input className="form-input" placeholder="ค้นหาชื่อ / อีเมล..."
             value={filter.search} onChange={e => setF('search', e.target.value)} />
           <select className="form-input" value={filter.courseId} onChange={e => setF('courseId', e.target.value)}>
@@ -255,8 +255,6 @@ export default function Results() {
             <option value="">🌐 ทุกสาขา</option>
             {locations.map(l => <option key={l.id} value={l.id}>{l.code ? `${l.code} : ${l.name}` : l.name}</option>)}
           </select>
-        </div>
-        <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
           <select className="form-input" value={filter.status} onChange={e => setF('status', e.target.value)}>
             <option value="">ทุกผลลัพธ์</option>
             <option value="PASS">✅ PASS</option>
@@ -284,7 +282,7 @@ export default function Results() {
 
         {loading ? <InlineLoader /> : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full border-collapse table-responsive">
               <thead>
                 <tr>
                   {['#', 'ชื่อ-สกุล', 'หลักสูตร', 'คะแนน', 'ผล', 'สาขา', 'Cert ID', 'วันที่สอบ', 'จัดการ'].map((h, i) => (
@@ -297,37 +295,37 @@ export default function Results() {
                   const cert = a.certificates?.[0];
                   return (
                     <tr key={a.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-400" style={{ fontSize: '12px' }}>{i + 1}</td>
-                      <td className="px-3 py-2 border-b border-slate-100">
-                        <div className="font-semibold text-slate-800" style={{ fontSize: '13px' }}>{a.full_name}</div>
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-400" style={{ fontSize: '12px' }} data-label="#">{i + 1}</td>
+                      <td className="px-3 py-2 border-b border-slate-100" data-label="ชื่อ-สกุล">
+                        <div className="font-semibold text-slate-800 text-wrap" style={{ fontSize: '13px' }}>{a.full_name}</div>
                         <div className="text-slate-400" style={{ fontSize: '11px' }}>{a.email}</div>
                         {a.department && <div className="text-slate-400" style={{ fontSize: '11px' }}>{a.department}</div>}
                       </td>
-                      <td className="px-3 py-2 border-b border-slate-100">
-                        <div className="text-slate-500 max-w-[160px] truncate" style={{ fontSize: '12px' }}>{a.courses?.name}</div>
+                      <td className="px-3 py-2 border-b border-slate-100" data-label="หลักสูตร">
+                        <div className="text-slate-500 text-wrap" style={{ fontSize: '12px', maxWidth: '160px' }}>{a.courses?.name}</div>
                       </td>
-                      <td className="px-3 py-2 border-b border-slate-100 text-center">
+                      <td className="px-3 py-2 border-b border-slate-100 text-center" data-label="คะแนน">
                         <div className="font-bold font-mono text-slate-800" style={{ fontSize: '13px' }}>{a.score}/{a.total}</div>
                         <div className="text-slate-400" style={{ fontSize: '11px' }}>{Math.round(a.percent)}%</div>
                       </td>
-                      <td className="px-3 py-2 border-b border-slate-100 text-center">
+                      <td className="px-3 py-2 border-b border-slate-100 text-center" data-label="ผล">
                         <span className={a.status === 'PASS' ? 'badge badge-pass' : 'badge badge-fail'}>{a.status}</span>
                       </td>
-                      <td className="px-3 py-2 border-b border-slate-100">
-                        <div className="text-slate-500 max-w-[110px] truncate" style={{ fontSize: '12px' }}>
+                      <td className="px-3 py-2 border-b border-slate-100" data-label="สาขา">
+                        <div className="text-slate-500 text-wrap" style={{ fontSize: '12px', maxWidth: '110px' }}>
                           {a.location?.name ?? <span className="text-slate-300">—</span>}
                         </div>
                       </td>
-                      <td className="px-3 py-2 border-b border-slate-100">
+                      <td className="px-3 py-2 border-b border-slate-100" data-label="Cert ID">
                         {cert
                           ? <span className="font-mono text-slate-500" style={{ fontSize: '11px' }}>{cert.cert_id}</span>
                           : <span className="text-slate-200">—</span>}
                       </td>
-                      <td className="px-3 py-2 border-b border-slate-100 text-slate-500 whitespace-nowrap" style={{ fontSize: '12px' }}>
+                      <td className="px-3 py-2 border-b border-slate-100 text-slate-500 whitespace-nowrap" style={{ fontSize: '12px' }} data-label="วันที่สอบ">
                         {fmtDateTime(a.completed_at)}
                       </td>
-                      <td className="px-3 py-2.5 border-b border-slate-100">
-                        <div className="flex gap-1.5">
+                      <td className="px-3 py-2.5 border-b border-slate-100" data-label="จัดการ">
+                        <div className="flex gap-1.5 flex-wrap">
                           <Link to={`/result/${a.id}`} target="_blank" className="btn btn-sm btn-ghost no-underline" title="ดูผลสอบ">👁 ดู</Link>
                           {cert && !cert.is_revoked && (
                             <button onClick={() => setRevokeTarget(a)} className="btn btn-sm btn-danger" title="ยกเลิกใบรับรอง">🚫</button>

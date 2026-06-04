@@ -310,29 +310,29 @@ export default function Questions() {
       />
 
       {/* Page header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-4">
+        <div className="min-w-0">
           <div className="text-xs text-slate-500 mb-1">
             <Link to="/admin/courses" className="text-slate-500 no-underline">← หลักสูตร</Link>
           </div>
-          <h1 className="text-lg font-bold text-slate-900 m-0">📝 {course?.name || 'ข้อสอบ'}</h1>
-          <p className="text-sm text-slate-500 mt-0.5 mb-0">
-            จัดการข้อสอบในหลักสูตรนี้
-          </p>
+          <h1 className="text-base sm:text-lg font-bold text-slate-900 m-0 text-wrap">📝 {course?.name || 'ข้อสอบ'}</h1>
+          <p className="text-sm text-slate-500 mt-0.5 mb-0">จัดการข้อสอบในหลักสูตรนี้</p>
         </div>
-        {activeTab === 'questions' && (
-          <button onClick={openAdd} className="btn btn-primary btn-sm">+ เพิ่มข้อสอบ</button>
-        )}
-        {activeTab === 'history' && attempts.length > 0 && locFilter !== null && (
-          <button onClick={() => setClearByLocConfirm(true)} className="btn btn-danger btn-sm">
-            🗑️ เคียร์สาขา {locations.find(l => l.id === locFilter)?.name || ''}
-          </button>
-        )}
-        {activeTab === 'history' && attempts.length > 0 && locFilter === null && (
-          <button onClick={() => setClearConfirm(true)} className="btn btn-danger btn-sm">
-            🗑️ เคียร์ทั้งหมด
-          </button>
-        )}
+        <div className="shrink-0">
+          {activeTab === 'questions' && (
+            <button onClick={openAdd} className="btn btn-primary btn-sm">+ เพิ่มข้อสอบ</button>
+          )}
+          {activeTab === 'history' && attempts.length > 0 && locFilter !== null && (
+            <button onClick={() => setClearByLocConfirm(true)} className="btn btn-danger btn-sm">
+              🗑️ เคียร์สาขา {locations.find(l => l.id === locFilter)?.name || ''}
+            </button>
+          )}
+          {activeTab === 'history' && attempts.length > 0 && locFilter === null && (
+            <button onClick={() => setClearConfirm(true)} className="btn btn-danger btn-sm">
+              🗑️ เคียร์ทั้งหมด
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tab switcher */}
@@ -415,41 +415,72 @@ export default function Questions() {
             </div>
           ) : (
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              {/* Table header */}
-              <div className="grid text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-2.5 bg-slate-50 border-b border-slate-200"
-                style={{ gridTemplateColumns: '1fr 1fr 80px 72px 90px 110px 40px' }}>
-                <div>ชื่อ</div>
-                <div>อีเมล</div>
-                <div>คะแนน</div>
-                <div>ผลสอบ</div>
-                <div>สาขา</div>
-                <div>วันที่สอบ</div>
-                <div />
+              {/* Table — hidden on mobile, shown on sm+ */}
+              <div className="hidden sm:block">
+                <div className="grid text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-2.5 bg-slate-50 border-b border-slate-200"
+                  style={{ gridTemplateColumns: '1fr 1fr 80px 80px 100px 120px 40px' }}>
+                  <div>ชื่อ</div>
+                  <div>อีเมล</div>
+                  <div>คะแนน</div>
+                  <div>ผลสอบ</div>
+                  <div>สาขา</div>
+                  <div>วันที่สอบ</div>
+                  <div />
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {attempts.map(a => (
+                    <div key={a.id}
+                      className="grid items-center px-4 py-2.5 hover:bg-slate-50 transition-colors text-sm"
+                      style={{ gridTemplateColumns: '1fr 1fr 80px 80px 100px 120px 40px' }}>
+                      <div className="font-medium text-slate-900 truncate pr-2">{a.full_name}</div>
+                      <div className="text-slate-500 text-xs truncate pr-2">{a.email}</div>
+                      <div className="text-slate-700 font-semibold">
+                        {a.score ?? '-'}/{a.total ?? '-'}
+                        {a.percent != null && <span className="text-xs text-slate-400 ml-1">({Math.round(a.percent)}%)</span>}
+                      </div>
+                      <div>
+                        <span className={`badge ${a.status === 'PASS' ? 'badge-pass' : a.status === 'FAIL' ? 'badge-fail' : 'badge-gray'}`}>
+                          {a.status === 'PASS' ? '✅ ผ่าน' : a.status === 'FAIL' ? '❌ ไม่ผ่าน' : '⏳ ยังไม่เสร็จ'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-500 truncate pr-1">
+                        {a.location ? a.location.name : <span className="text-slate-300">—</span>}
+                      </div>
+                      <div className="text-xs text-slate-400 whitespace-nowrap">{fmtDateTime(a.completed_at || a.created_at)}</div>
+                      <div>
+                        <button onClick={() => setDelAttempt(a)}
+                          className="btn btn-sm btn-danger p-1.5" title="ลบรายการนี้">
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              {/* Rows */}
-              <div className="divide-y divide-slate-100">
+
+              {/* Mobile Card List */}
+              <div className="sm:hidden divide-y divide-slate-100">
                 {attempts.map(a => (
-                  <div key={a.id}
-                    className="grid items-center px-4 py-2.5 hover:bg-slate-50 transition-colors text-sm"
-                    style={{ gridTemplateColumns: '1fr 1fr 80px 72px 90px 110px 40px' }}>
-                    <div className="font-medium text-slate-900 truncate pr-2">{a.full_name}</div>
-                    <div className="text-slate-500 text-xs truncate pr-2">{a.email}</div>
-                    <div className="text-slate-700 font-semibold">
-                      {a.score ?? '-'}/{a.total ?? '-'}
-                      {a.percent != null && <span className="text-xs text-slate-400 ml-1">({Math.round(a.percent)}%)</span>}
-                    </div>
-                    <div>
-                      <span className={`badge ${a.status === 'PASS' ? 'badge-pass' : a.status === 'FAIL' ? 'badge-fail' : 'badge-gray'}`}>
-                        {a.status === 'PASS' ? '✅ ผ่าน' : a.status === 'FAIL' ? '❌ ไม่ผ่าน' : '⏳ ยังไม่เสร็จ'}
-                      </span>
-                    </div>
-                    <div className="text-xs text-slate-500 truncate pr-1">
-                      {a.location ? a.location.name : <span className="text-slate-300">—</span>}
-                    </div>
-                    <div className="text-xs text-slate-400">{fmtDateTime(a.completed_at || a.created_at)}</div>
-                    <div>
+                  <div key={a.id} className="px-4 py-3">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-slate-900 text-sm text-wrap">{a.full_name}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">{a.email}</div>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          <span className={`badge ${a.status === 'PASS' ? 'badge-pass' : a.status === 'FAIL' ? 'badge-fail' : 'badge-gray'}`}>
+                            {a.status === 'PASS' ? '✅ ผ่าน' : a.status === 'FAIL' ? '❌ ไม่ผ่าน' : '⏳ ยังไม่เสร็จ'}
+                          </span>
+                          {a.score != null && (
+                            <span className="badge badge-info">{a.score}/{a.total} ({Math.round(a.percent)}%)</span>
+                          )}
+                          {a.location && (
+                            <span className="badge badge-gray">{a.location.name}</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-400 mt-1">{fmtDateTime(a.completed_at || a.created_at)}</div>
+                      </div>
                       <button onClick={() => setDelAttempt(a)}
-                        className="btn btn-sm btn-danger p-1.5" title="ลบรายการนี้">
+                        className="btn btn-sm btn-danger shrink-0" title="ลบรายการนี้">
                         🗑️
                       </button>
                     </div>

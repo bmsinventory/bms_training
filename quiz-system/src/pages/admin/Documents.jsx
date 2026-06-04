@@ -343,17 +343,17 @@ export default function Documents() {
       <div className="print:hidden max-w-7xl mx-auto">
 
         {/* Page header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-wrap items-start justify-between gap-2 mb-5">
           <div>
             <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
               <Link to="/admin/courses" className="text-blue-600 no-underline hover:underline">Admin</Link>
               <span>›</span>
               <span>พิมพ์เอกสาร</span>
             </div>
-            <h1 className="text-xl font-bold text-slate-900 m-0">🖨️ พิมพ์เอกสาร</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900 m-0">🖨️ พิมพ์เอกสาร</h1>
             <p className="text-sm text-slate-500 mt-0.5 mb-0">ใบลงชื่อสำหรับการอบรมและการประชุม BMS</p>
           </div>
-          <button onClick={() => window.print()} className="btn btn-primary gap-2">
+          <button onClick={() => window.print()} className="btn btn-primary gap-2 shrink-0">
             🖨️ พิมพ์เอกสาร
           </button>
         </div>

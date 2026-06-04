@@ -254,7 +254,7 @@ function ImageCertBuilder({ settings, onPosChange, onStyleChange }) {
               ↩ รีเซ็ต
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
             <div>
               <label className="form-label">ขนาดตัวอักษร (px)</label>
               <input type="number" className="form-input" min={8} max={120}
@@ -360,13 +360,13 @@ export default function AdminSettings() {
     <div>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-4">
         <div>
           <div className="text-base font-bold text-slate-800">⚙️ ตั้งค่าระบบ</div>
           <div className="text-xs text-slate-500 mt-0.5">กำหนดชื่อระบบ ออกแบบใบรับรอง และการส่งอีเมล</div>
         </div>
         <button onClick={handleSave} disabled={saving || !hasChanges}
-          className="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
+          className="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed shrink-0">
           {saving ? '⏳ กำลังบันทึก...' : '💾 บันทึกการตั้งค่า'}
         </button>
       </div>
@@ -377,8 +377,8 @@ export default function AdminSettings() {
           <div className="font-bold text-white">🔧 ทั่วไป</div>
           <div className="text-xs text-white/70 mt-0.5">ชื่อระบบ องค์กร และ URL สำหรับใบรับรอง</div>
         </div>
-        <div className="p-5">
-          <div className="grid grid-cols-2 gap-3.5">
+        <div className="p-4 sm:p-5">
+          <div className="grid gap-3 sm:gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
             {FIELDS_GENERAL.map(f => (
               <div key={f.key}>
                 <label className="form-label">
@@ -423,7 +423,7 @@ export default function AdminSettings() {
           {!isImageMode && (
             <>
               <div className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">รูปแบบ (Template)</div>
-              <div className="grid grid-cols-4 gap-3 mb-5">
+              <div className="grid gap-3 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' }}>
                 {TEMPLATES.map(tpl => {
                   const isActive = activeTemplate === tpl.id;
                   const tplColor = settings.cert_primary_color || tpl.defaultColor;
@@ -444,7 +444,7 @@ export default function AdminSettings() {
                 })}
               </div>
 
-              <div className="grid grid-cols-2 gap-3.5">
+              <div className="grid gap-3 sm:gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                 {/* Primary color */}
                 <div>
                   <label className="form-label">สีหลัก <ChangedDot k="cert_primary_color" /></label>
@@ -501,7 +501,7 @@ export default function AdminSettings() {
                 </div>
 
                 {/* Signature image */}
-                <div className="col-span-2">
+                <div style={{ gridColumn: '1 / -1' }}>
                   <label className="form-label">URL รูปลายมือชื่อ (ไม่บังคับ) <ChangedDot k="cert_signature_url" /></label>
                   <div className="flex gap-2 items-center">
                     <input type="text" className="form-input flex-1"
@@ -553,7 +553,7 @@ export default function AdminSettings() {
                 <div className="text-xs text-slate-400 mt-1">รองรับ PNG, JPG — วาง GitHub blob URL ได้เลย ระบบแปลงเป็น raw URL ให้อัตโนมัติ</div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3.5 mb-4">
+              <div className="grid gap-3 sm:gap-3.5 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                 <div>
                   <label className="form-label">ชื่อผู้ลงนาม</label>
                   <input type="text" className="form-input" placeholder="ผู้อำนวยการฝึกอบรม"
@@ -656,7 +656,7 @@ export default function AdminSettings() {
             </div>
           </details>
 
-          <div className="grid grid-cols-3 gap-3.5">
+          <div className="grid gap-3 sm:gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
             {FIELDS_EMAIL.map(f => (
               <div key={f.key}>
                 <label className="form-label">{f.label} <ChangedDot k={f.key} /></label>

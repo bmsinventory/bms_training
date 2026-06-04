@@ -2,6 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Global Responsive Reset ─────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+img, svg, video, canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Ensure all inputs meet minimum touch target */
+button, input, select, textarea {
+  min-height: 44px;
+}
+
+/* Override for inline/small buttons explicitly sized */
+.btn-sm {
+  min-height: 32px !important;
+}
+
+/* Safe area support for PWA / iPhone notch */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pb-nav-safe {
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Text wrapping utility */
+.text-wrap {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.4;
+}
+
 @layer base {
   html { font-family: 'Anuphan', 'Sarabun', sans-serif; font-size: 14px; }
   body { @apply bg-gray-50 text-gray-900; }
@@ -77,10 +120,59 @@
     @apply flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6;
   }
   .page-title {
-    @apply text-2xl font-bold text-gray-900;
+    @apply text-xl sm:text-2xl font-bold text-gray-900;
   }
   .page-sub {
     @apply text-gray-500 text-sm mt-0.5;
+  }
+
+  /* Responsive stat grid */
+  .stats-grid {
+    @apply grid gap-3;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+
+  /* Responsive filter grid */
+  .filter-grid {
+    @apply grid gap-2;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  /* Responsive card grid */
+  .card-grid {
+    @apply grid gap-3.5;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+
+  /* Admin responsive table — shows as card on mobile */
+  @media (max-width: 639px) {
+    .table-responsive thead { display: none; }
+    .table-responsive tr {
+      display: block;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      background: white;
+    }
+    .table-responsive td {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 4px 0;
+      border: none;
+      font-size: 13px;
+    }
+    .table-responsive td::before {
+      content: attr(data-label);
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      white-space: nowrap;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
   }
 }
 
