@@ -4,10 +4,13 @@ import { InlineLoader } from '../../components/Loading';
 import { useToast } from '../../contexts/ToastContext';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { getTrainingCategories } from '../../services/categories.service';
+import { getSettings } from '../../services/settings.service';
 import {
-  supabase, getTrainingCategories, getSettings,
+  getAllCoursesAdmin, createCourse, updateCourse, toggleCourseActive, deleteCourse,
   getCourseCategoryIds, setCourseCategories,
-} from '../../lib/supabase';
+} from '../../services/courses.service';
+import { getAttemptCountByCourse } from '../../services/attempts.service';
 
 const EMPTY = {
   name: '', description: '', pass_percent: 80,
@@ -38,16 +41,19 @@ export default function Courses() {
 
   async function load() {
     setLoading(true);
-    const [{ data: cs }, cats, stg, { data: links }] = await Promise.all([
-      supabase.from('courses').select('*').order('created_at'),
+    const [allCourses, cats, stg] = await Promise.all([
+      getAllCoursesAdmin(),
       getTrainingCategories(),
       getSettings(),
-      supabase.from('course_categories').select('course_id,category_id'),
     ]);
-    setCourses(cs || []);
+    const cs    = allCourses.map(({ category_ids, ...c }) => c);
+    const links = allCourses.flatMap(c =>
+      (c.category_ids || []).map(catId => ({ course_id: c.id, category_id: catId }))
+    );
+    setCourses(cs);
     setTrainingCats(cats);
     setSettings(stg);
-    setCourseLinks(links || []);
+    setCourseLinks(links);
     setLoading(false);
   }
 
@@ -98,12 +104,11 @@ export default function Courses() {
       const payload = { ...rest, name: form.name.trim() };
       let courseId;
       if (modal === 'add') {
-        const { data, error } = await supabase.from('courses').insert(payload).select('id').single();
-        if (error) throw error;
-        courseId = data.id;
+        const { id } = await createCourse(payload);
+        courseId = id;
         toast.success('เพิ่มหลักสูตรสำเร็จ');
       } else {
-        await supabase.from('courses').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', modal.id);
+        await updateCourse(modal.id, payload);
         courseId = modal.id;
         toast.success('บันทึกสำเร็จ');
       }
@@ -114,26 +119,16 @@ export default function Courses() {
   }
 
   async function toggleActive(c) {
-    await supabase.from('courses').update({ is_active: !c.is_active }).eq('id', c.id);
+    await toggleCourseActive(c.id, c.is_active);
     load();
   }
 
   async function handleDelete(c) {
-    const { data: attempts } = await supabase
-      .from('quiz_attempts').select('id').eq('course_id', c.id).limit(500);
-    const attemptIds   = (attempts || []).map(a => a.id);
-    const attemptCount = attemptIds.length;
+    const attemptCount = await getAttemptCountByCourse(c.id);
 
     const doCascadeDelete = async () => {
       try {
-        if (attemptIds.length > 0) {
-          await supabase.from('quiz_answers').delete().in('attempt_id', attemptIds);
-          await supabase.from('certificates').delete().in('attempt_id', attemptIds);
-          await supabase.from('quiz_attempts').delete().eq('course_id', c.id);
-        }
-        await supabase.from('course_categories').delete().eq('course_id', c.id);
-        const { error } = await supabase.from('courses').delete().eq('id', c.id);
-        if (error) throw error;
+        await deleteCourse(c.id);
         toast.success('ลบสำเร็จ'); load();
       } catch (e) {
         toast.error('ลบไม่สำเร็จ: ' + (e?.message || e));

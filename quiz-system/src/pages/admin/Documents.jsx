@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useToast } from '../../contexts/ToastContext';
-import { getLocations, getSettings, saveSetting } from '../../lib/supabase';
+import { getLocations } from '../../services/locations.service';
+import { getSettings, saveSetting } from '../../services/settings.service';
 
 // ─── Thai numeral converter ───────────────────────────────────────────────────
 const TD = ['๐','๑','๒','๓','๔','๕','๖','๗','๘','๙'];

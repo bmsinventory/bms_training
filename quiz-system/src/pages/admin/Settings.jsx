@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { InlineLoader } from '../../components/Loading';
 import { useToast } from '../../contexts/ToastContext';
-import { getSettings, saveSetting } from '../../lib/supabase';
+import { getSettings, saveSetting } from '../../services/settings.service';
 import CertPreviewCard from '../../components/CertPreviewCard';
 
 const FIELDS_GENERAL = [

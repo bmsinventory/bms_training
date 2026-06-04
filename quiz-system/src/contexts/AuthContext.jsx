@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../config/supabase.config';
 
 const AuthContext = createContext(null);
 const SESSION_KEY = 'bms_quiz_admin';

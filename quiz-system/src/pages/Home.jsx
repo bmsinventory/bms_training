@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { InlineLoader } from '../components/Loading';
-import { getSettings, getTrainingCategories, getCoursesWithCategory } from '../lib/supabase';
+import { getSettings } from '../services/settings.service';
+import { getTrainingCategories } from '../services/categories.service';
+import { getCoursesWithCategory } from '../services/courses.service';
 
 const COLORS = {
   blue:   { g1: '#1e3a8a', g2: '#2563eb' },

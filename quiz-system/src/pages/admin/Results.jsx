@@ -3,8 +3,15 @@ import { Link } from 'react-router-dom';
 import { InlineLoader } from '../../components/Loading';
 import { useToast } from '../../contexts/ToastContext';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
-import { getAllAttempts, getCourses, getLocations, supabase } from '../../lib/supabase';
-import { fmtDateTime, exportToExcel } from '../../lib/utils';
+import {
+  getAllAttempts, getAttemptCountByLocation, getAttemptIdsByLocation,
+  bulkDeleteAttempts, deleteAttemptWithCascade,
+} from '../../services/attempts.service';
+import { getCourses } from '../../services/courses.service';
+import { getLocations } from '../../services/locations.service';
+import { revokeCertificate } from '../../services/certificates.service';
+import { fmtDateTime } from '../../utils/date.util';
+import { exportToExcel } from '../../utils/file.util';
 
 function StatCard({ label, value, topColor, valueColor, icon, sub }) {
   return (
@@ -36,11 +43,8 @@ function ClearBySiteModal({ open, locations, onClose, onDone, toast }) {
       const locRow = locations.find(l => l.code === code);
       const locId  = locRow?.id ?? null;
       if (!locId) { setPreview({ count: 0, locId: null }); return; }
-      const { count } = await supabase.from('quiz_attempts')
-        .select('id', { count: 'exact', head: true })
-        .eq('location_id', locId)
-        .neq('status', 'started');
-      setPreview({ count: count || 0, locId });
+      const count = await getAttemptCountByLocation(locId);
+      setPreview({ count, locId });
     } catch { toast.error('โหลดข้อมูลไม่สำเร็จ'); }
     finally { setPreloading(false); }
   }
@@ -49,18 +53,8 @@ function ClearBySiteModal({ open, locations, onClose, onDone, toast }) {
     if (!preview?.count || !preview.locId) return;
     setLoading(true);
     try {
-      const { data } = await supabase.from('quiz_attempts')
-        .select('id').eq('location_id', preview.locId).neq('status', 'started');
-      const allIds = (data || []).map(a => a.id);
-      if (allIds.length) {
-        const { error: e1 } = await supabase.from('quiz_answers').delete().in('attempt_id', allIds);
-        if (e1) throw new Error('ลบ quiz_answers ไม่สำเร็จ: ' + e1.message);
-        const { error: e2 } = await supabase.from('certificates').delete().in('attempt_id', allIds);
-        if (e2) throw new Error('ลบ certificates ไม่สำเร็จ: ' + e2.message);
-        const { error: e3, count } = await supabase.from('quiz_attempts').delete({ count: 'exact' }).in('id', allIds);
-        if (e3) throw new Error('ลบ quiz_attempts ไม่สำเร็จ: ' + e3.message);
-        if (count === 0) throw new Error('ไม่มีสิทธิ์ลบข้อมูล — กรุณาตรวจสอบ RLS policy ใน Supabase (quiz_attempts)');
-      }
+      const allIds = await getAttemptIdsByLocation(preview.locId);
+      await bulkDeleteAttempts(allIds);
       const loc = locations.find(l => l.code === site);
       toast.success(`ลบข้อมูลสาขา "${loc?.name || site}" สำเร็จ ${allIds.length} รายการ`);
       onDone();
@@ -155,7 +149,7 @@ export default function Results() {
     if (!certId) return;
     setRevoking(true);
     try {
-      await supabase.from('certificates').update({ is_revoked: true }).eq('cert_id', certId);
+      await revokeCertificate(certId);
       toast.success('ยกเลิกใบรับรองสำเร็จ');
       setRevokeTarget(null);
       load();
@@ -168,12 +162,7 @@ export default function Results() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const { error: e1 } = await supabase.from('quiz_answers').delete().eq('attempt_id', deleteTarget.id);
-      if (e1) throw new Error('ลบ quiz_answers ไม่สำเร็จ: ' + e1.message);
-      const { error: e2 } = await supabase.from('certificates').delete().eq('attempt_id', deleteTarget.id);
-      if (e2) throw new Error('ลบ certificates ไม่สำเร็จ: ' + e2.message);
-      const { error: e3, count } = await supabase.from('quiz_attempts').delete({ count: 'exact' }).eq('id', deleteTarget.id);
-      if (e3) throw new Error('ลบ quiz_attempts ไม่สำเร็จ: ' + e3.message);
+      const count = await deleteAttemptWithCascade(deleteTarget.id);
       if (count === 0) throw new Error('ไม่มีสิทธิ์ลบข้อมูล — กรุณาตรวจสอบ RLS policy ใน Supabase (quiz_attempts)');
       toast.success(`ลบผลสอบของ ${deleteTarget.full_name} สำเร็จ`);
       setAttempts(prev => prev.filter(a => a.id !== deleteTarget.id));

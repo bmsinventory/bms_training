@@ -3,11 +3,12 @@ import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { InlineLoader } from '../components/Loading';
 import { useToast } from '../contexts/ToastContext';
-import {
-  getAttempt, getAnswers, getCertificateByAttempt,
-  createCertificate, getSettings,
-} from '../lib/supabase';
-import { makeCertId, fmtDateTime } from '../lib/utils';
+import { getAttempt } from '../services/attempts.service';
+import { getAnswers } from '../services/answers.service';
+import { getCertificateByAttempt, createCertificate } from '../services/certificates.service';
+import { getSettings } from '../services/settings.service';
+import { makeCertId } from '../utils/quiz.util';
+import { fmtDateTime } from '../utils/date.util';
 
 function StatBox({ label, value, color, bg }) {
   return (

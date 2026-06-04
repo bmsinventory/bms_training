@@ -1,9 +1,5 @@
 import emailjs from '@emailjs/browser';
 
-/**
- * ส่งอีเมลใบรับรองผ่าน EmailJS (เรียกจาก browser ได้โดยตรง ไม่ต้อง server)
- * ตั้งค่าได้ที่ Admin → Settings: emailjs_service_id, emailjs_template_id, emailjs_public_key
- */
 export async function sendCertEmail({ toEmail, toName, certId, courseName, score, total, percent, issuedAt, pdfUrl, settings }) {
   const serviceId  = settings.emailjs_service_id;
   const templateId = settings.emailjs_template_id;

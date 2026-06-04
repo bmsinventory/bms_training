@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Loading from '../components/Loading';
-import { getCourseByCategory, getSettings, getCategory } from '../lib/supabase';
+import { getCourseByCategory } from '../services/courses.service';
+import { getSettings } from '../services/settings.service';
+import { getCategory } from '../services/categories.service';
 
 export default function CategoryRedirect() {
   const { catId }   = useParams();

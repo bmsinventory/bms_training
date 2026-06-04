@@ -2,8 +2,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { InlineLoader } from '../components/Loading';
 import { useToast } from '../contexts/ToastContext';
-import { getAttempt, getCourse, getRandomQuestions, saveAnswers, updateAttempt } from '../lib/supabase';
-import { gradeQuiz } from '../lib/utils';
+import { getAttempt, updateAttempt } from '../services/attempts.service';
+import { getCourse } from '../services/courses.service';
+import { getRandomQuestions } from '../services/questions.service';
+import { saveAnswers } from '../services/answers.service';
+import { gradeQuiz } from '../utils/quiz.util';
 
 /* ─── Choice colour palette (CSS custom properties per choice) ────────────── */
 const PAL = [

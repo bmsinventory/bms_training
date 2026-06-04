@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { InlineLoader } from '../components/Loading';
 import { useToast } from '../contexts/ToastContext';
-import { searchAttempts } from '../lib/supabase';
-import { fmtDateTime } from '../lib/utils';
+import { searchAttempts } from '../services/history.service';
+import { fmtDateTime } from '../utils/date.util';
 
 function AttemptCard({ attempt }) {
   const isPassed = attempt.status === 'PASS';

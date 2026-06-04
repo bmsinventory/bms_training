@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import QRCode from 'qrcode';
-import { fmtDate } from './utils';
+import { fmtDate } from '../utils/date.util';
 
 export async function generateCertPDF(cert, settings, verifyUrl) {
   const cfg = getCertConfig(settings);

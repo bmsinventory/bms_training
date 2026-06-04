@@ -3,13 +3,13 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { InlineLoader } from '../components/Loading';
 import { useToast } from '../contexts/ToastContext';
-import {
-  getAttempt, getCertificateByAttempt, updateCertificatePdf,
-  uploadCertPdf, getSettings,
-} from '../lib/supabase';
+import { getAttempt } from '../services/attempts.service';
+import { getCertificateByAttempt, updateCertificatePdf } from '../services/certificates.service';
+import { uploadCertPdf } from '../services/storage.service';
+import { getSettings } from '../services/settings.service';
 import { generateCertPDF } from '../lib/certificate';
-import { downloadBlob } from '../lib/utils';
-import { sendCertEmail } from '../lib/email';
+import { downloadBlob } from '../utils/file.util';
+import { sendCertEmail } from '../services/email.service';
 import CertPreviewCard from '../components/CertPreviewCard';
 
 export default function Certificate() {

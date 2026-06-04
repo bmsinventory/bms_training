@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useToast } from '../contexts/ToastContext';
-import { supabase, getSettings, uploadCertPdf, updateCertificatePdf } from '../lib/supabase';
-import { isValidEmail } from '../lib/utils';
+import { getSettings } from '../services/settings.service';
+import { uploadCertPdf } from '../services/storage.service';
+import { updateCertificatePdf, updateCertificateEmail } from '../services/certificates.service';
+import { isValidEmail } from '../utils/validation.util';
 import { generateCertPDF } from '../lib/certificate';
-import { sendCertEmail } from '../lib/email';
+import { sendCertEmail } from '../services/email.service';
 
 export default function ResendCert() {
   const toast = useToast();
@@ -46,9 +48,7 @@ export default function ResendCert() {
     try {
       const settings = await getSettings();
       if (newEmail.toLowerCase() !== cert.email.toLowerCase()) {
-        await supabase.from('certificates')
-          .update({ email: newEmail.toLowerCase() })
-          .eq('cert_id', cert.cert_id);
+        await updateCertificateEmail(cert.cert_id, newEmail);
       }
       const verifyUrl = `${settings.verify_base_url || window.location.origin + '/verify'}/${cert.cert_id}`;
       const blob = await generateCertPDF({ ...cert, email: newEmail }, settings, verifyUrl);

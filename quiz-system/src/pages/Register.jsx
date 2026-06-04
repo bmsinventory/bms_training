@@ -3,8 +3,10 @@ import { useParams, useNavigate, useLocation as useRouteLocation } from 'react-r
 import Navbar from '../components/Navbar';
 import { InlineLoader } from '../components/Loading';
 import { useToast } from '../contexts/ToastContext';
-import { getCourse, createAttempt, getAllAttempts, getSettings } from '../lib/supabase';
-import { isValidEmail } from '../lib/utils';
+import { getCourse } from '../services/courses.service';
+import { createAttempt, getAllAttempts } from '../services/attempts.service';
+import { getSettings } from '../services/settings.service';
+import { isValidEmail } from '../utils/validation.util';
 
 export default function Register() {
   const { courseId } = useParams();

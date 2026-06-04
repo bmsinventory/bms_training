@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { InlineLoader } from '../../components/Loading';
-import { getDashboardStats, getAllAttempts } from '../../lib/supabase';
-import { fmtDateTime } from '../../lib/utils';
+import { getDashboardStats } from '../../services/dashboard.service';
+import { getAllAttempts } from '../../services/attempts.service';
+import { fmtDateTime } from '../../utils/date.util';
 
 function StatCard({ label, value, topColor, valueColor, icon }) {
   return (

@@ -3,8 +3,9 @@ import { useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { InlineLoader } from '../components/Loading';
 import { useToast } from '../contexts/ToastContext';
-import { getCertificate, getSettings } from '../lib/supabase';
-import { fmtDate } from '../lib/utils';
+import { getCertificate } from '../services/certificates.service';
+import { getSettings } from '../services/settings.service';
+import { fmtDate } from '../utils/date.util';
 
 function Row({ label, value, highlight }) {
   return (

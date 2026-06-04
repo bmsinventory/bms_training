@@ -4,8 +4,13 @@ import { InlineLoader } from '../../components/Loading';
 import { useToast } from '../../contexts/ToastContext';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
-import { supabase } from '../../lib/supabase';
-import { fmtDateTime } from '../../lib/utils';
+import {
+  loadCourseWithQuestions,
+  addQuestion, updateQuestion, deleteQuestion, toggleQuestionActive,
+  getAttemptHistory, clearAllCourseAttempts, clearCourseAttemptsByLocation, deleteOneAttempt,
+} from '../../services/questions.service';
+import { getLocations } from '../../services/locations.service';
+import { fmtDateTime } from '../../utils/date.util';
 
 const EMPTY_Q = { question: '', explanation: '', is_active: true };
 
@@ -92,20 +97,16 @@ export default function Questions() {
 
   async function load() {
     setLoading(true);
-    const [cR, qR] = await Promise.all([
-      supabase.from('courses').select('*').eq('id', courseId).single(),
-      supabase.from('questions').select('*, choices(*)').eq('course_id', courseId).order('sort_order,created_at'),
-    ]);
-    setCourse(cR.data);
-    setQs(qR.data || []);
+    const { course: c, questions: q } = await loadCourseWithQuestions(courseId);
+    setCourse(c);
+    setQs(q);
     setLoading(false);
   }
 
   useEffect(() => { load(); }, [courseId]);
 
   useEffect(() => {
-    supabase.from('locations').select('id,code,name').order('id')
-      .then(({ data }) => setLocations(data || []));
+    getLocations().then(setLocations);
   }, []);
 
   function openAdd() {
@@ -139,37 +140,10 @@ export default function Questions() {
     setSaving(true);
     try {
       if (modal === 'add') {
-        const { data: q } = await supabase.from('questions').insert({
-          course_id: courseId,
-          question:  form.question.trim(),
-          explanation: form.explanation.trim(),
-          is_active: form.is_active,
-        }).select().single();
-        await supabase.from('choices').insert(
-          validChoices.map((c, i) => ({
-            question_id: q.id,
-            choice_text: c.choice_text.trim(),
-            is_correct:  c.is_correct,
-            sort_order:  i,
-          }))
-        );
+        await addQuestion(courseId, form, validChoices);
         toast.success('เพิ่มข้อสอบสำเร็จ');
       } else {
-        await supabase.from('questions').update({
-          question:    form.question.trim(),
-          explanation: form.explanation.trim(),
-          is_active:   form.is_active,
-          updated_at:  new Date().toISOString(),
-        }).eq('id', modal.id);
-        await supabase.from('choices').delete().eq('question_id', modal.id);
-        await supabase.from('choices').insert(
-          validChoices.map((c, i) => ({
-            question_id: modal.id,
-            choice_text: c.choice_text.trim(),
-            is_correct:  c.is_correct,
-            sort_order:  i,
-          }))
-        );
+        await updateQuestion(modal.id, form, validChoices);
         toast.success('บันทึกสำเร็จ');
       }
       setModal(null);
@@ -184,9 +158,7 @@ export default function Questions() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await supabase.from('quiz_answers').delete().in('question_id', [deleteTarget.id]);
-      await supabase.from('choices').delete().eq('question_id', deleteTarget.id);
-      await supabase.from('questions').delete().eq('id', deleteTarget.id);
+      await deleteQuestion(deleteTarget.id);
       toast.success('ลบสำเร็จ');
       setQs(prev => prev.filter(q => q.id !== deleteTarget.id));
       setDeleteTarget(null);
@@ -196,21 +168,18 @@ export default function Questions() {
   }
 
   async function toggleActive(q) {
-    await supabase.from('questions').update({ is_active: !q.is_active }).eq('id', q.id);
+    await toggleQuestionActive(q.id, q.is_active);
     load();
   }
 
   async function loadAttempts() {
     setAttLoading(true);
     try {
-      let q = supabase.from('quiz_attempts')
-        .select('*, certificates(cert_id), location:location_id(id, name, code)')
-        .eq('course_id', courseId)
-        .order('created_at', { ascending: false });
-      if (attFilter) q = q.eq('status', attFilter);
-      if (locFilter !== null) q = q.eq('location_id', locFilter);
-      const { data } = await q.limit(500);
-      setAttempts(data || []);
+      const data = await getAttemptHistory(courseId, {
+        statusFilter: attFilter || undefined,
+        locationId: locFilter !== null ? locFilter : undefined,
+      });
+      setAttempts(data);
     } finally { setAttLoading(false); }
   }
 
@@ -221,15 +190,8 @@ export default function Questions() {
   async function clearAllAttempts() {
     setClearing(true);
     try {
-      const { data: all } = await supabase.from('quiz_attempts')
-        .select('id').eq('course_id', courseId);
-      const ids = (all || []).map(a => a.id);
-      if (ids.length) {
-        await supabase.from('quiz_answers').delete().in('attempt_id', ids);
-        await supabase.from('certificates').delete().in('attempt_id', ids);
-        await supabase.from('quiz_attempts').delete().eq('course_id', courseId);
-      }
-      toast.success(`ลบประวัติสอบ ${ids.length} รายการแล้ว`);
+      const count = await clearAllCourseAttempts(courseId);
+      toast.success(`ลบประวัติสอบ ${count} รายการแล้ว`);
       setAttempts([]);
     } catch (e) {
       toast.error('ลบไม่สำเร็จ: ' + e.message);
@@ -240,28 +202,19 @@ export default function Questions() {
     if (locFilter === null) return;
     setClearing(true);
     try {
-      const { data: all } = await supabase.from('quiz_attempts')
-        .select('id').eq('course_id', courseId).eq('location_id', locFilter);
-      const ids = (all || []).map(a => a.id);
-      if (ids.length) {
-        await supabase.from('quiz_answers').delete().in('attempt_id', ids);
-        await supabase.from('certificates').delete().in('attempt_id', ids);
-        await supabase.from('quiz_attempts').delete().in('id', ids);
-      }
+      const count = await clearCourseAttemptsByLocation(courseId, locFilter);
       const locName = locations.find(l => l.id === locFilter)?.name || 'สาขานี้';
-      toast.success(`ลบประวัติสอบ ${ids.length} รายการของ${locName}แล้ว`);
+      toast.success(`ลบประวัติสอบ ${count} รายการของ${locName}แล้ว`);
       setAttempts([]);
     } catch (e) {
       toast.error('ลบไม่สำเร็จ: ' + e.message);
     } finally { setClearing(false); setClearByLocConfirm(false); }
   }
 
-  async function deleteOneAttempt() {
+  async function handleDeleteOneAttempt() {
     if (!delAttempt) return;
     try {
-      await supabase.from('quiz_answers').delete().eq('attempt_id', delAttempt.id);
-      await supabase.from('certificates').delete().eq('attempt_id', delAttempt.id);
-      await supabase.from('quiz_attempts').delete().eq('id', delAttempt.id);
+      await deleteOneAttempt(delAttempt.id);
       toast.success('ลบรายการแล้ว');
       setAttempts(prev => prev.filter(a => a.id !== delAttempt.id));
     } catch (e) {
@@ -305,7 +258,7 @@ export default function Questions() {
         title="ลบประวัติสอบ"
         desc={delAttempt ? `ลบรายการของ "${delAttempt.full_name}" (${delAttempt.email})\nข้อมูลจะหายถาวร` : ''}
         okLabel="🗑️ ยืนยันลบ"
-        onOk={deleteOneAttempt}
+        onOk={handleDeleteOneAttempt}
         onCancel={() => setDelAttempt(null)}
       />
 
