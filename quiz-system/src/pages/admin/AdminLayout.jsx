@@ -6,7 +6,6 @@ import Loading from '../../components/Loading';
 const NAV_ITEMS = [
   { to: '/admin/courses',   icon: '📚', label: 'หลักสูตร',   shortLabel: 'หลักสูตร' },
   { to: '/admin/results',   icon: '📋', label: 'ผลสอบ',      shortLabel: 'ผลสอบ' },
-  { to: '/admin/documents', icon: '🖨️', label: 'พิมพ์เอกสาร', shortLabel: 'เอกสาร' },
   { to: '/admin/settings',  icon: '⚙️', label: 'ตั้งค่า',    shortLabel: 'ตั้งค่า' },
 ];
 
