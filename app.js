@@ -18,6 +18,9 @@ let locations=[];
 let allSessionsFull=[];
 let loginVerifyData=[];
 let _lvEdits={};
+let keyEntryData=[];
+let keSearchTxt='';
+let _keReasonTimers={};
 let nextId=1,nextSessId=1,nextCatId=1;
 let selectedCatId=null,selectedSessId=null,sessFilt='all';
 let scanStream=null,scanReq=null,scanLog=[],scanInterval=null,currentFacingMode='environment',_scanLogIds=new Set();
@@ -108,6 +111,7 @@ const ADMIN_TABS=[
   {id:'locations',    label:'สาขา'},
   {id:'users',        label:'ผู้ใช้งาน'},
   {id:'loginverify',  label:'ตรวจสอบสิทธิ์'},
+  {id:'keyentry',     label:'ตรวจสอบคีย์ยอด'},
   {id:'survey',       label:'ผลประเมิน'},
   {id:'quiz',         label:'แบบทดสอบ'},
   {id:'print',        label:'พิมพ์เอกสาร'},
@@ -757,6 +761,25 @@ function updateCheckinHeroStats(){
 }
 
 /* ══════════════════ ADMIN TABS ══════════════════ */
+function toggleAdminTabsMenu(){
+  const tabs=document.getElementById('admin-tabs');
+  const toggle=document.getElementById('admin-tabs-toggle');
+  if(!tabs||!toggle)return;
+  const willOpen=!tabs.classList.contains('open');
+  tabs.classList.toggle('open',willOpen);
+  toggle.classList.toggle('open',willOpen);
+}
+function closeAdminTabsMenu(){
+  document.getElementById('admin-tabs')?.classList.remove('open');
+  document.getElementById('admin-tabs-toggle')?.classList.remove('open');
+}
+document.addEventListener('click',(e)=>{
+  const tabs=document.getElementById('admin-tabs');
+  const toggle=document.getElementById('admin-tabs-toggle');
+  if(!tabs||!toggle||!tabs.classList.contains('open'))return;
+  if(tabs.contains(e.target)||toggle.contains(e.target))return;
+  closeAdminTabsMenu();
+});
 function switchAdminTab(name){
   if(isAdminLoggedIn&&!new Set(getMyAllowedTabs()).has(name))return;
   document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));
@@ -764,6 +787,10 @@ function switchAdminTab(name){
   const btn=document.querySelector(`.admin-tab[data-tab="${name}"]`);
   if(btn)btn.classList.add('active');
   document.getElementById('asec-'+name).classList.add('active');
+  const toggleLbl=document.getElementById('admin-tabs-toggle-label');
+  if(toggleLbl){const t=ADMIN_TABS.find(t=>t.id===name);if(t)toggleLbl.textContent=t.label;}
+  closeAdminTabsMenu();
+  if(name==='keyentry'){loadKeyEntryStatus();}
   if(name==='survey'){_initSvdSiteSelect();loadSurveyDashboard();}
   if(name==='quiz'){_initQuizAdmin();}
   if(name==='print'){initPrintSection();}
@@ -4078,6 +4105,214 @@ async function loadLoginVerify(){
   _lvEdits={};
   renderLoginVerify();
   showToast('โหลดข้อมูลใหม่แล้ว','success');
+}
+
+/* ══ KEY ENTRY STATUS (ตรวจสอบคีย์ยอด) — รายแผนกของสาขาที่ล็อกอินอยู่ ══ */
+async function loadKeyEntryStatus(){
+  const {data,error}=await _sb.from('key_entry_status').select('*').eq('site',currentSite);
+  if(error){showToast('โหลดข้อมูลคีย์ยอดไม่สำเร็จ: '+error.message,'danger');return;}
+  keyEntryData=data||[];
+  renderKeyEntry();
+}
+function filterKeyEntry(){
+  keSearchTxt=(document.getElementById('ke-search')?.value||'').toLowerCase();
+  renderKeyEntry();
+}
+function renderKeyEntry(){
+  const tbody=document.getElementById('ke-tbody');if(!tbody)return;
+  let rows=departments.map(dept=>{
+    const k=keyEntryData.find(x=>x.dept===dept);
+    return{dept,status:k?.status||'not_keyed',keyed_at:k?.keyed_at||null,reason:k?.reason||''};
+  });
+  const total=rows.length;
+  const keyed=rows.filter(r=>r.status==='keyed').length;
+  const notKeyed=total-keyed;
+  const pct=total?Math.round(keyed/total*100):0;
+  const setTxt=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  setTxt('ke-stat-total',total);
+  setTxt('ke-stat-keyed',keyed);
+  setTxt('ke-stat-notkeyed',notKeyed);
+  setTxt('ke-stat-pct',pct+'%');
+  const bar=document.getElementById('ke-progress-bar');if(bar)bar.style.width=pct+'%';
+
+  if(keSearchTxt)rows=rows.filter(r=>r.dept.toLowerCase().includes(keSearchTxt));
+  if(!rows.length){
+    tbody.innerHTML='<tr><td colspan="4"><div class="empty"><i class="ti ti-building-off"></i><p>ไม่พบแผนก กรุณาเพิ่มในเมนู "ข้อมูลพื้นฐาน"</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML=rows.map(r=>{
+    const ek=encodeURIComponent(r.dept);
+    const isKeyed=r.status==='keyed';
+    const dt=r.keyed_at?new Date(r.keyed_at).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'}):'-';
+    return`<tr>
+      <td data-label="แผนก" style="font-weight:600;">${r.dept}</td>
+      <td data-label="สถานะ">
+        <select class="form-control ke-select" data-ke-dept="${ek}"
+          onchange="_keOnStatusChange(decodeURIComponent(this.dataset.keDept),this.value)"
+          style="font-weight:600;${isKeyed?'background:var(--success-light);color:#065f46;':'background:var(--warn-light);color:#9a3412;'}">
+          <option value="not_keyed"${!isKeyed?' selected':''}>ยังไม่คีย์</option>
+          <option value="keyed"${isKeyed?' selected':''}>คีย์ยอดแล้ว</option>
+        </select>
+      </td>
+      <td data-label="วันที่/เวลาคีย์ยอด" style="font-size:13px;color:${isKeyed?'var(--text)':'var(--text-muted)'};">${dt}</td>
+      <td data-label="สาเหตุที่ยังไม่คีย์">
+        <input class="form-control ke-input" data-ke-dept="${ek}" value="${(r.reason+'').replace(/"/g,'&quot;')}"
+          placeholder="${isKeyed?'-':'ระบุสาเหตุ...'}" ${isKeyed?'disabled':''}
+          oninput="_keOnReasonInput(decodeURIComponent(this.dataset.keDept),this.value)">
+      </td>
+    </tr>`;
+  }).join('');
+}
+async function _keUpsert(payload){
+  const {data,error}=await _sb.from('key_entry_status').upsert(payload,{onConflict:'dept,site'}).select().single();
+  if(error){showToast('บันทึกไม่สำเร็จ: '+error.message,'danger');return null;}
+  const idx=keyEntryData.findIndex(k=>k.dept===data.dept&&k.site===data.site);
+  if(idx>=0)keyEntryData[idx]=data;else keyEntryData.push(data);
+  return data;
+}
+async function _keOnStatusChange(dept,status){
+  const existing=keyEntryData.find(k=>k.dept===dept);
+  const payload={
+    dept,
+    site:currentSite,
+    status,
+    keyed_at: status==='keyed' ? new Date().toISOString() : null,
+    reason: status==='keyed' ? '' : (existing?.reason||''),
+    updated_at: new Date().toISOString(),
+  };
+  const saved=await _keUpsert(payload);
+  renderKeyEntry();
+  if(saved)showToast(status==='keyed'?'บันทึกสถานะคีย์ยอดแล้ว':'อัปเดตสถานะแล้ว','success');
+}
+function _keOnReasonInput(dept,value){
+  clearTimeout(_keReasonTimers[dept]);
+  _keReasonTimers[dept]=setTimeout(async()=>{
+    const existing=keyEntryData.find(k=>k.dept===dept);
+    await _keUpsert({
+      dept,
+      site:currentSite,
+      status:existing?.status||'not_keyed',
+      keyed_at:existing?.keyed_at||null,
+      reason:value,
+      updated_at:new Date().toISOString(),
+    });
+  },600);
+}
+async function saveKeyEntryImage(){
+  if(typeof html2canvas==='undefined'){showToast('ไม่พบ html2canvas library','danger');return;}
+  const total=departments.length;
+  const keyedDepts=departments.filter(d=>keyEntryData.find(k=>k.dept===d)?.status==='keyed');
+  const notKeyedDepts=departments.filter(d=>keyEntryData.find(k=>k.dept===d)?.status!=='keyed');
+  const keyed=keyedDepts.length;
+  const notKeyed=notKeyedDepts.length;
+  const pct=total?Math.round(keyed/total*100):0;
+  const today=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
+  const loc=locations.find(l=>l.code===currentSite);
+  const siteLabel=loc?loc.name:currentSite;
+
+  // สรุปรายวัน: จำนวนแผนกที่คีย์ยอดในแต่ละวัน (เรียงตามวันที่)
+  const _localKey=dt=>`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  const dailyMap={};
+  keyedDepts.forEach(d=>{
+    const k=keyEntryData.find(x=>x.dept===d);
+    if(!k?.keyed_at)return;
+    const dt=new Date(k.keyed_at);
+    const key=_localKey(dt);
+    if(!dailyMap[key])dailyMap[key]={label:dt.toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'}),count:0};
+    dailyMap[key].count++;
+  });
+  const dailyRows=Object.keys(dailyMap).sort().map(k=>dailyMap[k]);
+
+  // แผนกที่ยังไม่คีย์ยอด แยกเป็น "ไม่มีสาเหตุ" กับ "มีสาเหตุ"
+  const noReasonDepts=[];
+  const hasReasonDepts=[];
+  notKeyedDepts.forEach(d=>{
+    const reason=(keyEntryData.find(x=>x.dept===d)?.reason||'').trim();
+    if(reason)hasReasonDepts.push({dept:d,reason});
+    else noReasonDepts.push(d);
+  });
+
+  const wrap=document.createElement('div');
+  wrap.style.cssText='position:fixed;left:-9999px;top:0;width:720px;font-family:Anuphan,Sarabun,sans-serif;';
+  wrap.innerHTML=`
+  <div style="background:linear-gradient(135deg,#0f2d5c 0%,#1a56a0 55%,#0e7490 100%);padding:36px 32px;color:#fff;">
+    <div style="font-size:13px;letter-spacing:1px;opacity:.75;text-transform:uppercase;">BMS Training System — ${siteLabel}</div>
+    <div style="font-size:24px;font-weight:700;margin-top:6px;">สรุปความคืบหน้าคีย์ยอดตั้งต้น</div>
+    <div style="font-size:13px;opacity:.8;margin-top:4px;">ข้อมูล ณ วันที่ ${today}</div>
+  </div>
+  <div style="background:#fff;padding:28px 32px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:22px;">
+      <div style="background:#EFF6FF;border-radius:14px;padding:18px;text-align:center;">
+        <div style="font-size:32px;font-weight:700;color:#2563EB;">${total}</div>
+        <div style="font-size:12px;color:#475569;margin-top:4px;">แผนกทั้งหมด</div>
+      </div>
+      <div style="background:#ECFDF5;border-radius:14px;padding:18px;text-align:center;">
+        <div style="font-size:32px;font-weight:700;color:#059669;">${keyed}</div>
+        <div style="font-size:12px;color:#475569;margin-top:4px;">คีย์ยอดแล้ว</div>
+      </div>
+      <div style="background:#FEF2F2;border-radius:14px;padding:18px;text-align:center;">
+        <div style="font-size:32px;font-weight:700;color:#DC2626;">${notKeyed}</div>
+        <div style="font-size:12px;color:#475569;margin-top:4px;">ยังไม่คีย์</div>
+      </div>
+    </div>
+    <div style="font-size:13px;font-weight:600;color:#0F172A;margin-bottom:8px;display:flex;justify-content:space-between;">
+      <span>ความคืบหน้ารวม</span><span style="color:#059669;">${pct}%</span>
+    </div>
+    <div style="background:#F1F5F9;border-radius:20px;height:18px;overflow:hidden;">
+      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#10B981,#059669);border-radius:20px;"></div>
+    </div>
+
+    <div style="margin-top:26px;">
+      <div style="font-size:14px;font-weight:700;color:#0F172A;margin-bottom:10px;">📅 สรุปรายวัน (แผนกที่คีย์ยอดแล้ว)</div>
+      ${dailyRows.length?`
+      <div style="border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;">
+        ${dailyRows.map((r,i)=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;${i%2?'background:#F8FAFC;':''}${i<dailyRows.length-1?'border-bottom:1px solid #F1F5F9;':''}">
+          <span style="font-size:13px;color:#334155;">${r.label}</span>
+          <span style="font-size:13px;font-weight:700;color:#059669;">${r.count} แผนก</span>
+        </div>`).join('')}
+      </div>`:`<div style="font-size:13px;color:#94A3B8;text-align:center;padding:14px;border:1px dashed #E2E8F0;border-radius:12px;">ยังไม่มีแผนกคีย์ยอด</div>`}
+    </div>
+
+    <div style="margin-top:22px;">
+      <div style="font-size:14px;font-weight:700;color:#0F172A;margin-bottom:10px;">⚠️ แผนกที่ยังไม่คีย์ยอด (${notKeyed} แผนก)</div>
+      ${!notKeyedDepts.length?`<div style="font-size:13px;color:#94A3B8;text-align:center;padding:14px;border:1px dashed #E2E8F0;border-radius:12px;">คีย์ยอดครบทุกแผนกแล้ว 🎉</div>`:`
+      <div style="font-size:12px;font-weight:700;color:#9A3412;margin:4px 0 8px;">🔸 ยังไม่มีสาเหตุ (${noReasonDepts.length} แผนก)</div>
+      ${noReasonDepts.length?`
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${noReasonDepts.map(d=>`<span style="background:#FEF2F2;color:#991B1B;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid #FEE2E2;">${d}</span>`).join('')}
+      </div>`:`<div style="font-size:12px;color:#94A3B8;padding:2px 0 4px;">- ไม่มี -</div>`}
+
+      <div style="font-size:12px;font-weight:700;color:#9A3412;margin:18px 0 8px;">🔸 มีสาเหตุแล้ว (${hasReasonDepts.length} แผนก)</div>
+      ${hasReasonDepts.length?`
+      <div style="border:1px solid #FDE68A;border-radius:12px;overflow:hidden;">
+        ${hasReasonDepts.map((x,i)=>`
+        <div style="padding:10px 14px;${i%2?'background:#FFFBEB;':''}${i<hasReasonDepts.length-1?'border-bottom:1px solid #FEF3C7;':''}">
+          <div style="font-size:13px;font-weight:700;color:#0F172A;">${x.dept}</div>
+          <div style="font-size:12px;color:#92400E;margin-top:2px;">💬 ${x.reason}</div>
+        </div>`).join('')}
+      </div>`:`<div style="font-size:12px;color:#94A3B8;padding:2px 0;">- ไม่มี -</div>`}
+      `}
+    </div>
+  </div>
+  <div style="background:#0F172A;padding:12px 32px;text-align:center;color:rgba(255,255,255,.5);font-size:11px;">สร้างโดยระบบ BMS Training</div>`;
+
+  document.body.appendChild(wrap);
+  showToast('กำลังสร้างภาพ กรุณารอสักครู่...','info');
+  try{
+    await new Promise(r=>setTimeout(r,300));
+    const canvas=await html2canvas(wrap,{scale:3,useCORS:true,backgroundColor:'#ffffff',width:720,logging:false});
+    const link=document.createElement('a');
+    link.download=`key_entry_summary_${new Date().toISOString().slice(0,10)}.png`;
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+    showToast('บันทึกภาพสำเร็จ','success');
+  }catch(e){
+    console.error(e);
+    showToast('สร้างภาพไม่สำเร็จ','danger');
+  }finally{
+    document.body.removeChild(wrap);
+  }
 }
 
 /* ══ ADMIN REGS ══ */

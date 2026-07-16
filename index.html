@@ -310,12 +310,17 @@
     </div>
   </div>
   <div class="stats-grid" id="admin-stats"></div>
-  <div class="admin-tabs">
+  <button class="admin-tabs-toggle" id="admin-tabs-toggle" onclick="toggleAdminTabsMenu()">
+    <span style="display:flex;align-items:center;gap:8px;"><i class="ti ti-menu-2"></i><span id="admin-tabs-toggle-label">รอบอบรม</span></span>
+    <i class="ti ti-chevron-down"></i>
+  </button>
+  <div class="admin-tabs" id="admin-tabs">
     <button class="admin-tab" data-tab="masters" onclick="switchAdminTab('masters')"><i class="ti ti-list"></i> ข้อมูลพื้นฐาน</button>
     <button class="admin-tab" data-tab="categories" onclick="switchAdminTab('categories')"><i class="ti ti-category"></i> ประเภทอบรม</button>
     <button class="admin-tab active" data-tab="sessions" onclick="switchAdminTab('sessions')"><i class="ti ti-calendar"></i> รอบอบรม</button>
     <button class="admin-tab" data-tab="registrations" onclick="switchAdminTab('registrations')"><i class="ti ti-users"></i> รายชื่อผู้ลงทะเบียน</button>
     <button class="admin-tab" data-tab="loginverify" onclick="switchAdminTab('loginverify')"><i class="ti ti-shield-check"></i> ตรวจสอบสิทธิ์</button>
+    <button class="admin-tab" data-tab="keyentry" onclick="switchAdminTab('keyentry')"><i class="ti ti-database-export"></i> ตรวจสอบคีย์ยอด</button>
     <button class="admin-tab" data-tab="survey" onclick="switchAdminTab('survey')"><i class="ti ti-chart-radar"></i> ผลประเมิน</button>
     <button class="admin-tab" data-tab="print" onclick="switchAdminTab('print')"><i class="ti ti-printer"></i> พิมพ์เอกสาร</button>
     <button class="admin-tab" data-tab="quiz" onclick="switchAdminTab('quiz')"><i class="ti ti-pencil-check"></i> แบบทดสอบ</button>
@@ -774,6 +779,59 @@
     </div>
   </div>
 
+  <!-- Key Entry Status (ตรวจสอบคีย์ยอด) -->
+  <div class="admin-section" id="asec-keyentry">
+    <div class="card">
+      <div class="card-header" style="flex-wrap:wrap;">
+        <div class="card-title"><i class="ti ti-database-export"></i>ตรวจสอบคีย์ยอดตั้งต้น</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="loadKeyEntryStatus()"><i class="ti ti-refresh"></i>รีโหลด</button>
+          <button class="btn btn-primary btn-sm" onclick="saveKeyEntryImage()"><i class="ti ti-photo"></i>สรุปเป็นภาพ</button>
+        </div>
+      </div>
+
+      <div class="stats-grid ke-stats">
+        <div class="stat-card blue">
+          <div class="stat-label">แผนกทั้งหมด</div>
+          <div class="stat-value" id="ke-stat-total">0</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">คีย์ยอดแล้ว</div>
+          <div class="stat-value" id="ke-stat-keyed">0</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">ยังไม่คีย์</div>
+          <div class="stat-value" id="ke-stat-notkeyed">0</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-label">ความคืบหน้า</div>
+          <div class="stat-value" id="ke-stat-pct">0%</div>
+        </div>
+      </div>
+      <div style="background:var(--bg);border-radius:20px;height:10px;overflow:hidden;margin-bottom:18px;">
+        <div id="ke-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--success-mid),var(--success));border-radius:20px;transition:width .4s;"></div>
+      </div>
+
+      <div class="ke-search-wrap" style="position:relative;max-width:320px;margin-bottom:14px;">
+        <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:15px;pointer-events:none;"></i>
+        <input class="form-control" id="ke-search" placeholder="ค้นหาแผนก..." oninput="filterKeyEntry()" style="padding-left:32px;">
+      </div>
+
+      <div class="table-wrap ke-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>แผนก</th>
+              <th style="width:160px;">สถานะ</th>
+              <th style="width:170px;">วันที่/เวลาคีย์ยอด</th>
+              <th>สาเหตุที่ยังไม่คีย์</th>
+            </tr>
+          </thead>
+          <tbody id="ke-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
 </div>
 

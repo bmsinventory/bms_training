@@ -212,8 +212,35 @@ on conflict do nothing;
 -- เปิดการใช้งาน Realtime เพื่อให้ระบบอัปเดตหน้าจออัตโนมัติเมื่อมีคนอื่นบันทึกข้อมูลพร้อมกัน
 DO $$
 BEGIN
-  ALTER PUBLICATION supabase_realtime ADD TABLE locations, categories, sessions, registrations, master_items, admin_users, login_verify, survey_responses;
+  ALTER PUBLICATION supabase_realtime ADD TABLE locations, categories, sessions, registrations, master_items, admin_users, login_verify, survey_responses, key_entry_status;
 EXCEPTION WHEN duplicate_object THEN
   -- หากตารางถูกเพิ่มไว้แล้ว จะข้ามไปไม่แจ้ง Error
   NULL;
 END $$;
+
+-- ═══════════════════════════════════════════
+--  ตรวจสอบคีย์ยอด (Key Entry Status) — เพิ่มภายหลัง
+--  ติดตามคีย์ยอดตั้งต้นรายแผนก (master_items.type='dept') แยกข้อมูลตามสาขา
+-- ═══════════════════════════════════════════
+create table if not exists key_entry_status (
+  id         serial primary key,
+  dept       text    not null,
+  site       text    not null default 'theme_1',
+  status     text    not null default 'not_keyed',  -- 'keyed' | 'not_keyed'
+  keyed_at   timestamptz,
+  reason     text    not null default '',
+  updated_at timestamptz default now(),
+  unique(dept, site)
+);
+
+-- MIGRATION GUARD: อัปเกรด key_entry_status จาก schema เก่า (มีแค่ site เดี่ยว) ให้เป็นแบบรายแผนก
+alter table key_entry_status add column if not exists dept text not null default '';
+alter table key_entry_status alter column site set default 'theme_1';
+alter table key_entry_status drop constraint if exists key_entry_status_site_key;
+alter table key_entry_status drop constraint if exists key_entry_status_site_fkey;
+alter table key_entry_status drop constraint if exists key_entry_status_dept_site_key;
+alter table key_entry_status add constraint key_entry_status_dept_site_key unique(dept, site);
+
+alter table key_entry_status enable row level security;
+drop policy if exists "public_all" on key_entry_status;
+create policy "public_all" on key_entry_status for all using (true) with check (true);

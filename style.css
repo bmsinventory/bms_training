@@ -26,7 +26,8 @@
   /* Radius */
   --radius-xs:6px;--radius-sm:8px;--radius:12px;--radius-lg:16px;--radius-xl:20px;
 }
-body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased}
+html{overflow-x:hidden}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 /* ── NAV ─────────────────────────────────────────── */
 .nav{background:#0F172A;padding:0 24px;display:flex;align-items:center;height:64px;position:sticky;top:0;z-index:50;box-shadow:0 1px 0 rgba(255,255,255,.06),var(--shadow-md)}
 .nav-brand{font-family:var(--heading);font-size:15px;font-weight:700;color:#F8FAFC;display:flex;align-items:center;gap:10px;margin-right:auto;letter-spacing:-.2px}
@@ -365,6 +366,7 @@ tr:hover td{background:#f8fafc}
 .admin-tab{padding:6px 16px;border:none;background:transparent;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;color:var(--text-muted);transition:all .2s}
 .admin-tab:hover{background:var(--primary-light);color:var(--primary)}
 .admin-tab.active{background:var(--primary);color:#fff}
+.admin-tabs-toggle{display:none}
 .admin-section{display:none}.admin-section.active{display:block}
 #asec-print.active{display:flex}
 /* ── Desktop wide (≥ 1280px): 4 columns ─────── */
@@ -379,9 +381,12 @@ tr:hover td{background:#f8fafc}
 }
 /* ── Mobile (≤ 640px) ─────────────────────────── */
 @media(max-width:640px){
-  .nav{padding:0 14px;height:56px}
+  .nav{flex-wrap:wrap;height:auto;padding:8px 14px;row-gap:8px}
+  .nav-brand{flex:1 1 auto;min-width:0;gap:6px}
+  .nav-site-badge{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle}
   .nav-version{display:none}
-  .nav-tab{padding:5px 10px;font-size:12px}
+  .nav-tabs{flex:1 1 100%;justify-content:space-between;padding:3px}
+  .nav-tab{flex:1;justify-content:center;padding:7px 4px;font-size:12px}
   .nav-tab span{display:none}
   .step-bar{padding:12px 16px;margin-bottom:16px}
   .step-label{display:none}
@@ -398,9 +403,19 @@ tr:hover td{background:#f8fafc}
   .reg-name-row{grid-template-columns:1fr}
   .form-control,.csel-btn{padding:11px 12px;font-size:15px}
   .reg-field-label{font-size:12px}
+  /* Admin sub-tabs → collapsible dropdown menu */
+  .admin-tabs-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:11px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font);font-size:13px;font-weight:600;color:var(--primary);cursor:pointer;margin-bottom:12px}
+  .admin-tabs-toggle i:first-child{font-size:17px}
+  .admin-tabs-toggle>i:last-child{font-size:15px;color:var(--text-muted);transition:transform .2s}
+  .admin-tabs-toggle.open>i:last-child{transform:rotate(180deg)}
+  .admin-tabs{display:none;flex-direction:column;gap:2px;flex-wrap:nowrap;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;margin-bottom:14px;max-height:60vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+  .admin-tabs.open{display:flex}
+  .admin-tabs .admin-tab{width:100%;display:flex;align-items:center;gap:8px;justify-content:flex-start;text-align:left;padding:11px 12px;border-radius:8px;font-size:14px}
 }
 /* ── Small phone (≤ 480px): 1 column ─────────── */
 @media(max-width:480px){
+  .nav-site-badge{max-width:90px}
+  .nav-brand>span:first-of-type{display:none}
   .page{padding:10px}
   .cat-grid{grid-template-columns:1fr;gap:10px}
   .cat-page-title{font-size:18px}
@@ -408,6 +423,24 @@ tr:hover td{background:#f8fafc}
   .cat-filter-pill{padding:7px 11px;font-size:12px}
   .step-num{width:28px;height:28px}
   .modal{padding:14px;border-radius:14px}
+}
+/* ── ตรวจสอบคีย์ยอด (Key Entry Status) – responsive ── */
+.ke-select,.ke-input{height:34px;font-size:13px}
+@media(max-width:900px){
+  .ke-stats{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:640px){
+  .ke-search-wrap{max-width:none!important}
+  .ke-select,.ke-input{height:44px;font-size:15px}
+  /* Table → stacked card list on small screens */
+  .ke-table-wrap table,.ke-table-wrap tbody,.ke-table-wrap tr,.ke-table-wrap td{display:block;width:100%}
+  .ke-table-wrap thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+  .ke-table-wrap tr{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px}
+  .ke-table-wrap td{border-bottom:none;padding:7px 0}
+  .ke-table-wrap td[data-label]::before{content:attr(data-label);display:block;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px}
+  .ke-table-wrap td:first-child{font-size:14px;padding-bottom:10px;border-bottom:1px solid var(--border-subtle);margin-bottom:6px}
+  .ke-table-wrap td:first-child::before{content:none}
+  .ke-select,.ke-input{width:100%}
 }
 /* ── Custom dropdown ── */
 .csel-wrap{position:relative;display:block}
