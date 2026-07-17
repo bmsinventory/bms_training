@@ -4929,18 +4929,19 @@ async function _loadPrintSettings(){
     'ใบเซ็นชื่อคีย์ยอดตั้งต้นคลังย่อย โปรแกรม BMS-INVENTORY',
   ];
   try{
-    const keys=['doc_titles','doc_left_name','doc_left_pos','doc_right_name','doc_right_pos','doc_right_inst',
-                'doc_font_family','doc_font_size'];
+    const siteKeys=['doc_left_name','doc_left_pos','doc_right_name','doc_right_pos','doc_right_inst']
+      .map(k=>`${k}_${currentSite}`);
+    const keys=['doc_titles','doc_font_family','doc_font_size',...siteKeys];
     const {data}=await _sb.from('settings').select('key,value').in('key',keys);
     const map=Object.fromEntries((data||[]).map(r=>[r.key,r.value]));
     if(map.doc_titles){try{_printDocTitles=JSON.parse(map.doc_titles);}catch{}}
     if(!_printDocTitles.length) _printDocTitles=[...DEFAULT_TITLES];
     const set=(id,val)=>{if(val){const el=document.getElementById(id);if(el)el.value=val;}};
-    set('print-lname',map.doc_left_name);
-    set('print-lpos', map.doc_left_pos);
-    set('print-rname',map.doc_right_name);
-    set('print-rpos', map.doc_right_pos);
-    set('print-rinst',map.doc_right_inst);
+    set('print-lname',map[`doc_left_name_${currentSite}`]);
+    set('print-lpos', map[`doc_left_pos_${currentSite}`]);
+    set('print-rname',map[`doc_right_name_${currentSite}`]);
+    set('print-rpos', map[`doc_right_pos_${currentSite}`]);
+    set('print-rinst',map[`doc_right_inst_${currentSite}`]);
     set('print-font-family', map.doc_font_family);
     set('print-font-size', map.doc_font_size);
   }catch(e){console.error('loadPrintSettings',e);}
@@ -5239,13 +5240,13 @@ function doPrint(){
 async function savePrintSignatories(){
   try{
     await Promise.all([
-      _savePrintSetting('doc_left_name',(document.getElementById('print-lname').value||'').trim()),
-      _savePrintSetting('doc_left_pos', (document.getElementById('print-lpos').value||'').trim()),
-      _savePrintSetting('doc_right_name',(document.getElementById('print-rname').value||'').trim()),
-      _savePrintSetting('doc_right_pos', (document.getElementById('print-rpos').value||'').trim()),
-      _savePrintSetting('doc_right_inst',(document.getElementById('print-rinst').value||'').trim()),
+      _savePrintSetting(`doc_left_name_${currentSite}`,(document.getElementById('print-lname').value||'').trim()),
+      _savePrintSetting(`doc_left_pos_${currentSite}`, (document.getElementById('print-lpos').value||'').trim()),
+      _savePrintSetting(`doc_right_name_${currentSite}`,(document.getElementById('print-rname').value||'').trim()),
+      _savePrintSetting(`doc_right_pos_${currentSite}`, (document.getElementById('print-rpos').value||'').trim()),
+      _savePrintSetting(`doc_right_inst_${currentSite}`,(document.getElementById('print-rinst').value||'').trim()),
     ]);
-    showToast('บันทึกผู้ลงนามสำเร็จ','success');
+    showToast('บันทึกผู้ลงนามสำเร็จ (เฉพาะสาขานี้)','success');
   }catch(e){showToast('บันทึกไม่สำเร็จ','danger');}
 }
 
