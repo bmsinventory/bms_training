@@ -745,9 +745,10 @@ function initCheckinPage(){
   document.querySelectorAll('.checkin-sub').forEach((s,i)=>s.classList.toggle('active',i===0));
 }
 function updateCheckinHeroStats(){
-  const total=registrations.length;
-  const present=registrations.filter(r=>r.attended).length;
-  const walkin=registrations.filter(r=>r.isWalkin).length;
+  const siteRegs=registrations.filter(r=>!!getSess(r.sessionId));
+  const total=siteRegs.length;
+  const present=siteRegs.filter(r=>r.attended).length;
+  const walkin=siteRegs.filter(r=>r.isWalkin).length;
   const absent=total-present;
   const pct=total?Math.round(present/total*100):0;
   const el=document.getElementById('checkin-live-stats');
@@ -2292,7 +2293,7 @@ function manualSearchResult(){
   const q=document.getElementById('manual-search').value.trim().toLowerCase();
   const c=document.getElementById('manual-results');
   if(!q){c.innerHTML='';return;}
-  const regs=registrations.filter(r=>(r.fname+r.lname).toLowerCase().includes(q));
+  const regs=registrations.filter(r=>!!getSess(r.sessionId)&&(r.fname+r.lname).toLowerCase().includes(q));
   if(!regs.length){c.innerHTML='<div class="empty" style="padding:16px;"><i class="ti ti-user-x"></i><p>ไม่พบรายชื่อ</p></div>';return;}
   c.innerHTML=regs.map(r=>{
     const s=getSess(r.sessionId);
@@ -2684,6 +2685,7 @@ function renderAdmin(){
 }
 
 /* ══════════════════ ANALYTICS ══════════════════ */
+let _analyticsNoRegStats={noRegDepts:[],regCount:0,total:0,regPct:0};
 function renderAnalytics(){
   // กรองเฉพาะ registrations ของสาขาปัจจุบัน (sessions filter by currentSite แล้ว)
   const siteRegs=registrations.filter(r=>!!getSess(r.sessionId));
@@ -2914,6 +2916,7 @@ function renderAnalytics(){
   const noRegCount=document.getElementById('analytics-noreg-count');
   const regCount=departments.length-noRegDepts.length;
   const regPct=departments.length?Math.round(regCount/departments.length*100):0;
+  _analyticsNoRegStats={noRegDepts,regCount,total:departments.length,regPct};
   if(noRegCount)noRegCount.textContent='';
   if(noRegEl){
     if(!departments.length){
@@ -2949,6 +2952,45 @@ function renderAnalytics(){
       }
       noRegEl.innerHTML=html;
     }
+  }
+}
+
+async function copyNoRegLineMessage(){
+  const {noRegDepts,regCount,total,regPct}=_analyticsNoRegStats;
+  if(!total){showToast('ยังไม่มีข้อมูลหน่วยงาน','warn');return;}
+  const loc=locations.find(l=>l.code===currentSite);
+  const siteLabel=loc?loc.name:currentSite;
+  const today=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
+  const regUrl=`${location.origin}${location.pathname}?site=${currentSite}`;
+
+  let msg=`📢 แจ้งเตือนหน่วยงานที่ยังไม่ลงทะเบียนอบรม\n`;
+  msg+=`🏥 ${siteLabel}\n`;
+  msg+=`📅 ข้อมูล ณ วันที่ ${today}\n\n`;
+  msg+=`✅ ลงทะเบียนแล้ว ${regCount}/${total} หน่วยงาน (${regPct}%)\n`;
+
+  if(!noRegDepts.length){
+    msg+=`🎉 ครบทุกหน่วยงานแล้ว ขอบคุณทุกหน่วยงานค่ะ 🙏`;
+  }else{
+    msg+=`⚠️ ยังไม่ลงทะเบียน ${noRegDepts.length} หน่วยงาน ดังนี้\n\n`;
+    msg+=noRegDepts.map(d=>`🔸 ${d}`).join('\n');
+    msg+=`\n\n🙏 รบกวนหน่วยงานดังกล่าวลงทะเบียนเข้าร่วมอบรมด้วยนะคะ/ครับ ขอบคุณค่ะ\n`;
+    msg+=`🔗 ลงทะเบียนที่นี่: ${regUrl}`;
+  }
+
+  try{
+    if(navigator.clipboard&&window.isSecureContext){
+      await navigator.clipboard.writeText(msg);
+    }else{
+      const ta=document.createElement('textarea');
+      ta.value=msg;ta.style.cssText='position:fixed;left:-9999px;top:0;';
+      document.body.appendChild(ta);ta.focus();ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    showToast('คัดลอกข้อความสำหรับส่งไลน์แล้ว','success');
+  }catch(e){
+    console.error(e);
+    showToast('คัดลอกไม่สำเร็จ','danger');
   }
 }
 

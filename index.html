@@ -291,7 +291,10 @@
 
   <!-- Row 4: Departments not registered -->
   <div class="card" style="padding:18px;margin-bottom:16px;">
-    <div class="card-title" style="font-size:13px;margin-bottom:16px;"><i class="ti ti-building-community"></i>สถานะการลงทะเบียนตามหน่วยงาน</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      <div class="card-title" style="font-size:13px;margin-bottom:0;"><i class="ti ti-building-community"></i>สถานะการลงทะเบียนตามหน่วยงาน</div>
+      <button class="btn btn-line btn-sm" id="btn-copy-noreg-line" onclick="copyNoRegLineMessage()"><i class="ti ti-brand-line"></i>Copy ข้อมูลส่งไลน์</button>
+    </div>
     <div id="analytics-noreg-list"></div>
   </div>
 </div>
