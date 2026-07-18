@@ -5443,25 +5443,50 @@ window.addEventListener('afterprint',function(){
   const isStandalone=window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
   const installBtn=document.getElementById('pwa-install-btn');
+  const installBanner=document.getElementById('pwa-install-banner');
+
+  const BANNER_DISMISS_KEY='bms_pwa_banner_dismiss_until';
+  function _bannerDismissed(){
+    const t=+localStorage.getItem(BANNER_DISMISS_KEY);
+    return t && Date.now()<t;
+  }
+  function _showInstallBanner(){
+    if(!isStandalone && !_bannerDismissed())installBanner?.classList.add('show');
+  }
+  function _hideInstallBanner(){
+    installBanner?.classList.remove('show');
+  }
+  window.pwaDismissBanner=function(){
+    _hideInstallBanner();
+    localStorage.setItem(BANNER_DISMISS_KEY, Date.now()+14*24*60*60*1000); // ปิดไว้ 14 วัน
+  };
 
   window.addEventListener('beforeinstallprompt',e=>{
     e.preventDefault();
     _deferredInstallPrompt=e;
     if(!isStandalone && installBtn)installBtn.style.display='flex';
+    _showInstallBanner();
   });
   window.addEventListener('appinstalled',()=>{
     _deferredInstallPrompt=null;
     if(installBtn)installBtn.style.display='none';
+    _hideInstallBanner();
     showToast('ติดตั้งแอปสำเร็จ','success');
   });
-  if(isIOS && !isStandalone && installBtn)installBtn.style.display='flex';
+  if(isIOS && !isStandalone){
+    if(installBtn)installBtn.style.display='flex';
+    _showInstallBanner();
+  }
 
   window.pwaInstallClick=async function(){
     if(_deferredInstallPrompt){
       _deferredInstallPrompt.prompt();
       const{outcome}=await _deferredInstallPrompt.userChoice;
       _deferredInstallPrompt=null;
-      if(outcome==='accepted' && installBtn)installBtn.style.display='none';
+      if(outcome==='accepted'){
+        if(installBtn)installBtn.style.display='none';
+        _hideInstallBanner();
+      }
     } else if(isIOS){
       document.getElementById('modal-ios-install')?.classList.add('open');
     } else {

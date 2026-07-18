@@ -122,6 +122,32 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   .pwa-install-btn{padding:7px 9px;margin-right:8px}
 }
 
+/* ══ PWA: bottom install banner (dismissible) ══ */
+.pwa-install-banner{
+  display:none;align-items:center;gap:12px;
+  position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;
+  max-width:480px;margin:0 auto;
+  background:linear-gradient(135deg,#0f1b3d,#16265c);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:16px;
+  padding:12px 14px;
+  padding-bottom:calc(12px + env(safe-area-inset-bottom));
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+}
+.pwa-install-banner.show{display:flex}
+.pwa-install-banner-icon{width:44px;height:44px;border-radius:12px;flex-shrink:0;object-fit:cover;background:#fff}
+.pwa-install-banner-text{flex:1;min-width:0}
+.pwa-install-banner-title{color:#fff;font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pwa-install-banner-sub{color:#AEB9D6;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pwa-install-banner-btn{background:#3B5FE0;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.pwa-install-banner-btn:hover{background:#2f4fc7}
+.pwa-install-banner-x{background:transparent;border:none;color:#9AA5C7;font-size:16px;cursor:pointer;padding:4px;flex-shrink:0;line-height:1}
+.pwa-install-banner-x:hover{color:#fff}
+@media (max-width:480px){
+  .pwa-install-banner{left:8px;right:8px;bottom:8px;padding:10px 12px}
+  .pwa-install-banner-icon{width:38px;height:38px}
+}
+
 .form-group{margin-bottom:12px}
 .form-label{display:block;font-size:13px;font-weight:500;color:var(--text);margin-bottom:5px}
 .form-label span{color:var(--danger)}

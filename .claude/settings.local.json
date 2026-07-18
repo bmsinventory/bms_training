@@ -61,7 +61,12 @@
       "Bash(npx --no-install playwright --help)",
       "Bash(npx --no-install playwright screenshot http://localhost:8083/index.html /tmp/pwa-test-1.png --viewport-size=430,932)",
       "Read(//c/Users/BMS/AppData/Local/Temp/**)",
-      "Bash(npx --no-install playwright screenshot \"http://localhost:8083/index.html?site=theme_1\" /tmp/pwa-mobile-nav.png --viewport-size=390,300)"
+      "Bash(npx --no-install playwright screenshot \"http://localhost:8083/index.html?site=theme_1\" /tmp/pwa-mobile-nav.png --viewport-size=390,300)",
+      "Bash(node --check \"d:/ส่วนตัว/พัฒนาโปรแกรม/inv - bms_training/app.js\")",
+      "Read(//tmp/**)",
+      "Read(//d/tmp/**)",
+      "Bash(pkill -f staticsrv.js)",
+      "Bash(rm -f /tmp/staticsrv.js /tmp/banner-check.png)"
     ],
     "additionalDirectories": [
       "d:\\ส่วนตัว\\พัฒนาโปรแกรม\\inv - bms_training\\quiz-system\\src",
