@@ -371,13 +371,16 @@ function showPage(p){
 }
 /* ══════════════════ ADMIN LOGIN ══════════════════ */
 function openAdminLogin(){
-  document.getElementById('login-user').value='';
-  document.getElementById('login-pass').value='';
+  let remembered=null;
+  try{remembered=JSON.parse(localStorage.getItem('bms_admin_remember')||'null');}catch(e){}
+  document.getElementById('login-user').value=remembered?.u||'';
+  document.getElementById('login-pass').value=remembered?.p||'';
+  document.getElementById('login-remember').checked=!!remembered;
   document.getElementById('login-pass').style.webkitTextSecurity='disc';
   document.getElementById('login-eye-icon').className='ti ti-eye';
   document.getElementById('login-error').style.display='none';
   document.getElementById('modal-admin-login').classList.add('open');
-  setTimeout(()=>document.getElementById('login-user').focus(),100);
+  setTimeout(()=>document.getElementById(remembered?'login-pass':'login-user').focus(),100);
 }
 function toggleLoginPass(){
   const inp=document.getElementById('login-pass');
@@ -396,6 +399,11 @@ async function adminLogin(){
   if(data&&!error){
     isAdminLoggedIn=true;
     currentAdminUser=data;
+    if(document.getElementById('login-remember').checked){
+      localStorage.setItem('bms_admin_remember',JSON.stringify({u,p}));
+    }else{
+      localStorage.removeItem('bms_admin_remember');
+    }
     closeModal('modal-admin-login');
     document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
@@ -4697,7 +4705,28 @@ function openPrintForm(){
     const sigOrg=document.getElementById('pf-signer-org');
     if(sigOrg) sigOrg.value=curLoc.name;
   }
+  _loadPrintFormSignatories();
   document.getElementById('modal-print-form').classList.add('open');
+}
+const PF_SIG_FIELDS=['pf-bms-name','pf-bms-pos','pf-bms-org','pf-signer-name','pf-signer-pos'];
+async function _loadPrintFormSignatories(){
+  try{
+    const keys=PF_SIG_FIELDS.map(id=>`${id}_${currentSite}`);
+    const {data}=await _sb.from('settings').select('key,value').in('key',keys);
+    const map=Object.fromEntries((data||[]).map(r=>[r.key,r.value]));
+    PF_SIG_FIELDS.forEach(id=>{
+      const val=map[`${id}_${currentSite}`];
+      if(val){const el=document.getElementById(id);if(el)el.value=val;}
+    });
+  }catch(e){console.error('_loadPrintFormSignatories',e);}
+}
+async function savePrintFormSignatories(){
+  try{
+    await Promise.all(PF_SIG_FIELDS.map(id=>
+      _savePrintSetting(`${id}_${currentSite}`,(document.getElementById(id)?.value||'').trim())
+    ));
+    showToast('บันทึกค่าเริ่มต้นผู้ลงนามสำเร็จ (เฉพาะสาขานี้)','success');
+  }catch(e){showToast('บันทึกไม่สำเร็จ','danger');}
 }
 function onPrintFormSessChange(){
   const sid=parseInt(document.getElementById('pf-sess').value||0);

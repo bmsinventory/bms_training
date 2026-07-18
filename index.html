@@ -975,6 +975,10 @@
           </button>
         </div>
       </div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer;margin:-4px 0 4px;">
+        <input type="checkbox" id="login-remember" style="width:15px;height:15px;cursor:pointer;">
+        จดจำชื่อผู้ใช้และรหัสผ่านไว้ในเบราว์เซอร์นี้
+      </label>
       <div id="login-error" style="display:none;color:var(--danger);font-size:13px;margin-top:4px;padding:8px 12px;background:#fee2e2;border-radius:8px;align-items:center;gap:6px;">
         <i class="ti ti-alert-circle"></i><span id="login-error-msg"></span>
       </div>
@@ -1444,6 +1448,7 @@
           </div>
         </div>
       </div>
+      <button type="button" class="btn btn-ghost" onclick="savePrintFormSignatories()" style="width:100%;justify-content:center;gap:6px;font-size:12.5px;margin:-4px 0 14px;"><i class="ti ti-device-floppy"></i>จำค่าเริ่มต้นผู้ลงนาม (เฉพาะสาขานี้)</button>
       <div style="height:1px;background:var(--border);margin:14px 0;"></div>
       <div class="form-group" style="margin-bottom:0;">
         <label class="form-label">จำนวนแถวรวมในตาราง (รวมแถวว่าง)</label>
