@@ -2,8 +2,19 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>BMS Training System</title>
+
+<!-- PWA -->
+<link rel="manifest" id="pwa-manifest-link" href="manifest.json">
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BMS Training">
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
@@ -36,6 +47,9 @@
     <span class="rt-dot connecting" id="rt-dot" title="Realtime: กำลังเชื่อมต่อ..."></span>
   </div>
   <span class="nav-version" id="nav-version"></span>
+  <button class="pwa-install-btn" id="pwa-install-btn" onclick="pwaInstallClick()" style="display:none;">
+    <i class="ti ti-download"></i><span>ติดตั้งแอป</span>
+  </button>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('register')" id="tab-register">
       <i class="ti ti-pencil-plus"></i><span>ลงทะเบียน</span>
@@ -54,6 +68,42 @@
     </button>
   </div>
 </nav>
+
+<!-- Offline / Update banners -->
+<div class="pwa-banner offline" id="offline-banner">
+  <i class="ti ti-wifi-off"></i>
+  <span>ออฟไลน์ — ไม่มีการเชื่อมต่ออินเทอร์เน็ต ข้อมูลบางส่วนอาจไม่เป็นปัจจุบัน</span>
+</div>
+<div class="pwa-banner update" id="update-banner">
+  <i class="ti ti-refresh"></i>
+  <span>มีเวอร์ชันใหม่ของระบบ</span>
+  <button onclick="pwaApplyUpdate()">อัปเดตเลย</button>
+</div>
+
+<!-- iOS Install Instructions -->
+<div class="modal-overlay" id="modal-ios-install">
+  <div class="modal" style="max-width:340px;padding:0;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#1a3a6b,#1a56a0);padding:18px 22px;color:#fff;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="background:rgba(255,255,255,.15);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;"><i class="ti ti-device-mobile"></i></div>
+        <div style="font-weight:700;font-size:16px;">ติดตั้งแอปบน iOS</div>
+      </div>
+    </div>
+    <div style="padding:20px 22px;font-size:14px;line-height:1.8;color:var(--text);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <span style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--primary-light);color:var(--primary);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;">1</span>
+        <span>แตะปุ่ม <i class="ti ti-share" style="color:var(--primary);"></i> <b>แชร์ (Share)</b> แถบด้านล่างของ Safari</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--primary-light);color:var(--primary);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;">2</span>
+        <span>เลือก <b>"เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen)</b></span>
+      </div>
+    </div>
+    <div style="padding:0 22px 20px;">
+      <button class="btn btn-primary" onclick="closeModal('modal-ios-install')" style="width:100%;justify-content:center;">เข้าใจแล้ว</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══ REGISTER ═══ -->
 <div class="page active" id="page-register">

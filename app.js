@@ -5403,6 +5403,92 @@ window.addEventListener('afterprint',function(){
   document.body.classList.remove('print-docs');
 });
 
+/* ══════════════════════════════════════════════
+   PWA: manifest, service worker, install button, offline/update banners
+══════════════════════════════════════════════ */
+(function initPWA(){
+  // 1) manifest แบบ dynamic — ผูก start_url เข้ากับสาขาปัจจุบัน (?site=) เพื่อให้ไอคอนที่ติดตั้งเปิดสาขาที่ถูกต้อง
+  fetch('manifest.json').then(r=>r.json()).then(m=>{
+    m.start_url=`./index.html?site=${encodeURIComponent(currentSite)}`;
+    m.id=m.start_url;
+    const blob=new Blob([JSON.stringify(m)],{type:'application/json'});
+    const link=document.getElementById('pwa-manifest-link');
+    if(link)link.href=URL.createObjectURL(blob);
+  }).catch(()=>{});
+
+  // 2) Service Worker (ต้องเป็น HTTPS หรือ localhost เท่านั้น)
+  if('serviceWorker' in navigator && window.isSecureContext){
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      reg.addEventListener('updatefound',()=>{
+        const nw=reg.installing;
+        if(!nw)return;
+        nw.addEventListener('statechange',()=>{
+          if(nw.state==='installed' && navigator.serviceWorker.controller){
+            document.getElementById('update-banner')?.classList.add('show');
+          }
+        });
+      });
+    }).catch(e=>console.error('SW register failed',e));
+
+    let _reloadedForUpdate=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(_reloadedForUpdate)return;
+      _reloadedForUpdate=true;
+      location.reload();
+    });
+  }
+
+  // 3) ปุ่มติดตั้งแอป — Android/Chrome ใช้ beforeinstallprompt, iOS ไม่มี event นี้จึงโชว์คำแนะนำแทน
+  let _deferredInstallPrompt=null;
+  const isStandalone=window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  const installBtn=document.getElementById('pwa-install-btn');
+
+  window.addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault();
+    _deferredInstallPrompt=e;
+    if(!isStandalone && installBtn)installBtn.style.display='flex';
+  });
+  window.addEventListener('appinstalled',()=>{
+    _deferredInstallPrompt=null;
+    if(installBtn)installBtn.style.display='none';
+    showToast('ติดตั้งแอปสำเร็จ','success');
+  });
+  if(isIOS && !isStandalone && installBtn)installBtn.style.display='flex';
+
+  window.pwaInstallClick=async function(){
+    if(_deferredInstallPrompt){
+      _deferredInstallPrompt.prompt();
+      const{outcome}=await _deferredInstallPrompt.userChoice;
+      _deferredInstallPrompt=null;
+      if(outcome==='accepted' && installBtn)installBtn.style.display='none';
+    } else if(isIOS){
+      document.getElementById('modal-ios-install')?.classList.add('open');
+    } else {
+      showToast('เบราว์เซอร์นี้ยังไม่รองรับการติดตั้งแอปโดยตรง','info');
+    }
+  };
+  window.pwaApplyUpdate=function(){
+    navigator.serviceWorker.getRegistration().then(reg=>{
+      reg?.waiting?.postMessage('SKIP_WAITING');
+    });
+    document.getElementById('update-banner')?.classList.remove('show');
+  };
+
+  // 4) แบนเนอร์ออฟไลน์/ออนไลน์ + ซิงค์ข้อมูลอัตโนมัติเมื่อกลับมาออนไลน์
+  function _updateOnlineStatus(){
+    document.getElementById('offline-banner')?.classList.toggle('show',!navigator.onLine);
+  }
+  window.addEventListener('offline',_updateOnlineStatus);
+  window.addEventListener('online',()=>{
+    _updateOnlineStatus();
+    showToast('กลับมาออนไลน์แล้ว กำลังซิงค์ข้อมูล...','info');
+    _scheduleRtRefresh();
+    if(!_rtChannel)initRealtime();
+  });
+  _updateOnlineStatus();
+})();
+
 // INIT
 initApp();
 // Enable native select overlay on non-Line touch devices only

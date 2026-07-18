@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ออฟไลน์ — BMS Training</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:#F1F5F9;color:#0F172A;
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    padding:24px;text-align:center;
+  }
+  .box{max-width:360px;}
+  .icon{
+    width:84px;height:84px;border-radius:50%;background:#EFF6FF;color:#2563EB;
+    display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:38px;
+  }
+  h1{font-size:19px;font-weight:700;margin-bottom:8px;}
+  p{font-size:14px;color:#64748B;line-height:1.6;margin-bottom:22px;}
+  button{
+    background:#2563EB;color:#fff;border:none;border-radius:10px;
+    padding:12px 22px;font-size:14px;font-weight:600;cursor:pointer;
+  }
+  button:active{background:#1D4ED8;}
+  .status{margin-top:16px;font-size:12.5px;color:#94A3B8;}
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="icon">&#9889;</div>
+    <h1>ไม่มีการเชื่อมต่ออินเทอร์เน็ต</h1>
+    <p>ไม่สามารถโหลดข้อมูลได้ในขณะนี้ กรุณาตรวจสอบการเชื่อมต่อเครือข่าย ระบบจะโหลดหน้านี้ให้อัตโนมัติเมื่อกลับมาออนไลน์</p>
+    <button onclick="location.reload()">ลองใหม่อีกครั้ง</button>
+    <div class="status" id="status">กำลังตรวจสอบสถานะ...</div>
+  </div>
+  <script>
+    function upd(){
+      var s=document.getElementById('status');
+      if(navigator.onLine){
+        s.textContent='กลับมาออนไลน์แล้ว กำลังโหลดหน้าเดิม...';
+        setTimeout(function(){location.href='./index.html';},600);
+      } else {
+        s.textContent='สถานะ: ออฟไลน์';
+      }
+    }
+    window.addEventListener('online',upd);
+    upd();
+  </script>
+</body>
+</html>

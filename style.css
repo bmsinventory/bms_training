@@ -96,6 +96,32 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .btn-line i{font-size:16px}
 .btn-line:hover{background:linear-gradient(135deg,#00b84c,#00913c);box-shadow:0 4px 16px rgba(6,199,85,.55);transform:translateY(-1px)}
 @keyframes lineGlow{0%,100%{box-shadow:0 2px 10px rgba(6,199,85,.4)}50%{box-shadow:0 2px 18px rgba(6,199,85,.7)}}
+
+/* ══ PWA: install button / offline & update banners ══ */
+.pwa-install-btn{
+  display:flex;align-items:center;gap:6px;background:rgba(37,99,235,.18);color:#DBEAFE;
+  border:1px solid rgba(96,165,250,.4);border-radius:20px;padding:7px 14px;font-size:12.5px;
+  font-weight:600;cursor:pointer;margin-right:14px;white-space:nowrap;transition:background .15s;
+}
+.pwa-install-btn:hover{background:rgba(37,99,235,.32)}
+.pwa-install-btn i{font-size:15px}
+.pwa-banner{
+  display:none;align-items:center;justify-content:center;gap:8px;
+  padding:9px 16px;font-size:13px;font-weight:600;text-align:center;
+}
+.pwa-banner.show{display:flex}
+.pwa-banner.offline{background:#FEF3C7;color:#92400E;border-bottom:1px solid #FDE68A}
+.pwa-banner.update{background:#EFF6FF;color:#1D4ED8;border-bottom:1px solid #BFDBFE}
+.pwa-banner.update button{
+  background:#2563EB;color:#fff;border:none;border-radius:8px;padding:5px 12px;
+  font-size:12.5px;font-weight:700;cursor:pointer;margin-left:4px;
+}
+.pwa-banner.update button:hover{background:#1D4ED8}
+@media (max-width:768px){
+  .pwa-install-btn span{display:none}
+  .pwa-install-btn{padding:7px 9px;margin-right:8px}
+}
+
 .form-group{margin-bottom:12px}
 .form-label{display:block;font-size:13px;font-weight:500;color:var(--text);margin-bottom:5px}
 .form-label span{color:var(--danger)}
