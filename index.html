@@ -669,9 +669,14 @@
             <input type="date" class="form-control" id="print-date" onchange="updatePrintPreview()" style="font-size:13px;">
           </div>
           <div class="form-group">
-            <label class="form-label" style="font-size:12px;">จำนวนแถว (5–100)</label>
+            <label class="form-label" style="font-size:12px;">จำนวนแถว</label>
             <div style="display:flex;align-items:center;gap:8px;">
-              <input type="number" class="form-control" id="print-rows" value="25" min="5" max="100" oninput="updatePrintPreview()" style="font-size:13px;width:90px;">
+              <select class="form-control" id="print-rows" onchange="updatePrintPreview()" style="font-size:13px;width:90px;">
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="75">75</option>
+                <option value="100">100</option>
+              </select>
               <span style="font-size:12px;color:var(--text-muted);">แถว</span>
             </div>
           </div>
@@ -716,6 +721,10 @@
           </button>
         </div>
         <div style="flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px;" id="print-preview-wrap">
+          <div class="print-font-warn" id="print-font-warn" style="align-self:flex-start;">
+            <i class="ti ti-alert-triangle"></i>
+            <span>ไม่พบฟอนต์ <b>TH SarabunPSK</b> บนเครื่องนี้ — เอกสารอาจแสดงผล/พิมพ์ด้วยฟอนต์อื่นแทน กรุณาติดตั้งฟอนต์ TH SarabunPSK ก่อนพิมพ์เพื่อให้ตรงมาตรฐานราชการ</span>
+          </div>
           <div id="print-preview" style="display:contents;"></div>
         </div>
       </div>
@@ -1438,7 +1447,12 @@
       <div style="height:1px;background:var(--border);margin:14px 0;"></div>
       <div class="form-group" style="margin-bottom:0;">
         <label class="form-label">จำนวนแถวรวมในตาราง (รวมแถวว่าง)</label>
-        <input class="form-control" id="pf-rows" type="number" min="10" max="60" value="25" style="max-width:140px;">
+        <select class="form-control" id="pf-rows" style="max-width:140px;">
+          <option value="25" selected>25</option>
+          <option value="50">50</option>
+          <option value="75">75</option>
+          <option value="100">100</option>
+        </select>
       </div>
     </div>
     <div style="display:flex;gap:8px;padding:0 22px 20px;">

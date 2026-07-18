@@ -4732,7 +4732,7 @@ function executePrintForm(){
   const signerName=(document.getElementById('pf-signer-name').value||'').trim();
   const signerPos=(document.getElementById('pf-signer-pos').value||'').trim();
   const signerOrg=(document.getElementById('pf-signer-org')?.value||hospital).trim();
-  const totalRows=Math.max(10,Math.min(60,parseInt(document.getElementById('pf-rows').value||25)));
+  const totalRows=Math.max(10,Math.min(100,parseInt(document.getElementById('pf-rows').value||25)));
   const regs=registrations.filter(r=>r.sessionId===sid);
   const dateStr=_isoToThaiDate(s.date);
   const timeStr=`${s.timeStart||''}–${s.timeEnd||''} น.`;
@@ -4816,53 +4816,67 @@ function executePrintForm(){
 <meta charset="UTF-8">
 <title>ใบเซ็นต์ชื่อ — ${_esc(s.name)}</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Sarabun','TH Sarabun New','Prompt',Arial,sans-serif;font-size:13px;color:#111;background:#555;}
+body{font-family:'TH SarabunPSK';font-size:16px;color:#111;background:#555;}
 .page{
   width:210mm; height:297mm; box-sizing:border-box;
-  padding:4mm 7mm 6mm 5.5mm;
+  padding:15mm 15mm 12mm 15mm;
   margin:1cm auto; background:white; box-shadow:0 0 10px rgba(0,0,0,0.5);
   display:flex; flex-direction:column;
 }
 .page-header, .page-footer{flex-shrink:0;}
 .page-content{flex-grow:1; display:flex; flex-direction:column; overflow:hidden;}
-.doc-title{font-size:15.5px;font-weight:700;text-align:center;border:1.5px solid #222;padding:5px 8px;}
-.info-tbl{width:100%;border-collapse:collapse;border:1.5px solid #222;}
-.info-tbl td{padding:4px 8px;border:1px solid #999;font-size:13px;}
+.doc-title{font-size:20px;font-weight:700;text-align:center;border:1px solid #000;border-bottom:none;padding:5px 8px;}
+.info-tbl{width:100%;border-collapse:collapse;border:1px solid #000;}
+.info-tbl td{padding:4px 8px;border:1px solid #000;font-size:16px;}
+.info-tbl tr:last-child td{border-bottom:none;}
 .info-tbl .lbl{font-weight:700;}
 .doc-tbl{width:100%;border-collapse:collapse;}
-.doc-tbl th{border:1.5px solid #222;padding:4px 6px;text-align:center;font-size:13px;background:#f0f0f0;font-weight:700;}
-.doc-tbl td{border:1px solid #999;padding:0 5px;font-size:13px;}
+.doc-tbl th{border:1px solid #000;padding:4px 6px;text-align:center;font-size:16px;background:#f0f0f0;font-weight:700;}
+.doc-tbl td{border:1px solid #000;border-top:none;padding:0 5px;font-size:16px;}
 .page-content .doc-tbl{height:100%; display:flex; flex-direction:column;}
 .page-content .doc-tbl tbody{flex-grow:1; display:flex; flex-direction:column;}
 .page-content .doc-tbl tr{display:table; width:100%; table-layout:fixed;}
 .page-content .doc-tbl tbody tr{flex:1;}
-.sig{display:flex;justify-content:space-between;padding:0 8mm;margin-top:6mm;break-inside:avoid;}
+.sig{display:flex;justify-content:space-between;padding:0 8mm;margin-top:20mm;break-inside:avoid;}
 .sig-blk{text-align:center;width:44%;}
-.sig-line{border-bottom:1px solid #333;width:55mm;margin:0 auto 3px;}
-.sig-lbl{font-size:12.5px;line-height:1.75;}
+.sig-line{border-bottom:1px solid #333;width:51mm;margin:0 auto 3px;}
+.sig-lbl{font-size:16px;line-height:1.3;}
 .pg-num{text-align:center;font-size:11px;color:#555;margin-top:2mm;}
 .no-print{margin-top:16px;text-align:center;}
+.font-warn{display:none;align-items:center;gap:8px;background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;font-size:13px;font-weight:600;padding:10px 14px;border-radius:8px;margin:0 auto 14px;max-width:210mm;font-family:Arial,sans-serif;}
+.font-warn.show{display:flex;}
 @media print{
   body{background:none;margin:0;}
   .print-container{padding:0;gap:0;}
   .page{margin:0;box-shadow:none;page-break-after:always;}
   .page:last-child{page-break-after:avoid;}
-  .no-print{display:none!important;}
+  .no-print,.font-warn{display:none!important;}
 }
 @page {
-  size: A4 portrait;
+  size: 210mm 297mm;
   margin: 0;
 }
 </style></head><body>
+<div class="font-warn no-print" id="font-warn">⚠️ ไม่พบฟอนต์ TH SarabunPSK บนเครื่องนี้ — เอกสารจะแสดง/พิมพ์ด้วยฟอนต์อื่นแทน ไม่ตรงตามมาตรฐานราชการ กรุณาติดตั้งฟอนต์ TH SarabunPSK ก่อนพิมพ์จริง</div>
 <div class="print-container">${pagesHtml}</div>
 <div class="no-print">
   <button onclick="window.print()" style="padding:8px 24px;font-size:14px;cursor:pointer;background:#1a56a0;color:#fff;border:none;border-radius:6px;">🖨 พิมพ์</button>
   <button onclick="window.close()" style="margin-left:10px;padding:8px 18px;font-size:14px;cursor:pointer;background:#f1f5f9;border:1px solid #ccc;border-radius:6px;">ปิด</button>
 </div>
 <script>
-(document.fonts?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(window.print,300));
+(function(){
+  var canCheck = !!(document.fonts && document.fonts.check);
+  var hasFont = true;
+  (document.fonts?document.fonts.ready:Promise.resolve()).then(function(){
+    try{ if(canCheck) hasFont = document.fonts.check("16pt 'TH SarabunPSK'"); }catch(e){}
+    if(canCheck && !hasFont){
+      document.getElementById('font-warn').classList.add('show');
+    } else {
+      setTimeout(window.print,300);
+    }
+  });
+})();
 <\/script>
 </body></html>`;
   closeModal('modal-print-form');
@@ -5026,7 +5040,7 @@ function _getPrintConfig(){
 }
 
 /* ── สร้างเอกสาร ────────────────────────────────────────────────────── */
-// margins: top 4mm, right 7mm, bottom 6mm, left 5.5mm → content 197.5×287mm
+// margins: บน 17mm, ล่าง 15mm, ซ้าย/ขวา 15mm
 function _buildDocHTML(cfg,absLogoSrc,forPrint){
   const logo=absLogoSrc||'bms-logo.png';
   const PAGE=25;
@@ -5071,7 +5085,7 @@ function _buildDocHTML(cfg,absLogoSrc,forPrint){
   }
 
   if(!forPrint){
-    const WRAP='background:#fff;box-shadow:0 2px 16px rgba(0,0,0,.18);width:210mm;height:297mm;box-sizing:border-box;overflow:hidden;font-family:\'Sarabun\',\'TH Sarabun New\',\'Prompt\',sans-serif;color:#111;display:flex;flex-direction:column;padding:4mm 7mm 6mm 5.5mm;';
+    const WRAP='background:#fff;box-shadow:0 2px 16px rgba(0,0,0,.18);width:210mm;height:297mm;box-sizing:border-box;overflow:hidden;font-family:\'TH SarabunPSK\';color:#111;display:flex;flex-direction:column;padding:15mm 15mm 12mm 15mm;';
     function pvSheet(from,to,pn){
       return`<div class="page" style="${WRAP}">
   <div class="pv-ph">
@@ -5079,7 +5093,7 @@ function _buildDocHTML(cfg,absLogoSrc,forPrint){
       onerror="this.style.display='none';var f=document.getElementById('pv-logofb-${pn}');if(f)f.style.display='flex';">
     <div id="pv-logofb-${pn}" style="display:none;align-items:center;gap:8px;margin-bottom:4px;">
       <svg width="44" height="44" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><path d="M40 74 C39 73 5 53 5 29 C5 15 16 5 28 5 C34 5 39 9 40 12 C41 9 46 5 52 5 C64 5 75 15 75 29 C75 53 41 73 40 74Z" fill="#c0392b"/><path d="M10 48 C20 40 31 38 40 42 C49 46 60 49 70 44" stroke="#1a5899" stroke-width="6" fill="none" stroke-linecap="round"/><text x="40" y="43" text-anchor="middle" fill="white" font-family="Arial Black,sans-serif" font-weight="900" font-size="17">BMS</text></svg>
-      <span style="font-size:10px;line-height:1.5;color:#333;font-family:'Sarabun',sans-serif;"><strong style="font-size:11px;">บริษัท บางกอก เมดิคอล ซอฟต์แวร์ จำกัด</strong><br>เลขที่ 2 ชั้น 2 ซ.สุขสวัสดิ์ 33 ราษฎร์บูรณะ กรุงเทพฯ</span>
+      <span style="font-size:10px;line-height:1.5;color:#333;"><strong style="font-size:11px;">บริษัท บางกอก เมดิคอล ซอฟต์แวร์ จำกัด</strong><br>เลขที่ 2 ชั้น 2 ซ.สุขสวัสดิ์ 33 ราษฎร์บูรณะ กรุงเทพฯ</span>
     </div>
     <div class="pv-title">${_esc(cfg.title)||'(กรุณาเลือกหัวข้อเอกสาร)'}</div>
     <table class="pv-info">
@@ -5127,52 +5141,75 @@ function _buildDocHTML(cfg,absLogoSrc,forPrint){
     </div>`;
   }
   const style=`
-@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Sarabun','TH Sarabun New','Prompt',Arial,sans-serif;font-size:13px;color:#111;background:#fff;}
-.page{width:210mm; height:297mm; box-sizing:border-box;padding:4mm 7mm 6mm 5.5mm;background:white; display:flex; flex-direction:column;}
+body{font-family:'TH SarabunPSK';font-size:16px;color:#111;background:#fff;}
+.page{width:210mm; height:297mm; box-sizing:border-box;padding:15mm 15mm 12mm 15mm;background:white; display:flex; flex-direction:column;}
 .page-header, .page-footer{flex-shrink:0;}
 .page-content{flex-grow:1; display:flex; flex-direction:column; overflow:hidden;}
-.doc-title{font-size:15.5px;font-weight:700;text-align:center;border:1.5px solid #222;padding:5px 8px;}
-.info-tbl{width:100%;border-collapse:collapse;border:1.5px solid #222;}
-.info-tbl td{padding:4px 8px;border:1px solid #999;font-size:13px;vertical-align:top;}
+.doc-title{font-size:20px;font-weight:700;text-align:center;border:1px solid #000;border-bottom:none;padding:5px 8px;}
+.info-tbl{width:100%;border-collapse:collapse;border:1px solid #000;}
+.info-tbl td{padding:4px 8px;border:1px solid #000;font-size:16px;vertical-align:top;}
+.info-tbl tr:last-child td{border-bottom:none;}
 .info-tbl .lbl{font-weight:700;}
 .doc-tbl{width:100%;border-collapse:collapse;}
-.doc-tbl th{border:1.5px solid #222;padding:4px 6px;text-align:center;font-size:13px;background:#f0f0f0;font-weight:700;}
-.doc-tbl td{border:1px solid #999;padding:0 5px;font-size:13px;}
+.doc-tbl th{border:1px solid #000;padding:4px 6px;text-align:center;font-size:16px;background:#f0f0f0;font-weight:700;}
+.doc-tbl td{border:1px solid #000;border-top:none;padding:0 5px;font-size:16px;}
 .page-content .doc-tbl{height:100%; display:flex; flex-direction:column;}
 .page-content .doc-tbl tbody{flex-grow:1; display:flex; flex-direction:column;}
 .page-content .doc-tbl tr{display:table; width:100%; table-layout:fixed;}
 .page-content .doc-tbl tbody tr{flex:1;}
 .sig{display:flex;justify-content:space-between;padding:0 8mm;margin-top:20mm;break-inside:avoid;}
 .sig-blk{text-align:center;width:44%;}
-.sig-line{border-bottom:1px solid #333;width:55mm;margin:0 auto 3px;}
-.sig-lbl{font-size:12.5px;line-height:1.75;}
+.sig-line{border-bottom:1px solid #333;width:51mm;margin:0 auto 3px;}
+.sig-lbl{font-size:16px;line-height:1.3;}
 .pg-num{text-align:center;font-size:11px;color:#555;margin-top:2mm;}
 .no-print{margin-top:16px;text-align:center;}
+.font-warn{display:none;align-items:center;gap:8px;background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;font-size:13px;font-weight:600;padding:10px 14px;border-radius:8px;margin:0 auto 14px;max-width:210mm;font-family:Arial,sans-serif;}
+.font-warn.show{display:flex;}
 @media print{
   body{background:none;margin:0;}
   .page{margin:0;box-shadow:none;page-break-after:always;}
   .page:last-child{page-break-after:avoid;}
-  .no-print{display:none!important;}
+  .no-print,.font-warn{display:none!important;}
 }
-@page {size: A4 portrait;margin: 0;}
+@page {size: 210mm 297mm;margin: 0;}
   `;
   return `<!DOCTYPE html><html lang="th"><head>
 <meta charset="UTF-8">
 <title>${_esc(cfg.title)||'เอกสาร'}</title>
 <style>${style}</style></head><body>
+<div class="font-warn no-print" id="font-warn">⚠️ ไม่พบฟอนต์ TH SarabunPSK บนเครื่องนี้ — เอกสารจะแสดง/พิมพ์ด้วยฟอนต์อื่นแทน ไม่ตรงตามมาตรฐานราชการ กรุณาติดตั้งฟอนต์ TH SarabunPSK ก่อนพิมพ์จริง</div>
 <div class="print-container">${pagesHtml}</div>
 <div class="no-print">
   <button onclick="window.print()" style="padding:8px 24px;font-size:14px;cursor:pointer;background:#1a56a0;color:#fff;border:none;border-radius:6px;margin-right:8px;">🖨 พิมพ์</button>
   <button onclick="window.close()" style="padding:8px 18px;font-size:14px;cursor:pointer;background:#f1f5f9;border:1px solid #ccc;border-radius:6px;">ปิด</button>
 </div>
 <script>
-(document.fonts?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(window.print,300));
+(function(){
+  var canCheck = !!(document.fonts && document.fonts.check);
+  var hasFont = true;
+  (document.fonts?document.fonts.ready:Promise.resolve()).then(function(){
+    try{ if(canCheck) hasFont = document.fonts.check("16pt 'TH SarabunPSK'"); }catch(e){}
+    if(canCheck && !hasFont){
+      document.getElementById('font-warn').classList.add('show');
+    } else {
+      setTimeout(window.print,300);
+    }
+  });
+})();
 <\/script>
 </body></html>`;
 }
 
+function _checkPrintFont(){
+  const el=document.getElementById('print-font-warn');
+  if(!el)return;
+  let available=true;
+  try{
+    if(document.fonts&&document.fonts.check) available=document.fonts.check("16pt 'TH SarabunPSK'");
+  }catch(e){}
+  el.classList.toggle('show',!available);
+}
 function updatePrintPreview(){
   const el=document.getElementById('print-preview');
   if(!el) return;
@@ -5181,6 +5218,7 @@ function updatePrintPreview(){
   const absLogo=baseUrl+'bms-logo.png';
   el.innerHTML=_buildDocHTML(cfg,absLogo,false);
   requestAnimationFrame(()=>_doPreviewFit(el));
+  _checkPrintFont();
 }
 
 function _scalePrintPreview(){
@@ -5210,7 +5248,7 @@ function _scalePrintPreview(){
 }
 
 function _doPreviewFit(el){
-  const CONTENT_H=Math.round(287*96/25.4); // 287mm content area ~1085px
+  const CONTENT_H=Math.round(270*96/25.4); // 297mm page - 15mm(บน) - 12mm(ล่าง) = 270mm content area
   el.querySelectorAll(':scope>div').forEach(function(page){
     const ph=page.querySelector('.pv-ph');
     const phtbl=page.querySelector('.pv-phtbl');
