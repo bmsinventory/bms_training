@@ -4,7 +4,7 @@
    หมายเหตุ: ให้เพิ่มเลข CACHE_VERSION ทุกครั้งที่ deploy โค้ดใหม่
    (คู่กับการเพิ่ม ?v=N ท้าย app.js/style.css ใน index.html) เพื่อบังคับล้าง cache เก่า
 ══════════════════════════════════════════════ */
-const CACHE_VERSION='v1';
+const CACHE_VERSION='v2';
 const PRECACHE=`bms-precache-${CACHE_VERSION}`;
 const RUNTIME_CACHE=`bms-runtime-${CACHE_VERSION}`;
 const OFFLINE_URL='./offline.html';
