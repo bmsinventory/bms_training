@@ -5449,8 +5449,10 @@ window.addEventListener('afterprint',function(){
   const installBanner=document.getElementById('pwa-install-banner');
 
   // หมายเหตุ: ไม่มีการจำการปิด (dismiss) แบบถาวร — ต้องเตือนซ้ำทุกครั้งที่ล็อกอินถ้ายังไม่ได้ติดตั้งแอป
+  // ไม่รอ beforeinstallprompt เพื่อตัดสินใจแสดง เพราะ event นี้อาจยังไม่ยิงตอน login (Chrome พิจารณา engagement เอง)
+  // เกณฑ์แสดงคือ "ยังไม่ได้ติดตั้ง (ไม่ standalone)" เท่านั้น ส่วนวิธีติดตั้งจะเลือกใช้ตามที่ browser รองรับตอนกดปุ่ม
   function _installable(){
-    return !isStandalone && (_deferredInstallPrompt||isIOS);
+    return !isStandalone;
   }
   function _refreshInstallUI(){
     const show=isAdminLoggedIn && _installable();
@@ -5483,7 +5485,8 @@ window.addEventListener('afterprint',function(){
     } else if(isIOS){
       document.getElementById('modal-ios-install')?.classList.add('open');
     } else {
-      showToast('เบราว์เซอร์นี้ยังไม่รองรับการติดตั้งแอปโดยตรง','info');
+      // ยังไม่มี beforeinstallprompt ให้ใช้ตอนนี้ (Chrome อาจยังไม่ยิง event หรือเป็นเบราว์เซอร์ที่ไม่รองรับ) — แนะนำติดตั้งผ่านเมนู browser แทน
+      document.getElementById('modal-generic-install')?.classList.add('open');
     }
   };
   window.pwaApplyUpdate=function(){

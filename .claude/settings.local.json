@@ -67,7 +67,8 @@
       "Read(//d/tmp/**)",
       "Bash(pkill -f staticsrv.js)",
       "Bash(rm -f /tmp/staticsrv.js /tmp/banner-check.png)",
-      "Bash(rm -f /tmp/staticsrv.js)"
+      "Bash(rm -f /tmp/staticsrv.js)",
+      "Bash(rm -f /tmp/staticsrv.js /tmp/reminder-check.png)"
     ],
     "additionalDirectories": [
       "d:\\ส่วนตัว\\พัฒนาโปรแกรม\\inv - bms_training\\quiz-system\\src",
