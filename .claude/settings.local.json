@@ -70,7 +70,10 @@
       "Bash(rm -f /tmp/staticsrv.js)",
       "Bash(rm -f /tmp/staticsrv.js /tmp/reminder-check.png)",
       "Bash(gh api *)",
-      "Bash(gh run *)"
+      "Bash(gh run *)",
+      "Bash(curl -s https://www.githubstatus.com/api/v2/components.json)",
+      "Bash(curl -s https://www.githubstatus.com/api/v2/incidents/unresolved.json)",
+      "Bash(timeout 90 bash -c ' *)"
     ],
     "additionalDirectories": [
       "d:\\ส่วนตัว\\พัฒนาโปรแกรม\\inv - bms_training\\quiz-system\\src",
