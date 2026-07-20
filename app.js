@@ -5410,9 +5410,14 @@ window.addEventListener('afterprint',function(){
 ══════════════════════════════════════════════ */
 (function initPWA(){
   // 1) manifest แบบ dynamic — ผูก start_url เข้ากับสาขาปัจจุบัน (?site=) เพื่อให้ไอคอนที่ติดตั้งเปิดสาขาที่ถูกต้อง
+  // หมายเหตุสำคัญ: manifest นี้ถูก serve ผ่าน blob: URL ซึ่ง "resolve" path แบบ relative ไม่ได้
+  // (browser จะ ignore start_url/scope/icons.src ทั้งหมดว่า URL is invalid) จึงต้องแปลงทุก URL ให้เป็น absolute ก่อน
+  const _baseHref=location.origin+location.pathname.replace(/[^/]*$/,'');
   fetch('manifest.json').then(r=>r.json()).then(m=>{
-    m.start_url=`./index.html?site=${encodeURIComponent(currentSite)}`;
+    m.start_url=`${_baseHref}index.html?site=${encodeURIComponent(currentSite)}`;
+    m.scope=_baseHref;
     m.id=m.start_url;
+    if(Array.isArray(m.icons))m.icons=m.icons.map(ic=>({...ic,src:_baseHref+ic.src}));
     const blob=new Blob([JSON.stringify(m)],{type:'application/json'});
     const link=document.getElementById('pwa-manifest-link');
     if(link)link.href=URL.createObjectURL(blob);
