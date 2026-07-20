@@ -68,7 +68,9 @@
       "Bash(pkill -f staticsrv.js)",
       "Bash(rm -f /tmp/staticsrv.js /tmp/banner-check.png)",
       "Bash(rm -f /tmp/staticsrv.js)",
-      "Bash(rm -f /tmp/staticsrv.js /tmp/reminder-check.png)"
+      "Bash(rm -f /tmp/staticsrv.js /tmp/reminder-check.png)",
+      "Bash(gh api *)",
+      "Bash(gh run *)"
     ],
     "additionalDirectories": [
       "d:\\ส่วนตัว\\พัฒนาโปรแกรม\\inv - bms_training\\quiz-system\\src",
