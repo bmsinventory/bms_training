@@ -412,6 +412,7 @@ async function adminLogin(){
     if(pendingPage==='admin')renderAdmin();
     if(pendingPage==='checkin')initCheckinPage();
     showToast(`ยินดีต้อนรับ ${data.name||data.username}`,'success');
+    window._pwaRefreshInstallUI?.();
   } else {
     const errEl=document.getElementById('login-error');
     document.getElementById('login-error-msg').textContent='ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
@@ -429,6 +430,7 @@ function adminLogout(){
   pendingPage='admin';
   showPage('register');
   showToast('ออกจากระบบแล้ว','info');
+  window._pwaRefreshInstallUI?.();
 }
 /* ══════════════════ DATA IMPORT ══════════════════ */
 const IMPORT_CFG={
@@ -5439,54 +5441,45 @@ window.addEventListener('afterprint',function(){
   }
 
   // 3) ปุ่มติดตั้งแอป — Android/Chrome ใช้ beforeinstallprompt, iOS ไม่มี event นี้จึงโชว์คำแนะนำแทน
+  // แสดงเฉพาะตอน Login เข้าระบบ (isAdminLoggedIn) เท่านั้น ยังไม่ Login จะไม่แสดง
   let _deferredInstallPrompt=null;
   const isStandalone=window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
   const installBtn=document.getElementById('pwa-install-btn');
   const installBanner=document.getElementById('pwa-install-banner');
 
-  const BANNER_DISMISS_KEY='bms_pwa_banner_dismiss_until';
-  function _bannerDismissed(){
-    const t=+localStorage.getItem(BANNER_DISMISS_KEY);
-    return t && Date.now()<t;
+  // หมายเหตุ: ไม่มีการจำการปิด (dismiss) แบบถาวร — ต้องเตือนซ้ำทุกครั้งที่ล็อกอินถ้ายังไม่ได้ติดตั้งแอป
+  function _installable(){
+    return !isStandalone && (_deferredInstallPrompt||isIOS);
   }
-  function _showInstallBanner(){
-    if(!isStandalone && !_bannerDismissed())installBanner?.classList.add('show');
-  }
-  function _hideInstallBanner(){
-    installBanner?.classList.remove('show');
+  function _refreshInstallUI(){
+    const show=isAdminLoggedIn && _installable();
+    if(installBtn)installBtn.style.display=show?'flex':'none';
+    installBanner?.classList.toggle('show',show);
   }
   window.pwaDismissBanner=function(){
-    _hideInstallBanner();
-    localStorage.setItem(BANNER_DISMISS_KEY, Date.now()+14*24*60*60*1000); // ปิดไว้ 14 วัน
+    installBanner?.classList.remove('show'); // ปิดชั่วคราว จะเตือนใหม่อีกครั้งเมื่อล็อกอินครั้งถัดไป
   };
+  window._pwaRefreshInstallUI=_refreshInstallUI;
 
   window.addEventListener('beforeinstallprompt',e=>{
     e.preventDefault();
     _deferredInstallPrompt=e;
-    if(!isStandalone && installBtn)installBtn.style.display='flex';
-    _showInstallBanner();
+    _refreshInstallUI();
   });
   window.addEventListener('appinstalled',()=>{
     _deferredInstallPrompt=null;
-    if(installBtn)installBtn.style.display='none';
-    _hideInstallBanner();
+    _refreshInstallUI();
     showToast('ติดตั้งแอปสำเร็จ','success');
   });
-  if(isIOS && !isStandalone){
-    if(installBtn)installBtn.style.display='flex';
-    _showInstallBanner();
-  }
+  _refreshInstallUI();
 
   window.pwaInstallClick=async function(){
     if(_deferredInstallPrompt){
       _deferredInstallPrompt.prompt();
       const{outcome}=await _deferredInstallPrompt.userChoice;
       _deferredInstallPrompt=null;
-      if(outcome==='accepted'){
-        if(installBtn)installBtn.style.display='none';
-        _hideInstallBanner();
-      }
+      if(outcome==='accepted')_refreshInstallUI();
     } else if(isIOS){
       document.getElementById('modal-ios-install')?.classList.add('open');
     } else {
