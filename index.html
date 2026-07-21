@@ -22,7 +22,7 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-<link rel="stylesheet" href="style.css?v=30">
+<link rel="stylesheet" href="style.css?v=36">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -429,7 +429,7 @@
       <div style="margin-bottom:12px;">
         <select class="form-control" id="admin-filter-cat" onchange="renderAdminSessions()" style="max-width:260px;"><option value="">ทุกประเภท</option></select>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>ประเภท</th><th>รอบอบรม</th><th>วันที่</th><th>เวลา</th><th>สถานที่</th><th>วิทยากร</th><th>ลง/ทั้งหมด</th><th>เข้าอบรม</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody id="admin-sess-tbody"></tbody></table></div>
+      <div class="table-wrap table-cards table-cards-compact"><table><thead><tr><th>ประเภท</th><th>รอบอบรม</th><th>วันที่</th><th>เวลา</th><th>สถานที่</th><th>วิทยากร</th><th>ลง/ทั้งหมด</th><th>เข้าอบรม</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody id="admin-sess-tbody"></tbody></table></div>
     </div>
   </div>
 
@@ -440,13 +440,13 @@
         <div class="card-title"><i class="ti ti-category"></i>จัดการประเภทอบรม</div>
         <button class="btn btn-primary btn-sm" onclick="openAddCat()"><i class="ti ti-plus"></i>เพิ่มประเภท</button>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>ประเภท</th><th>คำอธิบาย</th><th>รอบ</th><th>ผู้ลงทะเบียน</th><th>แบบทดสอบ</th><th>จัดการ</th></tr></thead><tbody id="admin-cat-tbody"></tbody></table></div>
+      <div class="table-wrap table-cards table-cards-compact"><table><thead><tr><th>ประเภท</th><th>คำอธิบาย</th><th>รอบ</th><th>ผู้ลงทะเบียน</th><th>แบบทดสอบ</th><th>จัดการ</th></tr></thead><tbody id="admin-cat-tbody"></tbody></table></div>
     </div>
   </div>
 
   <!-- Masters -->
   <div class="admin-section" id="asec-masters">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;flex-wrap:wrap;">
+    <div class="masters-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
       <!-- Trainers -->
       <div class="card" style="margin-bottom:0;">
         <div class="card-header"><div class="card-title"><i class="ti ti-user-check"></i>วิทยากร</div></div>
@@ -505,7 +505,7 @@
         <select class="form-control" id="admin-reg-filter-cat" style="width:180px;" onchange="onAdminCatChange()"><option value="">ทุกประเภท</option></select>
         <select class="form-control" id="admin-filter-sess" style="width:200px;" onchange="renderAdminRegs()"><option value="">ทุกรอบ</option></select>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>#</th><th>คำนำหน้า</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th>ประเภท</th><th>รอบ</th><th>วันที่ลง</th><th>สถานะ</th><th>QR</th><th>แก้ไข</th><th>ลบ</th></tr></thead><tbody id="admin-reg-tbody"></tbody></table></div>
+      <div class="table-wrap table-cards table-cards-compact"><table><thead><tr><th>#</th><th>คำนำหน้า</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th>ประเภท</th><th>รอบ</th><th>วันที่ลง</th><th>สถานะ</th><th>QR</th><th>แก้ไข</th><th>ลบ</th></tr></thead><tbody id="admin-reg-tbody"></tbody></table></div>
     </div>
   </div>
 
@@ -860,7 +860,7 @@
         </select>
         <button class="btn btn-primary" id="lv-save-btn" onclick="saveLoginVerifyAll()"><i class="ti ti-device-floppy"></i>บันทึกสถานะ</button>
       </div>
-      <div class="table-wrap">
+      <div class="table-wrap table-cards">
         <table>
           <thead>
             <tr>
@@ -915,7 +915,7 @@
         <input class="form-control" id="ke-search" placeholder="ค้นหาแผนก..." oninput="filterKeyEntry()" style="padding-left:32px;">
       </div>
 
-      <div class="table-wrap ke-table-wrap">
+      <div class="table-wrap ke-table-wrap table-cards">
         <table>
           <thead>
             <tr>
@@ -1593,6 +1593,6 @@
   </div>
 </div>
 
-<script src="app.js?v=32"></script>
+<script src="app.js?v=37"></script>
 </body>
 </html>

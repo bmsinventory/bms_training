@@ -796,7 +796,15 @@ function switchAdminTab(name){
   document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.admin-section').forEach(s=>s.classList.remove('active'));
   const btn=document.querySelector(`.admin-tab[data-tab="${name}"]`);
-  if(btn)btn.classList.add('active');
+  if(btn){
+    btn.classList.add('active');
+    // เลื่อนเฉพาะแถบแท็บ (#admin-tabs) เอง ห้ามใช้ scrollIntoView ตรงๆ เพราะมันไล่เลื่อน ancestor อื่นเช่น <body> ไปด้วย ทำให้หน้าเพี้ยน
+    const strip=document.getElementById('admin-tabs');
+    if(strip){
+      const target=btn.offsetLeft-(strip.clientWidth-btn.offsetWidth)/2;
+      strip.scrollTo({left:Math.max(0,target),behavior:'smooth'});
+    }
+  }
   document.getElementById('asec-'+name).classList.add('active');
   const toggleLbl=document.getElementById('admin-tabs-toggle-label');
   if(toggleLbl){const t=ADMIN_TABS.find(t=>t.id===name);if(t)toggleLbl.textContent=t.label;}
@@ -3050,20 +3058,20 @@ function renderAdminCats(){
     const cs=sessions.filter(s=>s.catId===c.id);
     const cr=cs.reduce((a,s)=>a+getCount(s.id),0);
     return`<tr>
-      <td><div style="display:flex;align-items:center;gap:8px;">
+      <td class="tc-title" data-label="ประเภท"><div style="display:flex;align-items:center;gap:8px;">
         <div style="width:28px;height:28px;border-radius:6px;background:${cm.bg};color:${cm.c};display:flex;align-items:center;justify-content:center;font-size:14px;"><i class="ti ti-${c.icon}"></i></div>
         <span style="font-weight:600;">${c.name}</span>
       </div></td>
-      <td style="font-size:12px;color:var(--text-muted);">${c.desc}</td>
-      <td><span class="badge badge-blue">${cs.length} รอบ</span></td>
-      <td><span class="badge badge-success">${cr} คน</span></td>
-      <td>
+      <td class="tc-full" data-label="คำอธิบาย" style="font-size:12px;color:var(--text-muted);">${c.desc}</td>
+      <td data-label="รอบ"><span class="badge badge-blue">${cs.length} รอบ</span></td>
+      <td data-label="ผู้ลงทะเบียน"><span class="badge badge-success">${cr} คน</span></td>
+      <td data-label="แบบทดสอบ">
         ${_quizCatIds.has(c.id)
           ?`<a href="${QUIZ_BASE_URL}/#/category/${c.id}" target="_blank" class="btn btn-sm" style="background:#ecfdf5;color:#065f46;border:1px solid #10b981;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="เปิดแบบทดสอบ"><i class="ti ti-pencil-check"></i>แบบทดสอบ</a>`
           :`<a href="${QUIZ_BASE_URL}/#/admin/courses" target="_blank" class="btn btn-ghost btn-sm" style="color:var(--text-muted);text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="ยังไม่มีแบบทดสอบ — คลิกเพื่อสร้าง"><i class="ti ti-circle-plus"></i>สร้างแบบทดสอบ</a>`
         }
       </td>
-      <td><div style="display:flex;gap:4px;">
+      <td data-label="จัดการ"><div style="display:flex;gap:4px;">
         <button class="btn btn-ghost btn-sm" onclick="openEditCat(${c.id})" title="แก้ไข"><i class="ti ti-edit"></i></button>
         <button class="btn btn-danger btn-sm" onclick="deleteCat(${c.id})" title="ลบ"><i class="ti ti-trash"></i></button>
       </div></td>
@@ -3076,16 +3084,16 @@ function renderAdminSessions(){
   document.getElementById('admin-sess-tbody').innerHTML=list.map(s=>{
     const cnt=getCount(s.id),att=getAttCount(s.id),pct=Math.round(cnt/s.capacity*100),cat=getCat(s.catId);
     return`<tr>
-      <td><span class="badge badge-gray" style="font-size:11px;">${cat?cat.name:'-'}</span></td>
-      <td style="font-weight:600;font-size:13px;">${s.name}</td>
-      <td style="font-size:12px;">${fmtDateShort(s.date)}</td>
-      <td style="font-size:12px;">${sessTxt(s)}</td>
-      <td style="font-size:12px;">${s.venue}</td>
-      <td style="font-size:12px;">${s.trainer}</td>
-      <td style="font-weight:600;">${cnt}/${s.capacity}</td>
-      <td><span class="badge badge-success">${att}</span></td>
-      <td>${capBadge(pct)}</td>
-      <td><div style="display:flex;gap:4px;">
+      <td class="tc-full" data-label="ประเภท"><span class="badge badge-gray" style="font-size:11px;">${cat?cat.name:'-'}</span></td>
+      <td class="tc-title" data-label="รอบอบรม" style="font-weight:600;font-size:13px;">${s.name}</td>
+      <td data-label="วันที่" style="font-size:12px;">${fmtDateShort(s.date)}</td>
+      <td data-label="เวลา" style="font-size:12px;">${sessTxt(s)}</td>
+      <td class="tc-full" data-label="สถานที่" style="font-size:12px;">${s.venue}</td>
+      <td class="tc-full" data-label="วิทยากร" style="font-size:12px;">${s.trainer}</td>
+      <td data-label="ลง/ทั้งหมด" style="font-weight:600;">${cnt}/${s.capacity}</td>
+      <td data-label="เข้าอบรม"><span class="badge badge-success">${att}</span></td>
+      <td data-label="สถานะ">${capBadge(pct)}</td>
+      <td data-label="จัดการ"><div style="display:flex;gap:4px;">
         <button class="btn btn-ghost btn-sm" onclick="openEditSession(${s.id})" title="แก้ไข"><i class="ti ti-edit"></i></button>
         <button class="btn btn-ghost btn-sm" onclick="goToAttendance(${s.id})" title="เช็คชื่อ"><i class="ti ti-user-check"></i></button>
         <button class="btn btn-danger btn-sm" onclick="deleteSess(${s.id})"><i class="ti ti-trash"></i></button>
@@ -3902,7 +3910,7 @@ function renderAdminPermissions(){
   }).join('');
 
   el.innerHTML=`
-    <div class="table-wrap" style="margin-bottom:16px;overflow-x:auto;">
+    <div class="table-wrap table-wrap-matrix" style="margin-bottom:16px;overflow-x:auto;">
       <table><thead>${grpHeader}<tr>${tabCols}${actCols}</tr></thead><tbody>${rows}</tbody></table>
     </div>
     <div style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;">
@@ -3970,12 +3978,12 @@ function renderAdminSettings(){
     const isCurrent=loc.code===currentSite;
     const token=siteNotifyTokens[loc.code]||'';
     return`<tr${isCurrent?' style="background:var(--bg-subtle);"':''}>
-      <td style="font-weight:600;white-space:nowrap;">
+      <td class="tc-title" data-label="สาขา" style="font-weight:600;white-space:nowrap;">
         ${loc.name}
         <div style="font-size:11px;color:var(--text-muted);">@${loc.code}</div>
         ${isCurrent?'<span style="font-size:10px;background:#dcfce7;color:#166534;padding:1px 7px;border-radius:10px;font-weight:600;">สาขาปัจจุบัน</span>':''}
       </td>
-      <td>
+      <td data-label="Token แจ้งเตือน">
         <div style="display:flex;gap:6px;align-items:center;">
           <input class="form-control" id="notify-token-${loc.code}"
             value="${token.replace(/"/g,'&quot;')}"
@@ -3995,7 +4003,7 @@ function renderAdminSettings(){
       กำหนด Token สำหรับระบบแจ้งเตือนการลงทะเบียนแต่ละสาขา
       (<a href="https://api-notify.bmscloud.in.th" target="_blank" style="color:var(--primary);">api-notify.bmscloud.in.th</a>)
     </div>
-    <div class="table-wrap" style="margin-bottom:16px;">
+    <div class="table-wrap table-cards" style="margin-bottom:16px;">
       <table>
         <thead><tr><th style="white-space:nowrap;">สาขา</th><th>Token แจ้งเตือน</th></tr></thead>
         <tbody>${rows||'<tr><td colspan="2" style="text-align:center;color:var(--text-muted);">ยังไม่มีสาขา</td></tr>'}</tbody>
@@ -4091,20 +4099,20 @@ function renderLoginVerify(){
     const notes=_lvGetVal(p.fname,p.lname,p.dept,'notes','');
     const opts=_LV_STATUS.map(s=>`<option value="${s.value}"${status===s.value?' selected':''}>${s.label}</option>`).join('');
     return`<tr data-lv-row="${ek}">
-      <td style="color:var(--text-muted);">${i+1}</td>
-      <td style="font-weight:600;">${p.fname} ${p.lname}</td>
-      <td>
+      <td class="tc-hide" data-label="#" style="color:var(--text-muted);">${i+1}</td>
+      <td class="tc-title" data-label="ชื่อ-นามสกุล" style="font-weight:600;">${p.fname} ${p.lname}</td>
+      <td data-label="ตำแหน่ง/หน่วยงาน">
         <div style="font-size:13px;">${p.position||'-'}</div>
         <div style="font-size:11px;color:var(--text-muted);">${p.dept}</div>
       </td>
-      <td>
+      <td data-label="สถานะ Login">
         <select class="form-control" data-lv-key="${ek}" data-lv-field="status"
           onchange="_lvOnChange(decodeURIComponent(this.dataset.lvKey),'login_status',this.value);_applyLvSelColor(this)"
           style="height:34px;font-size:13px;">
           ${opts}
         </select>
       </td>
-      <td>
+      <td data-label="หมายเหตุ">
         <input class="form-control" data-lv-key="${ek}" data-lv-field="notes"
           value="${(notes+'').replace(/"/g,'&quot;')}"
           placeholder="ระบุหมายเหตุ..."
@@ -4197,7 +4205,7 @@ function renderKeyEntry(){
     const isKeyed=r.status==='keyed';
     const dt=r.keyed_at?new Date(r.keyed_at).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'}):'-';
     return`<tr>
-      <td data-label="แผนก" style="font-weight:600;">${r.dept}</td>
+      <td class="tc-title" data-label="แผนก" style="font-weight:600;">${r.dept}</td>
       <td data-label="สถานะ">
         <select class="form-control ke-select" data-ke-dept="${ek}"
           onchange="_keOnStatusChange(decodeURIComponent(this.dataset.keDept),this.value)"
@@ -4390,18 +4398,18 @@ function renderAdminRegs(){
   tbody.innerHTML=regs.map((r,i)=>{
     const s=getSess(r.sessionId),cat=s?getCat(s.catId):null;
     return`<tr>
-      <td style="color:var(--text-muted);">${i+1}</td>
-      <td style="font-size:12px;">${r.prefix||'-'}</td>
-      <td style="font-weight:600;">${r.fname} ${r.lname}</td>
-      <td><span class="badge badge-blue">${r.position||'-'}</span></td>
-      <td style="font-size:12px;">${r.dept}</td>
-      <td style="font-size:12px;">${cat?cat.name:'-'}</td>
-      <td style="font-size:12px;">${s?s.name:'-'}</td>
-      <td style="font-size:12px;color:var(--text-muted);">${fmtDateShort(r.regDate)}</td>
-      <td>${r.attended?`<span class="badge badge-success"><i class="ti ti-check"></i>${r.attendedTime}</span>`:'<span class="badge badge-gray">ยังไม่เช็ค</span>'}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="showQR(${r.id})"><i class="ti ti-qrcode"></i></button></td>
-      <td><button class="btn btn-ghost btn-sm" onclick="adminOpenEditReg(${r.id})" title="แก้ไข"><i class="ti ti-edit"></i></button></td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteReg(${r.id})"><i class="ti ti-trash"></i></button></td>
+      <td class="tc-hide" data-label="#" style="color:var(--text-muted);">${i+1}</td>
+      <td class="tc-full" data-label="คำนำหน้า" style="font-size:12px;">${r.prefix||'-'}</td>
+      <td class="tc-title" data-label="ชื่อ-นามสกุล" style="font-weight:600;">${r.fname} ${r.lname}</td>
+      <td class="tc-full" data-label="ตำแหน่ง"><span class="badge badge-blue">${r.position||'-'}</span></td>
+      <td class="tc-full" data-label="แผนก" style="font-size:12px;">${r.dept}</td>
+      <td class="tc-full" data-label="ประเภท" style="font-size:12px;">${cat?cat.name:'-'}</td>
+      <td data-label="รอบ" style="font-size:12px;">${s?s.name:'-'}</td>
+      <td data-label="วันที่ลง" style="font-size:12px;color:var(--text-muted);">${fmtDateShort(r.regDate)}</td>
+      <td data-label="สถานะ">${r.attended?`<span class="badge badge-success"><i class="ti ti-check"></i>${r.attendedTime}</span>`:'<span class="badge badge-gray">ยังไม่เช็ค</span>'}</td>
+      <td data-label="QR"><button class="btn btn-ghost btn-sm" onclick="showQR(${r.id})"><i class="ti ti-qrcode"></i></button></td>
+      <td data-label="แก้ไข"><button class="btn btn-ghost btn-sm" onclick="adminOpenEditReg(${r.id})" title="แก้ไข"><i class="ti ti-edit"></i></button></td>
+      <td data-label="ลบ"><button class="btn btn-danger btn-sm" onclick="deleteReg(${r.id})"><i class="ti ti-trash"></i></button></td>
     </tr>`;
   }).join('');
 }

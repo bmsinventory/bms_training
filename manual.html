@@ -212,6 +212,7 @@
   <a href="#overview" class="nav-link"><span class="icon">📋</span>ภาพรวมระบบ</a>
   <a href="#user-roles" class="nav-link"><span class="icon">👥</span>ประเภทผู้ใช้งาน</a>
   <a href="#url-param" class="nav-link"><span class="icon">🔗</span>การเข้าใช้งานตามสาขา</a>
+  <a href="#pwa-install" class="nav-link"><span class="icon">📲</span>ติดตั้งเป็นแอป (PWA)</a>
 
   <div class="nav-section">ผู้ใช้งานทั่วไป</div>
   <a href="#register" class="nav-link"><span class="icon">📝</span>ลงทะเบียนอบรม</a>
@@ -225,10 +226,12 @@
   <a href="#admin-categories" class="nav-link"><span class="icon">🗂️</span>จัดการประเภทอบรม</a>
   <a href="#admin-masters" class="nav-link"><span class="icon">📌</span>ข้อมูลพื้นฐาน</a>
   <a href="#admin-regs" class="nav-link"><span class="icon">👤</span>ผู้ลงทะเบียน</a>
+  <a href="#admin-keyentry" class="nav-link"><span class="icon">🗄️</span>ตรวจสอบคีย์ยอด</a>
   <a href="#admin-locations" class="nav-link"><span class="icon">📍</span>จัดการสาขา</a>
   <a href="#admin-users" class="nav-link"><span class="icon">🛡️</span>จัดการผู้ใช้งาน Admin</a>
   <a href="#admin-loginverify" class="nav-link"><span class="icon">✅</span>ตรวจสอบสิทธิ์</a>
   <a href="#admin-survey" class="nav-link"><span class="icon">📈</span>Dashboard ผลประเมิน</a>
+  <a href="#admin-analytics" class="nav-link"><span class="icon">📊</span>Analytics และแจ้งเตือนไลน์</a>
   <a href="#admin-quiz" class="nav-link"><span class="icon">🧩</span>ระบบแบบทดสอบ</a>
   <a href="#admin-print" class="nav-link"><span class="icon">🖨️</span>พิมพ์เอกสาร</a>
 </nav>
@@ -246,6 +249,7 @@
       <span class="hero-badge">✏️ แบบทดสอบออนไลน์</span>
       <span class="hero-badge">📊 ผลประเมินความพึงพอใจ</span>
       <span class="hero-badge">🖨️ พิมพ์เอกสาร</span>
+      <span class="hero-badge">📲 ติดตั้งเป็นแอป (PWA)</span>
     </div>
   </div>
 
@@ -319,6 +323,36 @@
     </div>
 
     <p>เมื่อกำหนด <code>?site=</code> ระบบจะกรองแสดงเฉพาะหลักสูตร รอบอบรม และผู้ลงทะเบียนของสาขานั้นโดยอัตโนมัติ รวมถึงดึงชื่อสถานพยาบาลมากรอกในเอกสารอัตโนมัติ</p>
+  </section>
+
+  <!-- ═══ PWA INSTALL ═══ -->
+  <section id="pwa-install">
+    <h2>📲 ติดตั้งเป็นแอป (PWA)</h2>
+    <p>ระบบรองรับการติดตั้งลงหน้าจอโฮมของมือถือ/แท็บเล็ต เหมือนแอปทั่วไป เปิดใช้งานได้เร็วขึ้นและใช้งานได้บางส่วนแม้ไม่มีอินเทอร์เน็ต</p>
+
+    <div class="callout info">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body">
+        <div class="callout-title">เงื่อนไขการแสดงปุ่มติดตั้ง</div>
+        ปุ่ม/แบนเนอร์ "ติดตั้งแอป" จะปรากฏ <strong>เฉพาะหลัง Login เข้าระบบ Admin แล้วเท่านั้น</strong> และจะเตือนซ้ำทุกครั้งที่ Login หากเครื่องนั้นยังไม่เคยติดตั้ง
+      </div>
+    </div>
+
+    <h3>วิธีติดตั้ง</h3>
+    <table class="tbl">
+      <thead><tr><th>อุปกรณ์</th><th>วิธีติดตั้ง</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Android (Chrome)</strong></td><td>กดปุ่ม "ติดตั้งแอป" มุมขวาบน หรือแบนเนอร์ด้านล่างจอ → กดยืนยันในป๊อปอัพของเบราว์เซอร์</td></tr>
+        <tr><td><strong>iOS (Safari)</strong></td><td>กดปุ่ม "ติดตั้งแอป" → ทำตามคำแนะนำ: แตะปุ่ม <strong>แชร์ (Share)</strong> แถบด้านล่าง → เลือก <strong>"เพิ่มไปยังหน้าจอโฮม"</strong></td></tr>
+        <tr><td><strong>Desktop / อื่นๆ</strong></td><td>กดปุ่ม "ติดตั้งแอป" → ทำตามคำแนะนำแตะเมนู ⋮ ของเบราว์เซอร์ → เลือก "ติดตั้งแอป"</td></tr>
+      </tbody>
+    </table>
+
+    <h3>การใช้งานออฟไลน์และอัปเดต</h3>
+    <ul>
+      <li>หากอินเทอร์เน็ตหลุด ระบบจะแสดงแถบแจ้งเตือน <strong>"ออฟไลน์"</strong> ด้านบน และซิงค์ข้อมูลอัตโนมัติทันทีที่กลับมาออนไลน์</li>
+      <li>เมื่อระบบมีเวอร์ชันใหม่ จะมีแถบแจ้งเตือน <strong>"มีเวอร์ชันใหม่ของระบบ"</strong> ให้กด "อัปเดตเลย" เพื่อโหลดเวอร์ชันล่าสุด</li>
+    </ul>
   </section>
 
   <hr class="divider">
@@ -490,7 +524,7 @@
         <div class="step-num">2</div>
         <div class="step-body">
           <div class="step-title">กรอก Username และ Password</div>
-          <div class="step-desc">ใช้ account ที่ผู้ดูแลระบบสร้างให้</div>
+          <div class="step-desc">ใช้ account ที่ผู้ดูแลระบบสร้างให้ — ติ๊ก <strong>"จดจำการเข้าสู่ระบบ"</strong> เพื่อให้เบราว์เซอร์นี้จำ Username/Password ไว้ ไม่ต้องกรอกใหม่ครั้งหน้า</div>
         </div>
       </div>
       <div class="step">
@@ -505,7 +539,7 @@
       <span class="callout-icon">⚠️</span>
       <div class="callout-body">
         <div class="callout-title">ออกจากระบบ</div>
-        กดปุ่ม <strong>"ออกจากระบบ"</strong> ทุกครั้งหลังใช้งานเสร็จ โดยเฉพาะบนคอมพิวเตอร์สาธารณะ
+        กดปุ่ม <strong>"ออกจากระบบ"</strong> ทุกครั้งหลังใช้งานเสร็จ โดยเฉพาะบนคอมพิวเตอร์สาธารณะ (หากติ๊ก "จดจำการเข้าสู่ระบบ" ไว้ ควรระวังเป็นพิเศษบนเครื่องที่ใช้ร่วมกับผู้อื่น)
       </div>
     </div>
   </section>
@@ -625,6 +659,25 @@
     </div>
   </section>
 
+  <!-- ═══ ADMIN KEY ENTRY ═══ -->
+  <section id="admin-keyentry">
+    <h2>🗄️ ตรวจสอบคีย์ยอดตั้งต้น</h2>
+    <p>แท็บ <strong>ตรวจสอบคีย์ยอด</strong> — ติดตามความคืบหน้าการคีย์ยอดสต๊อกตั้งต้นในระบบ BMS-INVENTORY แยกรายแผนกของสาขาที่ Login อยู่</p>
+
+    <h3>สรุปความคืบหน้า</h3>
+    <p>การ์ดสถิติด้านบนแสดง <strong>แผนกทั้งหมด</strong>, <strong>คีย์ยอดแล้ว</strong>, <strong>ยังไม่คีย์</strong> และ <strong>% ความคืบหน้า</strong> พร้อมแถบความคืบหน้า (Progress bar)</p>
+
+    <h3>อัปเดตสถานะแผนก</h3>
+    <p>ในตาราง ปรับ Dropdown สถานะของแต่ละแผนกเป็น <strong>"คีย์ยอดแล้ว"</strong> หรือ <strong>"ยังไม่คีย์"</strong> — ระบบจะบันทึกวันที่/เวลาให้อัตโนมัติ หากแผนกใดมีเหตุผลที่ยังไม่คีย์ (เช่น ปิดหน่วยงานชั่วคราว) สามารถกรอกในช่อง <strong>"สาเหตุที่ยังไม่คีย์"</strong> ได้</p>
+
+    <h3>ค้นหาและสรุปเป็นภาพ</h3>
+    <ul>
+      <li>ใช้ช่องค้นหาด้านบนเพื่อกรองรายชื่อแผนก</li>
+      <li>กด <strong>"รีโหลด"</strong> เพื่อดึงข้อมูลล่าสุด</li>
+      <li>กด <strong>"สรุปเป็นภาพ"</strong> เพื่อบันทึกสรุปความคืบหน้าเป็นรูปภาพ ส่งต่อให้ทีมงานได้สะดวก</li>
+    </ul>
+  </section>
+
   <!-- ═══ ADMIN LOCATIONS ═══ -->
   <section id="admin-locations">
     <h2>📍 จัดการสาขา</h2>
@@ -726,6 +779,26 @@
     </ul>
   </section>
 
+  <!-- ═══ ADMIN ANALYTICS ═══ -->
+  <section id="admin-analytics">
+    <h2>📊 Analytics และแจ้งเตือนไลน์</h2>
+    <p>แท็บ <strong>Analytics</strong> — ภาพรวมสถิติการลงทะเบียนและการเข้าร่วมอบรมของสาขาปัจจุบัน</p>
+
+    <ul>
+      <li>กราฟสรุปจำนวนลงทะเบียน / เข้าร่วมจริง แยกตามประเภทและรอบอบรม</li>
+      <li>อัตราการเข้าร่วมแต่ละรอบ</li>
+      <li>สถานะการลงทะเบียนตามหน่วยงาน — แสดงว่าหน่วยงาน/แผนกใดยังไม่มีผู้ลงทะเบียนเลย</li>
+    </ul>
+
+    <div class="callout success">
+      <span class="callout-icon"><i class="ti ti-brand-line"></i></span>
+      <div class="callout-body">
+        <div class="callout-title">Copy ข้อมูลส่งไลน์</div>
+        กดปุ่ม <strong>"Copy ข้อมูลส่งไลน์"</strong> ที่การ์ด "สถานะการลงทะเบียนตามหน่วยงาน" ระบบจะคัดลอกข้อความสรุป (จำนวนหน่วยงานที่ลงทะเบียนแล้ว/ยังไม่ลงทะเบียน พร้อมลิงก์ลงทะเบียน) ไว้ในคลิปบอร์ด นำไปวางส่งในไลน์กลุ่มได้ทันที
+      </div>
+    </div>
+  </section>
+
   <!-- ═══ ADMIN QUIZ ═══ -->
   <section id="admin-quiz">
     <h2>🧩 ระบบแบบทดสอบ (Admin)</h2>
@@ -786,7 +859,7 @@
       <tbody>
         <tr><td>สถานพยาบาล</td><td>เลือกสาขา — ชื่อจะถูกดึงอัตโนมัติ</td></tr>
         <tr><td>วันที่</td><td>วันที่ในเอกสาร</td></tr>
-        <tr><td>จำนวนแถว</td><td>5–100 แถว (แต่ละแถวคือ 1 ช่องเซ็นชื่อ)</td></tr>
+        <tr><td>จำนวนแถว</td><td>เลือกจากตัวเลือก 25 / 50 / 75 / 100 แถว (แต่ละแถวคือ 1 ช่องเซ็นชื่อ)</td></tr>
         <tr><td>แสดงช่องเจ้าหน้าที่</td><td>เพิ่มคอลัมน์ชื่อเจ้าหน้าที่ BMS</td></tr>
       </tbody>
     </table>
@@ -811,6 +884,7 @@
 
     <h3>พิมพ์แบบฟอร์มจาก Tab ผู้ลงทะเบียน</h3>
     <p>ใน Tab <strong>ผู้ลงทะเบียน</strong> → กดปุ่ม <strong>"พิมพ์แบบฟอร์ม"</strong> → กรอกข้อมูลในหน้าต่างที่เปิดขึ้น ชื่อสถานพยาบาลจะถูกดึงจากสาขาปัจจุบันอัตโนมัติ</p>
+    <p>สามารถกด <strong>"จำค่าเริ่มต้นผู้ลงนาม"</strong> เพื่อบันทึกชื่อ/ตำแหน่งผู้ลงนามฝั่ง BMS และฝั่งโรงพยาบาลไว้ใช้ครั้งถัดไป โดยจำแยกเป็นรายสาขา</p>
   </section>
 
   <hr class="divider">
@@ -848,7 +922,7 @@
   <hr class="divider">
   <div style="text-align:center;color:var(--gray-400);font-size:12px;padding-bottom:40px;">
     คู่มือการใช้งาน BMS Training &nbsp;·&nbsp; Bangkok Medical Software Co., Ltd.<br>
-    อัปเดตล่าสุด: พฤษภาคม 2568
+    อัปเดตล่าสุด: กรกฎาคม 2569
   </div>
 
 </main>
